@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Error - YouTube Transcript Viewer{% endblock %}
+
+{% block content %}
+    <div class="error">
+        <h2>❌ Error</h2>
+        <p>{{ error_message }}</p>
+    </div>
+    
+    <div class="search-form">
+        <form action="/watch" method="get">
+            <input type="text" name="v" placeholder="Try another video ID or URL">
+            <button type="submit">Get Transcript</button>
+        </form>
+    </div>
+    
+    <div style="background: #fff3cd; padding: 15px; border-radius: 5px; border-left: 4px solid #ffc107; margin-top: 20px;">
+        <h3>💡 Common issues:</h3>
+        <ul>
+            <li><strong>No transcript available:</strong> Some videos don't have transcripts</li>
+            <li><strong>Private/restricted videos:</strong> Cannot access transcripts for private videos</li>
+            <li><strong>IP blocked:</strong> YouTube may block requests from certain IPs</li>
+            <li><strong>Invalid video ID:</strong> Make sure the video ID is correct (11 characters)</li>
+        </ul>
+    </div>
+    
+    <div style="text-align: center; margin-top: 20px;">
+        <a href="/" style="color: #ff0000; text-decoration: none; font-weight: bold;">← Back to Home</a>
+    </div>
+{% endblock %}

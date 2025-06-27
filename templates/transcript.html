@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Transcript - {{ video_id }} - YouTube Transcript Viewer{% endblock %}
+
+{% block content %}
+    <div class="video-info">
+        <h2>📺 Video ID: {{ video_id }}</h2>
+        <p><strong>YouTube URL:</strong> <a href="https://www.youtube.com/watch?v={{ video_id }}" target="_blank">https://www.youtube.com/watch?v={{ video_id }}</a></p>
+    </div>
+    
+    <div class="proxy-info">
+        <strong>🌐 Proxy used:</strong> {{ proxy_used }}
+    </div>
+    
+    <div class="search-form">
+        <form action="/watch" method="get">
+            <input type="text" name="v" placeholder="Enter another video ID or URL" value="">
+            <button type="submit">Get Transcript</button>
+        </form>
+    </div>
+    
+    <h3>📝 Transcript ({{ transcript|length }} entries):</h3>
+    
+    <div class="transcript-container">
+        {% for entry in transcript %}
+            <div class="transcript-entry">
+                <div class="timestamp">[{{ entry.formatted_time }}] ({{ "%.2f"|format(entry.time) }}s)</div>
+                <div class="text">{{ entry.text }}</div>
+            </div>
+        {% endfor %}
+    </div>
+    
+    <div style="text-align: center; margin-top: 20px;">
+        <a href="/" style="color: #ff0000; text-decoration: none; font-weight: bold;">← Back to Home</a>
+    </div>
+{% endblock %}

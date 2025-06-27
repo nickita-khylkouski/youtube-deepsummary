@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="search-form">
+        <form action="/watch" method="get">
+            <input type="text" name="v" placeholder="Enter YouTube video ID or URL (e.g., FjHtZnjNEBU)" required>
+            <button type="submit">Get Transcript</button>
+        </form>
+    </div>
+    
+    <div style="background: #fff3cd; padding: 15px; border-radius: 5px; border-left: 4px solid #ffc107;">
+        <h3>📝 How to use:</h3>
+        <ul>
+            <li><strong>Video ID:</strong> FjHtZnjNEBU</li>
+            <li><strong>Full URL:</strong> https://www.youtube.com/watch?v=FjHtZnjNEBU</li>
+            <li><strong>Short URL:</strong> https://youtu.be/FjHtZnjNEBU</li>
+        </ul>
+        <p><strong>Example:</strong> <a href="/watch?v=FjHtZnjNEBU">/watch?v=FjHtZnjNEBU</a></p>
+    </div>
+    
+    <div style="background: #d1ecf1; padding: 15px; border-radius: 5px; border-left: 4px solid #bee5eb; margin-top: 20px;">
+        <h3>🔧 API Endpoint:</h3>
+        <p>For JSON response: <code>/api/transcript/VIDEO_ID</code></p>
+        <p><strong>Example:</strong> <a href="/api/transcript/FjHtZnjNEBU">/api/transcript/FjHtZnjNEBU</a></p>
+    </div>
+{% endblock %}
