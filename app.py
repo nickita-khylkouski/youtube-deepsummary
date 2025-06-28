@@ -103,7 +103,11 @@ def watch():
         proxy_used = os.getenv('YOUTUBE_PROXY', 'None')
         
         # Extract video chapters for enhanced formatting
+        print(f"Extracting chapters for video: {video_id}")
         chapters = extract_video_chapters(video_id)
+        print(f"Chapters extracted: {chapters}")
+        if chapters:
+            print(f"Found {len(chapters)} chapters")
         
         # Format transcript for improved readability
         formatted_transcript_text = format_transcript_for_readability(transcript, chapters)

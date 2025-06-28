@@ -306,7 +306,9 @@ def extract_video_chapters(video_id: str) -> Optional[List[Dict]]:
         
     except (ImportError, Exception) as e:
         # Silently fail if yt-dlp is not available or chapter extraction fails
-        print(f"Chapter extraction failed: {e}")
+        print(f"Chapter extraction failed for video {video_id}: {e}")
+        import traceback
+        traceback.print_exc()
         pass
     
     return None
