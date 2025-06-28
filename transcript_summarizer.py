@@ -19,7 +19,12 @@ class TranscriptSummarizer:
     def __init__(self):
         """Initialize the summarizer with OpenAI client and configuration"""
         api_key = os.getenv('OPENAI_API_KEY')
-        self.client = OpenAI(api_key=api_key) if api_key else None
+        self.client = None
+        if api_key:
+            try:
+                self.client = OpenAI(api_key=api_key)
+            except Exception as e:
+                print(f"Warning: Failed to initialize OpenAI client: {e}")
         self.model = os.getenv('OPENAI_MODEL', 'gpt-3.5-turbo')
         self.max_tokens = int(os.getenv('OPENAI_MAX_TOKENS', '2000'))
         self.temperature = float(os.getenv('OPENAI_TEMPERATURE', '0.7'))

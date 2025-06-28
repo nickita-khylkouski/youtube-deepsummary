@@ -12,7 +12,14 @@ import re
 from transcript_summarizer import TranscriptSummarizer
 
 app = Flask(__name__)
-summarizer = TranscriptSummarizer()
+
+# Initialize summarizer with error handling
+try:
+    summarizer = TranscriptSummarizer()
+    print(f"Summarizer initialized. OpenAI configured: {summarizer.is_configured()}")
+except Exception as e:
+    print(f"Warning: Failed to initialize summarizer: {e}")
+    summarizer = None
 
 def extract_video_id(url_or_id):
     """Extract video ID from YouTube URL or return if already an ID"""
@@ -44,8 +51,13 @@ def get_transcript(video_id):
                 'http': f'http://{proxy}',
                 'https': f'http://{proxy}'
             }
+            print(f"Using proxy: {proxy}")
+        else:
+            print("No proxy configured")
         
+        print(f"Fetching transcript for video ID: {video_id}")
         transcript_list = YouTubeTranscriptApi.get_transcript(video_id, proxies=proxies)
+        print(f"Successfully fetched {len(transcript_list)} transcript entries")
         
         formatted_transcript = []
         for entry in transcript_list:
@@ -58,6 +70,7 @@ def get_transcript(video_id):
         return formatted_transcript
         
     except Exception as e:
+        print(f"Error in get_transcript: {str(e)}")
         raise Exception(f"Error downloading transcript: {str(e)}")
 
 @app.route('/')
@@ -88,12 +101,12 @@ def watch():
         summary = None
         summary_error = None
         
-        if summarize and summarizer.is_configured():
+        if summarize and summarizer and summarizer.is_configured():
             try:
                 summary = summarizer.summarize_transcript(transcript)
             except Exception as e:
                 summary_error = f"Failed to generate summary: {str(e)}"
-        elif summarize and not summarizer.is_configured():
+        elif summarize and (not summarizer or not summarizer.is_configured()):
             summary_error = "OpenAI API key not configured. Set OPENAI_API_KEY environment variable."
         
         return render_template('transcript.html', 
@@ -102,7 +115,7 @@ def watch():
                              proxy_used=proxy_used,
                              summary=summary,
                              summary_error=summary_error,
-                             summarize_enabled=summarizer.is_configured())
+                             summarize_enabled=summarizer and summarizer.is_configured())
         
     except Exception as e:
         return render_template('error.html', 
@@ -129,7 +142,7 @@ def api_transcript(video_id):
 def api_summary(video_id):
     """API endpoint to get transcript summary as JSON"""
     try:
-        if not summarizer.is_configured():
+        if not summarizer or not summarizer.is_configured():
             return jsonify({
                 'success': False,
                 'error': 'OpenAI API key not configured'
