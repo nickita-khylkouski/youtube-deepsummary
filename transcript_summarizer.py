@@ -286,6 +286,7 @@ def extract_video_chapters(video_id: str) -> Optional[List[Dict]]:
     """
     try:
         import yt_dlp
+        print(f"yt_dlp imported successfully for video {video_id}")
         
         # Configure yt-dlp options
         ydl_opts = {
