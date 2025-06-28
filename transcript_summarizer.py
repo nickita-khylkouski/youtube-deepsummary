@@ -18,30 +18,47 @@ class TranscriptSummarizer:
     
     def __init__(self):
         """Initialize the summarizer with OpenAI client and configuration"""
-        api_key = os.getenv('OPENAI_API_KEY')
+        self.api_key = os.getenv('OPENAI_API_KEY')
         self.client = None
-        if api_key:
-            original_env = {}
-            try:
-                # Temporarily remove proxy environment variables that might interfere
-                proxy_env_vars = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']
-                for var in proxy_env_vars:
-                    if var in os.environ:
-                        original_env[var] = os.environ[var]
-                        del os.environ[var]
-                
-                # Initialize OpenAI client
-                self.client = OpenAI(api_key=api_key)
-                
-            except Exception as e:
-                print(f"Warning: Failed to initialize OpenAI client: {e}")
-            finally:
-                # Always restore proxy environment variables
-                for var, value in original_env.items():
-                    os.environ[var] = value
         self.model = os.getenv('OPENAI_MODEL', 'gpt-3.5-turbo')
         self.max_tokens = int(os.getenv('OPENAI_MAX_TOKENS', '2000'))
         self.temperature = float(os.getenv('OPENAI_TEMPERATURE', '0.7'))
+        
+        # Initialize client lazily to avoid proxy conflicts during import
+        if self.api_key:
+            self._initialize_client()
+    
+    def _initialize_client(self):
+        """Initialize OpenAI client with proper error handling"""
+        if self.client is not None:
+            return
+        
+        try:
+            # Import fresh OpenAI module to avoid any cached proxy settings
+            import importlib
+            import openai
+            importlib.reload(openai)
+            from openai import OpenAI as FreshOpenAI
+            
+            # Create OpenAI client with explicit http_client to bypass proxy issues
+            import httpx
+            http_client = httpx.Client(proxies=None)  # Explicitly disable proxies
+            
+            self.client = FreshOpenAI(
+                api_key=self.api_key,
+                http_client=http_client
+            )
+            print("OpenAI client initialized successfully")
+        except Exception as e:
+            print(f"Warning: Failed to initialize OpenAI client with custom http_client: {e}")
+            # Fallback: try basic initialization
+            try:
+                from openai import OpenAI as BasicOpenAI
+                self.client = BasicOpenAI(api_key=self.api_key)
+                print("OpenAI client initialized with fallback method")
+            except Exception as e2:
+                print(f"Warning: Fallback OpenAI initialization also failed: {e2}")
+                self.client = None
     
     def format_text_for_readability(self, text: str) -> str:
         """Format text for better readability"""
@@ -129,8 +146,12 @@ Here is the transcript to summarize:
     
     def summarize_with_openai(self, transcript_content: str, chapters: Optional[List[Dict]] = None) -> str:
         """Generate summary using OpenAI's chat completion API"""
+        # Ensure client is initialized
         if not self.client:
-            raise Exception("OpenAI API key not configured")
+            self._initialize_client()
+        
+        if not self.client:
+            raise Exception("OpenAI API key not configured or client initialization failed")
             
         prompt = self.create_summary_prompt(transcript_content, chapters)
         
@@ -154,7 +175,7 @@ Here is the transcript to summarize:
     
     def is_configured(self) -> bool:
         """Check if OpenAI API key is configured"""
-        return self.client is not None
+        return bool(self.api_key)
 
 
 def format_transcript_for_display(transcript: List[Dict]) -> str:
