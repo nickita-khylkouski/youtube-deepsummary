@@ -20,8 +20,8 @@ class TranscriptSummarizer:
         """Initialize the summarizer with OpenAI client and configuration"""
         self.api_key = os.getenv('OPENAI_API_KEY')
         self.client = None
-        self.model = os.getenv('OPENAI_MODEL', 'gpt-3.5-turbo')
-        self.max_tokens = int(os.getenv('OPENAI_MAX_TOKENS', '2000'))
+        self.model = os.getenv('OPENAI_MODEL', 'gpt-4.1')
+        self.max_tokens = int(os.getenv('OPENAI_MAX_TOKENS', '100000'))
         self.temperature = float(os.getenv('OPENAI_TEMPERATURE', '0.7'))
         
         # Initialize client lazily to avoid proxy conflicts during import
@@ -119,7 +119,8 @@ Here is the transcript to summarize:
                                    for entry in transcript])
         
         # Check if transcript is too long and truncate if needed
-        max_chars = 12000  # Leave room for prompt overhead
+        # Based on error: context limit is 16,385 tokens, need to be conservative
+        max_chars = 40000  # Conservative limit to stay within 16k token context window
         if len(transcript_text) > max_chars:
             transcript_text = transcript_text[:max_chars] + "\n\n[Transcript truncated due to length...]"
         
@@ -137,15 +138,21 @@ Here is the transcript to summarize:
         prompt = self.create_summary_prompt(transcript_content, chapters)
         
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
+            # Prepare API call parameters
+            api_params = {
+                "model": self.model,
+                "messages": [
                     {"role": "system", "content": "You are a helpful assistant that creates clear, comprehensive summaries of educational video transcripts. Focus on extracting key insights, actionable advice, and important details while maintaining readability."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=self.max_tokens,
-                temperature=self.temperature
-            )
+                "temperature": self.temperature
+            }
+            
+            # Only add max_tokens if it's reasonable (less than context limit)
+            if self.max_tokens and self.max_tokens < 16000:
+                api_params["max_tokens"] = self.max_tokens
+            
+            response = self.client.chat.completions.create(**api_params)
             
             summary = response.choices[0].message.content.strip()
             formatted_summary = self.format_text_for_readability(summary)

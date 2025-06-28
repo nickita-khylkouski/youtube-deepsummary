@@ -45,8 +45,8 @@ Create a `.env` file or set environment variables:
 OPENAI_API_KEY=your_openai_api_key
 
 # Optional OpenAI configuration
-OPENAI_MODEL=gpt-3.5-turbo
-OPENAI_MAX_TOKENS=2000
+OPENAI_MODEL=gpt-4.1
+OPENAI_MAX_TOKENS=100000
 OPENAI_TEMPERATURE=0.7
 
 # Optional proxy configuration
