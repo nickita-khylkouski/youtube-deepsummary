@@ -10,6 +10,10 @@ from flask import Flask, request, render_template, jsonify
 from youtube_transcript_api import YouTubeTranscriptApi
 import re
 from transcript_summarizer import TranscriptSummarizer
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -164,12 +168,17 @@ def api_summary(video_id):
         }), 500
 
 if __name__ == '__main__':
-    # Get proxy from environment variable
-    proxy = os.getenv('YOUTUBE_PROXY', '200.174.198.86:8888')
+    # Get configuration from environment variables
+    proxy = os.getenv('YOUTUBE_PROXY')
+    host = os.getenv('FLASK_HOST', '0.0.0.0')
+    port = int(os.getenv('FLASK_PORT', 33079))
+    debug = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
+    
     if proxy:
-        os.environ['YOUTUBE_PROXY'] = proxy
         print(f"Using proxy: {proxy}")
     else:
         print("No proxy configured")
     
-    app.run(host='0.0.0.0', port=33079, debug=True)
+    print(f"OpenAI API configured: {bool(os.getenv('OPENAI_API_KEY'))}")
+    
+    app.run(host=host, port=port, debug=debug)

@@ -21,10 +21,24 @@ class TranscriptSummarizer:
         api_key = os.getenv('OPENAI_API_KEY')
         self.client = None
         if api_key:
+            original_env = {}
             try:
+                # Temporarily remove proxy environment variables that might interfere
+                proxy_env_vars = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']
+                for var in proxy_env_vars:
+                    if var in os.environ:
+                        original_env[var] = os.environ[var]
+                        del os.environ[var]
+                
+                # Initialize OpenAI client
                 self.client = OpenAI(api_key=api_key)
+                
             except Exception as e:
                 print(f"Warning: Failed to initialize OpenAI client: {e}")
+            finally:
+                # Always restore proxy environment variables
+                for var, value in original_env.items():
+                    os.environ[var] = value
         self.model = os.getenv('OPENAI_MODEL', 'gpt-3.5-turbo')
         self.max_tokens = int(os.getenv('OPENAI_MAX_TOKENS', '2000'))
         self.temperature = float(os.getenv('OPENAI_TEMPERATURE', '0.7'))
