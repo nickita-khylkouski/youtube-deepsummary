@@ -34,31 +34,12 @@ class TranscriptSummarizer:
             return
         
         try:
-            # Import fresh OpenAI module to avoid any cached proxy settings
-            import importlib
-            import openai
-            importlib.reload(openai)
-            from openai import OpenAI as FreshOpenAI
-            
-            # Create OpenAI client with explicit http_client to bypass proxy issues
-            import httpx
-            http_client = httpx.Client(proxies=None)  # Explicitly disable proxies
-            
-            self.client = FreshOpenAI(
-                api_key=self.api_key,
-                http_client=http_client
-            )
+            # Simple initialization with latest OpenAI version
+            self.client = OpenAI(api_key=self.api_key)
             print("OpenAI client initialized successfully")
         except Exception as e:
-            print(f"Warning: Failed to initialize OpenAI client with custom http_client: {e}")
-            # Fallback: try basic initialization
-            try:
-                from openai import OpenAI as BasicOpenAI
-                self.client = BasicOpenAI(api_key=self.api_key)
-                print("OpenAI client initialized with fallback method")
-            except Exception as e2:
-                print(f"Warning: Fallback OpenAI initialization also failed: {e2}")
-                self.client = None
+            print(f"Warning: Failed to initialize OpenAI client: {e}")
+            self.client = None
     
     def format_text_for_readability(self, text: str) -> str:
         """Format text for better readability"""
