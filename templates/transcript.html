@@ -51,9 +51,34 @@
         <hr style="margin: 30px 0; border: 1px solid #ddd;">
     {% endif %}
     
+    {% if chapters %}
+        <div class="chapters-info">
+            <h3>📚 Video Chapters ({{ chapters|length }} chapters):</h3>
+            <ul style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                {% for chapter in chapters %}
+                    <li><strong>{{ chapter.title }}</strong> - {{ "%.0f"|format(chapter.time // 60) }}:{{ "%02.0f"|format(chapter.time % 60) }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+    
+    <div class="transcript-options" style="margin: 20px 0;">
+        <button onclick="toggleTranscriptView()" id="toggleBtn" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+            📖 Switch to Detailed View
+        </button>
+    </div>
+    
     <h3>📝 Transcript ({{ transcript|length }} entries):</h3>
     
-    <div class="transcript-container">
+    <!-- Formatted readable transcript (default view) -->
+    <div id="formatted-transcript" class="transcript-container" style="display: block;">
+        <div class="formatted-text" style="background: #f9f9f9; padding: 20px; border-radius: 5px; line-height: 1.6; font-family: Georgia, serif;">
+            <pre style="white-space: pre-wrap; font-family: Georgia, serif; margin: 0;">{{ formatted_transcript }}</pre>
+        </div>
+    </div>
+    
+    <!-- Detailed timestamp transcript (hidden by default) -->
+    <div id="detailed-transcript" class="transcript-container" style="display: none;">
         {% for entry in transcript %}
             <div class="transcript-entry">
                 <div class="timestamp">[{{ entry.formatted_time }}] ({{ "%.2f"|format(entry.time) }}s)</div>
@@ -61,6 +86,26 @@
             </div>
         {% endfor %}
     </div>
+    
+    <script>
+        function toggleTranscriptView() {
+            const formattedDiv = document.getElementById('formatted-transcript');
+            const detailedDiv = document.getElementById('detailed-transcript');
+            const toggleBtn = document.getElementById('toggleBtn');
+            
+            if (formattedDiv.style.display === 'none') {
+                // Show formatted, hide detailed
+                formattedDiv.style.display = 'block';
+                detailedDiv.style.display = 'none';
+                toggleBtn.textContent = '📖 Switch to Detailed View';
+            } else {
+                // Show detailed, hide formatted
+                formattedDiv.style.display = 'none';
+                detailedDiv.style.display = 'block';
+                toggleBtn.textContent = '📄 Switch to Readable View';
+            }
+        }
+    </script>
     
     <div style="text-align: center; margin-top: 20px;">
         <a href="/" style="color: #ff0000; text-decoration: none; font-weight: bold;">← Back to Home</a>

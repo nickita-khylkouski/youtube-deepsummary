@@ -167,3 +167,146 @@ def format_transcript_for_display(transcript: List[Dict]) -> str:
         formatted_lines.append(f"[{time_str}] {entry['text']}")
     
     return "\n".join(formatted_lines)
+
+
+def format_transcript_for_readability(transcript: List[Dict], chapters: Optional[List[Dict]] = None) -> str:
+    """
+    Format transcript for improved readability with paragraph grouping and chapter organization
+    Based on youtube-summarizer post-processing logic
+    """
+    if not transcript:
+        return ""
+    
+    # Group transcript entries into sentences and paragraphs
+    formatted_text = _group_transcript_into_paragraphs(transcript)
+    
+    # If chapters are available, organize by chapters
+    if chapters:
+        formatted_text = _organize_transcript_by_chapters(transcript, chapters)
+    
+    return formatted_text
+
+
+def _group_transcript_into_paragraphs(transcript: List[Dict], sentences_per_paragraph: int = 5) -> str:
+    """
+    Group transcript entries into readable paragraphs
+    """
+    import re
+    
+    # Combine all transcript text
+    full_text = " ".join([entry['text'] for entry in transcript])
+    
+    # Split into sentences using common sentence endings
+    sentence_endings = r'[.!?]+(?:\s|$)'
+    sentences = re.split(sentence_endings, full_text)
+    sentences = [s.strip() for s in sentences if s.strip()]
+    
+    # Group sentences into paragraphs
+    paragraphs = []
+    current_paragraph = []
+    
+    for i, sentence in enumerate(sentences):
+        current_paragraph.append(sentence)
+        
+        # Create paragraph when we have enough sentences or reach the end
+        if len(current_paragraph) >= sentences_per_paragraph or i == len(sentences) - 1:
+            paragraph_text = ". ".join(current_paragraph)
+            if paragraph_text and not paragraph_text.endswith('.'):
+                paragraph_text += "."
+            
+            # Wrap lines to improve readability
+            wrapped_paragraph = textwrap.fill(
+                paragraph_text, 
+                width=100, 
+                break_long_words=False, 
+                break_on_hyphens=False
+            )
+            paragraphs.append(wrapped_paragraph)
+            current_paragraph = []
+    
+    return "\n\n".join(paragraphs)
+
+
+def _organize_transcript_by_chapters(transcript: List[Dict], chapters: List[Dict]) -> str:
+    """
+    Organize transcript content by video chapters for better structure
+    """
+    if not chapters:
+        return _group_transcript_into_paragraphs(transcript)
+    
+    organized_sections = []
+    
+    for i, chapter in enumerate(chapters):
+        chapter_start = chapter.get('time', 0)
+        chapter_end = chapters[i + 1].get('time', float('inf')) if i + 1 < len(chapters) else float('inf')
+        
+        # Filter transcript entries for this chapter
+        chapter_entries = [
+            entry for entry in transcript 
+            if chapter_start <= entry.get('time', 0) < chapter_end
+        ]
+        
+        if chapter_entries:
+            # Format chapter header
+            chapter_title = chapter.get('title', f'Chapter {i + 1}')
+            chapter_time = _format_timestamp(chapter_start)
+            header = f"\n## {chapter_title} [{chapter_time}]\n"
+            
+            # Format chapter content
+            chapter_content = _group_transcript_into_paragraphs(chapter_entries, sentences_per_paragraph=4)
+            
+            organized_sections.append(header + chapter_content)
+    
+    return "\n\n".join(organized_sections)
+
+
+def _format_timestamp(seconds: float) -> str:
+    """Format timestamp in MM:SS or HH:MM:SS format"""
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    seconds = int(seconds % 60)
+    
+    if hours > 0:
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    else:
+        return f"{minutes:02d}:{seconds:02d}"
+
+
+def extract_video_chapters(video_id: str) -> Optional[List[Dict]]:
+    """
+    Extract chapter information from YouTube video using yt-dlp Python module
+    Returns list of chapters with title and start time
+    """
+    try:
+        import yt_dlp
+        
+        # Configure yt-dlp options
+        ydl_opts = {
+            'quiet': True,
+            'no_warnings': True,
+            'extract_flat': False,
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            video_info = ydl.extract_info(
+                f'https://www.youtube.com/watch?v={video_id}', 
+                download=False
+            )
+            
+            chapters = video_info.get('chapters', [])
+            
+            if chapters:
+                formatted_chapters = []
+                for chapter in chapters:
+                    formatted_chapters.append({
+                        'title': chapter.get('title', 'Unknown Chapter'),
+                        'time': chapter.get('start_time', 0)
+                    })
+                return formatted_chapters
+        
+    except (ImportError, Exception) as e:
+        # Silently fail if yt-dlp is not available or chapter extraction fails
+        print(f"Chapter extraction failed: {e}")
+        pass
+    
+    return None

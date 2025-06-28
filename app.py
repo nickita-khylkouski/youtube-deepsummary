@@ -9,7 +9,7 @@ import os
 from flask import Flask, request, render_template, jsonify
 from youtube_transcript_api import YouTubeTranscriptApi
 import re
-from transcript_summarizer import TranscriptSummarizer
+from transcript_summarizer import TranscriptSummarizer, format_transcript_for_readability, extract_video_chapters
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -102,6 +102,12 @@ def watch():
         transcript = get_transcript(video_id)
         proxy_used = os.getenv('YOUTUBE_PROXY', 'None')
         
+        # Extract video chapters for enhanced formatting
+        chapters = extract_video_chapters(video_id)
+        
+        # Format transcript for improved readability
+        formatted_transcript_text = format_transcript_for_readability(transcript, chapters)
+        
         summary = None
         summary_error = None
         
@@ -116,6 +122,8 @@ def watch():
         return render_template('transcript.html', 
                              video_id=video_id,
                              transcript=transcript,
+                             formatted_transcript=formatted_transcript_text,
+                             chapters=chapters,
                              proxy_used=proxy_used,
                              summary=summary,
                              summary_error=summary_error,
@@ -130,10 +138,15 @@ def api_transcript(video_id):
     """API endpoint to get transcript as JSON"""
     try:
         transcript = get_transcript(video_id)
+        chapters = extract_video_chapters(video_id)
+        formatted_transcript = format_transcript_for_readability(transcript, chapters)
+        
         return jsonify({
             'success': True,
             'video_id': video_id,
             'transcript': transcript,
+            'formatted_transcript': formatted_transcript,
+            'chapters': chapters,
             'proxy_used': os.getenv('YOUTUBE_PROXY', None)
         })
     except Exception as e:
