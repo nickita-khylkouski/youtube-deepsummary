@@ -9,8 +9,10 @@ import os
 from flask import Flask, request, render_template, jsonify
 from youtube_transcript_api import YouTubeTranscriptApi
 import re
+from transcript_summarizer import TranscriptSummarizer
 
 app = Flask(__name__)
+summarizer = TranscriptSummarizer()
 
 def extract_video_id(url_or_id):
     """Extract video ID from YouTube URL or return if already an ID"""
@@ -67,6 +69,7 @@ def index():
 def watch():
     """Display transcript for YouTube video"""
     video_id_param = request.args.get('v')
+    summarize = request.args.get('summarize', 'false').lower() == 'true'
     
     if not video_id_param:
         return render_template('error.html', 
@@ -82,10 +85,24 @@ def watch():
         transcript = get_transcript(video_id)
         proxy_used = os.getenv('YOUTUBE_PROXY', 'None')
         
+        summary = None
+        summary_error = None
+        
+        if summarize and summarizer.is_configured():
+            try:
+                summary = summarizer.summarize_transcript(transcript)
+            except Exception as e:
+                summary_error = f"Failed to generate summary: {str(e)}"
+        elif summarize and not summarizer.is_configured():
+            summary_error = "OpenAI API key not configured. Set OPENAI_API_KEY environment variable."
+        
         return render_template('transcript.html', 
                              video_id=video_id,
                              transcript=transcript,
-                             proxy_used=proxy_used)
+                             proxy_used=proxy_used,
+                             summary=summary,
+                             summary_error=summary_error,
+                             summarize_enabled=summarizer.is_configured())
         
     except Exception as e:
         return render_template('error.html', 
@@ -100,6 +117,31 @@ def api_transcript(video_id):
             'success': True,
             'video_id': video_id,
             'transcript': transcript,
+            'proxy_used': os.getenv('YOUTUBE_PROXY', None)
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/summary/<video_id>')
+def api_summary(video_id):
+    """API endpoint to get transcript summary as JSON"""
+    try:
+        if not summarizer.is_configured():
+            return jsonify({
+                'success': False,
+                'error': 'OpenAI API key not configured'
+            }), 400
+        
+        transcript = get_transcript(video_id)
+        summary = summarizer.summarize_transcript(transcript)
+        
+        return jsonify({
+            'success': True,
+            'video_id': video_id,
+            'summary': summary,
             'proxy_used': os.getenv('YOUTUBE_PROXY', None)
         })
     except Exception as e:

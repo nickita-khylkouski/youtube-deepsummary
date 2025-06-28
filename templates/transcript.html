@@ -16,8 +16,40 @@
         <form action="/watch" method="get">
             <input type="text" name="v" placeholder="Enter another video ID or URL" value="">
             <button type="submit">Get Transcript</button>
+            {% if summarize_enabled %}
+                <label style="margin-left: 10px;">
+                    <input type="checkbox" name="summarize" value="true" {% if summary or summary_error %}checked{% endif %}>
+                    Generate AI Summary
+                </label>
+            {% endif %}
         </form>
     </div>
+    
+    {% if summarize_enabled %}
+        <div class="summary-actions" style="margin: 10px 0;">
+            {% if not summary and not summary_error %}
+                <a href="/watch?v={{ video_id }}&summarize=true" class="summary-button">🤖 Generate AI Summary</a>
+            {% endif %}
+        </div>
+    {% endif %}
+    
+    {% if summary %}
+        <div class="summary-section">
+            <h3>🤖 AI-Generated Summary:</h3>
+            <div class="summary-content">
+                <pre>{{ summary }}</pre>
+            </div>
+        </div>
+        <hr style="margin: 30px 0; border: 1px solid #ddd;">
+    {% endif %}
+    
+    {% if summary_error %}
+        <div class="summary-error">
+            <h3>❌ Summary Error:</h3>
+            <p style="color: #d32f2f;">{{ summary_error }}</p>
+        </div>
+        <hr style="margin: 30px 0; border: 1px solid #ddd;">
+    {% endif %}
     
     <h3>📝 Transcript ({{ transcript|length }} entries):</h3>
     
