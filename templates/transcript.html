@@ -59,72 +59,56 @@
         </div>
     </div>
     
-    <!-- Search Another Video -->
-    <div class="card" style="margin-bottom: 24px;">
-        <div class="card-header">
-            <h3 style="margin: 0; display: flex; align-items: center; gap: 12px; font-size: 16px; font-weight: 600;">
-                <i data-lucide="search" style="width: 20px; height: 20px; color: var(--yt-red);"></i>
-                Analyze Another Video
-            </h3>
-        </div>
-        <div class="card-body">
-            <form action="/watch" method="get">
-                <div class="input-group">
-                    <input type="text" name="v" class="input-field" placeholder="Enter YouTube URL or video ID" value="{{ video_id }}">
-                    <button type="submit" class="btn btn-primary">
-                        <i data-lucide="play-circle" class="btn-icon"></i>
-                        Analyze Video
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    <!-- Summary section -->
-    <div id="summary-section" style="{% if not summary and not summary_error %}display: none;{% endif %}">
-        {% if summary %}
-            <div class="card summary-section" style="margin-bottom: 24px;">
-                <div class="card-header">
-                    <h3 style="margin: 0; display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 600;">
-                        <i data-lucide="sparkles" style="width: 20px; height: 20px; color: #8b5cf6;"></i>
-                        AI-Generated Summary
-                    </h3>
-                </div>
-                <div class="card-body">
-                    <div class="summary-content">
-                        <pre>{{ summary }}</pre>
+    <!-- Summary section (full width, only shown when exists) -->
+    {% if summary or summary_error %}
+        <!-- Summary section -->
+        <div id="summary-section" style="margin-bottom: 24px;">
+            {% if summary %}
+                <div class="card summary-section">
+                    <div class="card-header">
+                        <h3 style="margin: 0; display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 600;">
+                            <i data-lucide="sparkles" style="width: 20px; height: 20px; color: #8b5cf6;"></i>
+                            AI-Generated Summary
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="summary-content">
+                            <pre>{{ summary }}</pre>
+                        </div>
                     </div>
                 </div>
-            </div>
-        {% endif %}
-        
-        {% if summary_error %}
-            <div class="alert alert-warning" style="margin-bottom: 24px;">
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                    <i data-lucide="alert-triangle" style="width: 16px; height: 16px;"></i>
-                    <strong>Summary Generation Failed</strong>
+            {% endif %}
+            
+            {% if summary_error %}
+                <div class="alert alert-warning">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <i data-lucide="alert-triangle" style="width: 16px; height: 16px;"></i>
+                        <strong>Summary Generation Failed</strong>
+                    </div>
+                    <p style="margin: 0;">{{ summary_error }}</p>
                 </div>
-                <p style="margin: 0;">{{ summary_error }}</p>
-            </div>
-        {% endif %}
-    </div>
+            {% endif %}
+        </div>
+    {% else %}
+        <!-- Hidden summary section for AJAX loading -->
+        <div id="summary-section" style="display: none;"></div>
+    {% endif %}
     
-    <!-- Video Chapters -->
+    <!-- Chapters section (if any) -->
     {% if chapters %}
         <div class="card" style="margin-bottom: 24px;">
             <div class="card-header">
-                <h3 style="margin: 0; display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 600;">
-                    <i data-lucide="list" style="width: 20px; height: 20px; color: var(--yt-red);"></i>
+                <h4 style="margin: 0; font-size: 16px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="list" style="width: 16px; height: 16px; color: var(--yt-red);"></i>
                     Video Chapters ({{ chapters|length }})
-                </h3>
+                </h4>
             </div>
             <div class="card-body">
-                <div style="display: grid; gap: 12px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px;">
                     {% for chapter in chapters %}
                         <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: var(--light-surface); border-radius: 8px; border: 1px solid var(--border-light);">
-                            <div style="font-weight: 500; color: var(--text-primary);">{{ chapter.title }}</div>
-                            <a href="https://www.youtube.com/watch?v={{ video_id }}&t={{ chapter.time|int }}s" target="_blank" class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;">
-                                <i data-lucide="play" style="width: 12px; height: 12px;"></i>
+                            <div style="font-weight: 500; color: var(--text-primary); font-size: 14px; flex: 1; margin-right: 8px;">{{ chapter.title }}</div>
+                            <a href="https://www.youtube.com/watch?v={{ video_id }}&t={{ chapter.time|int }}s" target="_blank" class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px;">
                                 {{ "%.0f"|format(chapter.time // 60) }}:{{ "%02.0f"|format(chapter.time % 60) }}
                             </a>
                         </div>
@@ -142,10 +126,16 @@
                     <i data-lucide="file-text" style="width: 20px; height: 20px; color: var(--yt-red);"></i>
                     Video Transcript ({{ transcript|length }} entries)
                 </h3>
-                <button onclick="toggleTranscriptView()" id="toggleBtn2" class="btn btn-secondary" style="padding: 6px 12px; font-size: 14px;">
-                    <i data-lucide="book-open" style="width: 14px; height: 14px;"></i>
-                    Switch to Detailed View
-                </button>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="copyTranscript()" class="btn btn-secondary" style="padding: 6px 12px; font-size: 14px;">
+                        <i data-lucide="copy" style="width: 14px; height: 14px;"></i>
+                        Copy
+                    </button>
+                    <button onclick="toggleTranscriptView()" id="toggleBtn2" class="btn btn-secondary" style="padding: 6px 12px; font-size: 14px;">
+                        <i data-lucide="book-open" style="width: 14px; height: 14px;"></i>
+                        Switch to Detailed View
+                    </button>
+                </div>
             </div>
         </div>
         <div class="card-body" style="padding: 0;">
@@ -238,8 +228,9 @@
                         
                         // Show summary section with new design
                         summarySection.style.display = 'block';
+                        summarySection.style.marginBottom = '24px';
                         summarySection.innerHTML = `
-                            <div class="card summary-section" style="margin-bottom: 24px;">
+                            <div class="card summary-section">
                                 <div class="card-header">
                                     <h3 style="margin: 0; display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 600;">
                                         <i data-lucide="sparkles" style="width: 20px; height: 20px; color: #8b5cf6;"></i>
@@ -262,8 +253,9 @@
                     } else {
                         // Show error
                         summarySection.style.display = 'block';
+                        summarySection.style.marginBottom = '24px';
                         summarySection.innerHTML = `
-                            <div class="alert alert-warning" style="margin-bottom: 24px;">
+                            <div class="alert alert-warning">
                                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                                     <i data-lucide="alert-triangle" style="width: 16px; height: 16px;"></i>
                                     <strong>Summary Generation Failed</strong>
@@ -284,8 +276,9 @@
                 .catch(error => {
                     // Show error
                     summarySection.style.display = 'block';
+                    summarySection.style.marginBottom = '24px';
                     summarySection.innerHTML = `
-                        <div class="alert alert-warning" style="margin-bottom: 24px;">
+                        <div class="alert alert-warning">
                             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                                 <i data-lucide="alert-triangle" style="width: 16px; height: 16px;"></i>
                                 <strong>Summary Generation Failed</strong>
@@ -302,6 +295,60 @@
                     // Reinitialize Lucide icons
                     lucide.createIcons();
                 });
+        }
+        
+        function copyTranscript() {
+            // Get the currently visible transcript text
+            const formattedDiv = document.getElementById('formatted-transcript');
+            const detailedDiv = document.getElementById('detailed-transcript');
+            
+            let textToCopy = '';
+            
+            if (formattedDiv.style.display !== 'none') {
+                // Copy formatted transcript (readable version)
+                const preElement = formattedDiv.querySelector('pre');
+                textToCopy = preElement ? preElement.textContent : '';
+            } else {
+                // Copy detailed transcript with timestamps
+                const entries = detailedDiv.querySelectorAll('.transcript-entry');
+                const lines = [];
+                entries.forEach(entry => {
+                    const timestamp = entry.querySelector('.timestamp').textContent;
+                    const text = entry.querySelector('.text').textContent;
+                    lines.push(`${timestamp} ${text}`);
+                });
+                textToCopy = lines.join('\n');
+            }
+            
+            if (textToCopy) {
+                copyToClipboard(textToCopy)
+                    .then(() => {
+                        // Show success modal
+                        const content = `
+                            <div style="text-align: center;">
+                                <div style="width: 60px; height: 60px; background: #22c55e; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+                                    <i data-lucide="check" style="width: 24px; height: 24px; color: white;"></i>
+                                </div>
+                                <h4 style="margin: 0 0 8px 0; color: var(--text-primary);">Copied Successfully</h4>
+                                <p style="margin: 0; color: var(--text-secondary);">Transcript has been copied to your clipboard</p>
+                            </div>
+                        `;
+                        showModal('statusModal', 'Success', content);
+                    })
+                    .catch(() => {
+                        // Show error modal
+                        const content = `
+                            <div style="text-align: center;">
+                                <div style="width: 60px; height: 60px; background: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+                                    <i data-lucide="alert-triangle" style="width: 24px; height: 24px; color: white;"></i>
+                                </div>
+                                <h4 style="margin: 0 0 8px 0; color: var(--text-primary);">Copy Failed</h4>
+                                <p style="margin: 0; color: var(--text-secondary);">Unable to copy to clipboard. Please select and copy the text manually.</p>
+                            </div>
+                        `;
+                        showModal('statusModal', 'Error', content);
+                    });
+            }
         }
     </script>
     

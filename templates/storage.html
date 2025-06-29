@@ -120,7 +120,13 @@
                             <div style="display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--text-tertiary);">
                                 <span style="display: flex; align-items: center; gap: 4px;">
                                     <i data-lucide="database" style="width: 12px; height: 12px;"></i>
-                                    {{ video.cache_age_hours }}h ago
+                                    {% if video.cache_age_hours < 1 %}
+                                        {{ (video.cache_age_hours * 60)|round|int }} minutes ago
+                                    {% elif video.cache_age_hours < 24 %}
+                                        {% if video.cache_age_hours|round == 1 %}1 hour ago{% else %}{{ video.cache_age_hours|round|int }} hours ago{% endif %}
+                                    {% else %}
+                                        {% if (video.cache_age_hours / 24)|round == 1 %}1 day ago{% else %}{{ (video.cache_age_hours / 24)|round|int }} days ago{% endif %}
+                                    {% endif %}
                                 </span>
                                 {% if video.has_summary %}
                                     <span style="display: flex; align-items: center; gap: 4px; color: #8b5cf6; font-weight: 500;">
@@ -183,15 +189,58 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Create a modern modal-style alert
-                    const message = `Database Status:\n\n• Videos: {{ cache_stats.videos_count }}\n• Transcripts: {{ cache_stats.transcripts_count }}\n• Summaries: {{ cache_stats.summaries_count }}\n\n✓ Database is healthy`;
-                    alert(message);
+                    // Show success in modal
+                    const content = `
+                        <div style="text-align: center;">
+                            <div style="width: 60px; height: 60px; background: #22c55e; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+                                <i data-lucide="check" style="width: 24px; height: 24px; color: white;"></i>
+                            </div>
+                            <h4 style="margin: 0 0 16px 0; color: var(--text-primary);">Database Status</h4>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 16px; margin-bottom: 16px;">
+                                <div style="text-align: center; padding: 12px; background: var(--light-surface); border-radius: 8px;">
+                                    <div style="font-size: 24px; font-weight: 700; color: var(--yt-red);">{{ cache_stats.videos_count }}</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">Videos</div>
+                                </div>
+                                <div style="text-align: center; padding: 12px; background: var(--light-surface); border-radius: 8px;">
+                                    <div style="font-size: 24px; font-weight: 700; color: #0ea5e9;">{{ cache_stats.transcripts_count }}</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">Transcripts</div>
+                                </div>
+                                <div style="text-align: center; padding: 12px; background: var(--light-surface); border-radius: 8px;">
+                                    <div style="font-size: 24px; font-weight: 700; color: #8b5cf6;">{{ cache_stats.summaries_count }}</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">Summaries</div>
+                                </div>
+                            </div>
+                            <p style="margin: 0; color: #22c55e; font-weight: 500;">
+                                <i data-lucide="check-circle" style="width: 16px; height: 16px; margin-right: 4px;"></i>
+                                Database is healthy
+                            </p>
+                        </div>
+                    `;
+                    showModal('statusModal', 'Database Status', content);
                 } else {
-                    alert('Error: ' + data.error);
+                    const content = `
+                        <div style="text-align: center;">
+                            <div style="width: 60px; height: 60px; background: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+                                <i data-lucide="alert-triangle" style="width: 24px; height: 24px; color: white;"></i>
+                            </div>
+                            <h4 style="margin: 0 0 8px 0; color: var(--text-primary);">Error</h4>
+                            <p style="margin: 0; color: var(--text-secondary);">${data.error}</p>
+                        </div>
+                    `;
+                    showModal('statusModal', 'Error', content);
                 }
             })
             .catch(error => {
-                alert('Error: ' + error.message);
+                const content = `
+                    <div style="text-align: center;">
+                        <div style="width: 60px; height: 60px; background: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+                            <i data-lucide="wifi-off" style="width: 24px; height: 24px; color: white;"></i>
+                        </div>
+                        <h4 style="margin: 0 0 8px 0; color: var(--text-primary);">Connection Error</h4>
+                        <p style="margin: 0; color: var(--text-secondary);">${error.message}</p>
+                    </div>
+                `;
+                showModal('statusModal', 'Connection Error', content);
             })
             .finally(() => {
                 button.innerHTML = originalContent;
