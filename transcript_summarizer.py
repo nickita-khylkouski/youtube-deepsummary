@@ -286,6 +286,7 @@ def extract_video_chapters(video_id: str) -> Optional[List[Dict]]:
     """
     try:
         import yt_dlp
+        import os
         print(f"yt_dlp imported successfully for video {video_id}")
         
         # Configure yt-dlp options
@@ -294,6 +295,14 @@ def extract_video_chapters(video_id: str) -> Optional[List[Dict]]:
             'no_warnings': True,
             'extract_flat': False,
         }
+        
+        # Add proxy configuration if available
+        proxy = os.getenv('YOUTUBE_PROXY')
+        if proxy:
+            ydl_opts['proxy'] = f'http://{proxy}'
+            print(f"Using proxy for chapter extraction: {proxy}")
+        else:
+            print("No proxy configured for chapter extraction")
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             video_info = ydl.extract_info(

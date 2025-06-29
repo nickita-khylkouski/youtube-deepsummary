@@ -18,6 +18,7 @@ def test_environment():
     
     # Test basic yt-dlp functionality
     try:
+        import os
         test_video_id = "Dp75wqOrtBs"
         print(f"\n=== Testing chapter extraction for {test_video_id} ===")
         
@@ -26,6 +27,14 @@ def test_environment():
             'no_warnings': True,
             'extract_flat': False,
         }
+        
+        # Add proxy configuration if available
+        proxy = os.getenv('YOUTUBE_PROXY')
+        if proxy:
+            ydl_opts['proxy'] = f'http://{proxy}'
+            print(f"Using proxy: {proxy}")
+        else:
+            print("No proxy configured")
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             video_info = ydl.extract_info(
