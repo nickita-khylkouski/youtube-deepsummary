@@ -3,116 +3,169 @@
 {% block title %}{% if video_title %}{{ video_title }}{% else %}{{ video_id }}{% endif %} - YouTube Deep Search{% endblock %}
 
 {% block content %}
-    <div class="video-info">
-        <div style="display: flex; align-items: flex-start; gap: 20px; margin-bottom: 20px;">
-            <div style="flex-shrink: 0;">
-                <img src="{{ thumbnail_url }}" 
-                     alt="Video thumbnail" 
-                     style="width: 320px; height: 180px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"
-                     onerror="this.style.display='none'">
-            </div>
-            <div style="flex-grow: 1;">
-                {% if video_title %}
-                    <h2>{{ video_title }}</h2>
-                    <p style="color: #666; margin: 5px 0;">
-                        {% if video_uploader %}<strong><a href="https://www.youtube.com/results?search_query={{ video_uploader|urlencode }}" target="_blank" style="color: #0066cc; text-decoration: none;">{{ video_uploader }}</a></strong>{% endif %}
-                        {% if video_duration %} • {{ "%.0f"|format(video_duration // 60) }}:{{ "%02.0f"|format(video_duration % 60) }} minutes{% endif %}
-                    </p>
-                {% else %}
-                    <h2>📺 Video ID: {{ video_id }}</h2>
-                {% endif %}
-                <p><strong>YouTube URL:</strong> <a href="https://www.youtube.com/watch?v={{ video_id }}" target="_blank">https://www.youtube.com/watch?v={{ video_id }}</a></p>
-                <p style="margin-top: 10px;">
-                    <a href="https://www.youtube.com/watch?v={{ video_id }}" target="_blank" style="background: #ff0000; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; display: inline-block; margin-right: 10px;">▶️ Watch on YouTube</a>
-                    {% if summarize_enabled %}
-                        <button id="generateSummaryBtn" onclick="generateSummary('{{ video_id }}')" style="background: #2196f3; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; display: {% if summary %}none{% else %}inline-block{% endif %};">🤖 Generate AI Summary</button>
+    <!-- Video Header Card -->
+    <div class="card video-info" style="margin-bottom: 24px;">
+        <div class="card-body">
+            <div style="display: flex; gap: 20px;">
+                <div style="flex-shrink: 0;">
+                    <img src="{{ thumbnail_url }}" 
+                         alt="Video thumbnail" 
+                         style="width: 320px; height: 180px; object-fit: cover; border-radius: 12px; border: 1px solid var(--border-light);"
+                         onerror="this.style.display='none'">
+                </div>
+                <div style="flex-grow: 1; min-width: 0;">
+                    {% if video_title %}
+                        <h1 style="margin: 0 0 12px 0; font-size: 24px; font-weight: 700; line-height: 1.3; color: var(--text-primary);">{{ video_title }}</h1>
+                        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px; color: var(--text-secondary);">
+                            {% if video_uploader %}
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <i data-lucide="user" style="width: 16px; height: 16px;"></i>
+                                    <a href="https://www.youtube.com/results?search_query={{ video_uploader|urlencode }}" target="_blank" style="color: var(--text-secondary); text-decoration: none; font-weight: 500;">{{ video_uploader }}</a>
+                                </div>
+                            {% endif %}
+                            {% if video_duration %}
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <i data-lucide="clock" style="width: 16px; height: 16px;"></i>
+                                    <span>{{ "%.0f"|format(video_duration // 60) }}:{{ "%02.0f"|format(video_duration % 60) }}</span>
+                                </div>
+                            {% endif %}
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <i data-lucide="file-text" style="width: 16px; height: 16px;"></i>
+                                <span>{{ transcript|length }} entries</span>
+                            </div>
+                        </div>
+                    {% else %}
+                        <h1 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 700; color: var(--text-primary);">Video ID: {{ video_id }}</h1>
                     {% endif %}
-                </p>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Proxy info hidden 
-    <div class="proxy-info">
-        <strong>🌐 Proxy used:</strong> {{ proxy_used }}
-    </div>
-    -->
-    
-    <details class="search-form-collapsed" style="margin-bottom: 20px;">
-        <summary style="background: #f8f9fa; padding: 10px 15px; border-radius: 5px; cursor: pointer; border: 1px solid #ddd; outline: none;">
-            🔍 Search Another Video
-        </summary>
-        <div class="search-form" style="margin-top: 10px; border-top: 1px solid #ddd; padding-top: 15px;">
-            <form action="/watch" method="get">
-                <input type="text" name="v" placeholder="Enter another video ID or URL" value="{{ video_id }}">
-                <button type="submit">Get Transcript</button>
-                {% if summarize_enabled %}
-                    <label style="margin-left: 10px;">
-                        <input type="checkbox" name="summarize" value="true" {% if summary or summary_error %}checked{% endif %}>
-                        Generate AI Summary
-                    </label>
-                {% endif %}
-            </form>
-        </div>
-    </details>
-    
-    <!-- Generate AI Summary button moved to video info section -->
-    
-    <!-- Summary section - will be populated by JavaScript or shown if pre-loaded -->
-    <div id="summary-section" style="{% if not summary and not summary_error %}display: none;{% endif %}">
-        {% if summary %}
-            <div class="summary-section">
-                <h3>🤖 AI-Generated Summary:</h3>
-                <div class="summary-content">
-                    <pre>{{ summary }}</pre>
+                    
+                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                        <a href="https://www.youtube.com/watch?v={{ video_id }}" target="_blank" class="btn btn-primary">
+                            <i data-lucide="play" class="btn-icon"></i>
+                            Watch on YouTube
+                        </a>
+                        {% if summarize_enabled %}
+                            <button id="generateSummaryBtn" onclick="generateSummary('{{ video_id }}')" class="btn btn-secondary" style="display: {% if summary %}none{% else %}inline-flex{% endif %};">
+                                <i data-lucide="sparkles" class="btn-icon"></i>
+                                Generate AI Summary
+                            </button>
+                        {% endif %}
+                        <button onclick="toggleTranscriptView()" id="toggleBtn" class="btn btn-secondary">
+                            <i data-lucide="book-open" class="btn-icon"></i>
+                            Switch to Detailed View
+                        </button>
+                    </div>
                 </div>
             </div>
-            <hr style="margin: 30px 0; border: 1px solid #ddd;">
+        </div>
+    </div>
+    
+    <!-- Search Another Video -->
+    <div class="card" style="margin-bottom: 24px;">
+        <div class="card-header">
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 12px; font-size: 16px; font-weight: 600;">
+                <i data-lucide="search" style="width: 20px; height: 20px; color: var(--yt-red);"></i>
+                Analyze Another Video
+            </h3>
+        </div>
+        <div class="card-body">
+            <form action="/watch" method="get">
+                <div class="input-group">
+                    <input type="text" name="v" class="input-field" placeholder="Enter YouTube URL or video ID" value="{{ video_id }}">
+                    <button type="submit" class="btn btn-primary">
+                        <i data-lucide="play-circle" class="btn-icon"></i>
+                        Analyze Video
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Summary section -->
+    <div id="summary-section" style="{% if not summary and not summary_error %}display: none;{% endif %}">
+        {% if summary %}
+            <div class="card summary-section" style="margin-bottom: 24px;">
+                <div class="card-header">
+                    <h3 style="margin: 0; display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 600;">
+                        <i data-lucide="sparkles" style="width: 20px; height: 20px; color: #8b5cf6;"></i>
+                        AI-Generated Summary
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="summary-content">
+                        <pre>{{ summary }}</pre>
+                    </div>
+                </div>
+            </div>
         {% endif %}
         
         {% if summary_error %}
-            <div class="summary-error">
-                <h3>❌ Summary Error:</h3>
-                <p style="color: #d32f2f;">{{ summary_error }}</p>
+            <div class="alert alert-warning" style="margin-bottom: 24px;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <i data-lucide="alert-triangle" style="width: 16px; height: 16px;"></i>
+                    <strong>Summary Generation Failed</strong>
+                </div>
+                <p style="margin: 0;">{{ summary_error }}</p>
             </div>
-            <hr style="margin: 30px 0; border: 1px solid #ddd;">
         {% endif %}
     </div>
     
+    <!-- Video Chapters -->
     {% if chapters %}
-        <div class="chapters-info">
-            <h3>📚 Video Chapters ({{ chapters|length }} chapters):</h3>
-            <ul style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0;">
-                {% for chapter in chapters %}
-                    <li><strong>{{ chapter.title }}</strong> - <a href="https://www.youtube.com/watch?v={{ video_id }}&t={{ chapter.time|int }}s" target="_blank" style="color: #0066cc; text-decoration: underline;">{{ "%.0f"|format(chapter.time // 60) }}:{{ "%02.0f"|format(chapter.time % 60) }}</a></li>
-                {% endfor %}
-            </ul>
+        <div class="card" style="margin-bottom: 24px;">
+            <div class="card-header">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 600;">
+                    <i data-lucide="list" style="width: 20px; height: 20px; color: var(--yt-red);"></i>
+                    Video Chapters ({{ chapters|length }})
+                </h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; gap: 12px;">
+                    {% for chapter in chapters %}
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: var(--light-surface); border-radius: 8px; border: 1px solid var(--border-light);">
+                            <div style="font-weight: 500; color: var(--text-primary);">{{ chapter.title }}</div>
+                            <a href="https://www.youtube.com/watch?v={{ video_id }}&t={{ chapter.time|int }}s" target="_blank" class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;">
+                                <i data-lucide="play" style="width: 12px; height: 12px;"></i>
+                                {{ "%.0f"|format(chapter.time // 60) }}:{{ "%02.0f"|format(chapter.time % 60) }}
+                            </a>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
     {% endif %}
     
-    <div class="transcript-options" style="margin: 20px 0;">
-        <button onclick="toggleTranscriptView()" id="toggleBtn" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-            📖 Switch to Detailed View
-        </button>
-    </div>
-    
-    <h3>📝 Transcript ({{ transcript|length }} entries):</h3>
-    
-    <!-- Formatted readable transcript (default view) -->
-    <div id="formatted-transcript" class="transcript-container" style="display: block;">
-        <div class="formatted-text" style="background: #f9f9f9; padding: 15px; border-radius: 5px; line-height: 1.6; font-family: Georgia, serif;">
-            <pre style="white-space: pre-wrap; font-family: Georgia, serif; margin: 0;">{{ formatted_transcript }}</pre>
-        </div>
-    </div>
-    
-    <!-- Detailed timestamp transcript (hidden by default) -->
-    <div id="detailed-transcript" class="transcript-container" style="display: none;">
-        {% for entry in transcript %}
-            <div class="transcript-entry">
-                <div class="timestamp">[{{ entry.formatted_time }}] ({{ "%.2f"|format(entry.time) }}s)</div>
-                <div class="text">{{ entry.text }}</div>
+    <!-- Transcript Content -->
+    <div class="card">
+        <div class="card-header">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 600;">
+                    <i data-lucide="file-text" style="width: 20px; height: 20px; color: var(--yt-red);"></i>
+                    Video Transcript ({{ transcript|length }} entries)
+                </h3>
+                <button onclick="toggleTranscriptView()" id="toggleBtn2" class="btn btn-secondary" style="padding: 6px 12px; font-size: 14px;">
+                    <i data-lucide="book-open" style="width: 14px; height: 14px;"></i>
+                    Switch to Detailed View
+                </button>
             </div>
-        {% endfor %}
+        </div>
+        <div class="card-body" style="padding: 0;">
+            <!-- Formatted readable transcript (default view) -->
+            <div id="formatted-transcript" style="display: block;">
+                <div style="background: var(--light-surface); padding: 24px; line-height: 1.8; font-family: Georgia, serif; font-size: 16px;">
+                    <pre style="white-space: pre-wrap; font-family: Georgia, serif; margin: 0; color: var(--text-primary);">{{ formatted_transcript }}</pre>
+                </div>
+            </div>
+            
+            <!-- Detailed timestamp transcript (hidden by default) -->
+            <div id="detailed-transcript" class="transcript-container" style="display: none;">
+                {% for entry in transcript %}
+                    <div class="transcript-entry">
+                        <div class="timestamp">[{{ entry.formatted_time }}] ({{ "%.2f"|format(entry.time) }}s)</div>
+                        <div class="text">{{ entry.text }}</div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
     </div>
     
     <script>
@@ -120,18 +173,34 @@
             const formattedDiv = document.getElementById('formatted-transcript');
             const detailedDiv = document.getElementById('detailed-transcript');
             const toggleBtn = document.getElementById('toggleBtn');
+            const toggleBtn2 = document.getElementById('toggleBtn2');
             
             if (formattedDiv.style.display === 'none') {
                 // Show formatted, hide detailed
                 formattedDiv.style.display = 'block';
                 detailedDiv.style.display = 'none';
-                toggleBtn.textContent = '📖 Switch to Detailed View';
+                
+                if (toggleBtn) {
+                    toggleBtn.innerHTML = '<i data-lucide="book-open" class="btn-icon"></i>Switch to Detailed View';
+                }
+                if (toggleBtn2) {
+                    toggleBtn2.innerHTML = '<i data-lucide="book-open" style="width: 14px; height: 14px;"></i>Switch to Detailed View';
+                }
             } else {
                 // Show detailed, hide formatted
                 formattedDiv.style.display = 'none';
                 detailedDiv.style.display = 'block';
-                toggleBtn.textContent = '📄 Switch to Readable View';
+                
+                if (toggleBtn) {
+                    toggleBtn.innerHTML = '<i data-lucide="book-text" class="btn-icon"></i>Switch to Readable View';
+                }
+                if (toggleBtn2) {
+                    toggleBtn2.innerHTML = '<i data-lucide="book-text" style="width: 14px; height: 14px;"></i>Switch to Readable View';
+                }
             }
+            
+            // Reinitialize Lucide icons
+            lucide.createIcons();
         }
         
         function generateSummary(videoId) {
@@ -142,9 +211,9 @@
             const formattedTranscript = {{ formatted_transcript|tojson }};
             
             // Update button to show loading state
-            btn.textContent = '⏳ Generating...';
+            btn.innerHTML = '<span class="spinner"></span> Generating...';
             btn.disabled = true;
-            btn.style.background = '#666';
+            btn.classList.add('loading');
             
             // Make AJAX request to generate summary with formatted transcript
             fetch('/api/summary', {
@@ -163,56 +232,75 @@
                         // Convert markdown links and formatting to HTML
                         let summaryHtml = data.summary;
                         // Convert [text](url) to <a href="url" target="_blank">text</a>
-                        summaryHtml = summaryHtml.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #0066cc; text-decoration: underline;">$1</a>');
+                        summaryHtml = summaryHtml.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: var(--yt-red); text-decoration: underline;">$1</a>');
                         // Convert **text** to <strong>text</strong>
                         summaryHtml = summaryHtml.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
                         
-                        // Show summary section
+                        // Show summary section with new design
                         summarySection.style.display = 'block';
                         summarySection.innerHTML = `
-                            <div class="summary-section">
-                                <h3>🤖 AI-Generated Summary:</h3>
-                                <div class="summary-content">
-                                    <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit;">${summaryHtml}</pre>
+                            <div class="card summary-section" style="margin-bottom: 24px;">
+                                <div class="card-header">
+                                    <h3 style="margin: 0; display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 600;">
+                                        <i data-lucide="sparkles" style="width: 20px; height: 20px; color: #8b5cf6;"></i>
+                                        AI-Generated Summary
+                                    </h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="summary-content">
+                                        <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; color: var(--text-primary);">${summaryHtml}</pre>
+                                    </div>
                                 </div>
                             </div>
-                            <hr style="margin: 30px 0; border: 1px solid #ddd;">
                         `;
                         
                         // Hide the generate button
                         btn.style.display = 'none';
+                        
+                        // Reinitialize Lucide icons
+                        lucide.createIcons();
                     } else {
                         // Show error
                         summarySection.style.display = 'block';
                         summarySection.innerHTML = `
-                            <div class="summary-error">
-                                <h3>❌ Summary Error:</h3>
-                                <p style="color: #d32f2f;">${data.error}</p>
+                            <div class="alert alert-warning" style="margin-bottom: 24px;">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                    <i data-lucide="alert-triangle" style="width: 16px; height: 16px;"></i>
+                                    <strong>Summary Generation Failed</strong>
+                                </div>
+                                <p style="margin: 0;">${data.error}</p>
                             </div>
-                            <hr style="margin: 30px 0; border: 1px solid #ddd;">
                         `;
                         
                         // Reset button
-                        btn.textContent = '🤖 Generate AI Summary';
+                        btn.innerHTML = '<i data-lucide="sparkles" class="btn-icon"></i>Generate AI Summary';
                         btn.disabled = false;
-                        btn.style.background = '#2196f3';
+                        btn.classList.remove('loading');
+                        
+                        // Reinitialize Lucide icons
+                        lucide.createIcons();
                     }
                 })
                 .catch(error => {
                     // Show error
                     summarySection.style.display = 'block';
                     summarySection.innerHTML = `
-                        <div class="summary-error">
-                            <h3>❌ Summary Error:</h3>
-                            <p style="color: #d32f2f;">Failed to generate summary: ${error.message}</p>
+                        <div class="alert alert-warning" style="margin-bottom: 24px;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <i data-lucide="alert-triangle" style="width: 16px; height: 16px;"></i>
+                                <strong>Summary Generation Failed</strong>
+                            </div>
+                            <p style="margin: 0;">Failed to generate summary: ${error.message}</p>
                         </div>
-                        <hr style="margin: 30px 0; border: 1px solid #ddd;">
                     `;
                     
                     // Reset button
-                    btn.textContent = '🤖 Generate AI Summary';
+                    btn.innerHTML = '<i data-lucide="sparkles" class="btn-icon"></i>Generate AI Summary';
                     btn.disabled = false;
-                    btn.style.background = '#2196f3';
+                    btn.classList.remove('loading');
+                    
+                    // Reinitialize Lucide icons
+                    lucide.createIcons();
                 });
         }
     </script>

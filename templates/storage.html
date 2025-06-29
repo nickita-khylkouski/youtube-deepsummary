@@ -51,77 +51,102 @@
     </div>
     
     {% if cached_videos %}
-        <!-- Storage Actions -->
-        <div style="margin-bottom: 20px; text-align: right;">
-            <button onclick="cleanupExpired()" style="background: #17a2b8; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">🗄️ Database Status</button>
-            <span style="color: #666; font-size: 14px;">{{ cached_videos|length }} videos shown</span>
+        <!-- Actions Bar -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: var(--text-primary);">
+                    {{ cached_videos|length }} Saved Videos
+                </h3>
+            </div>
+            <button onclick="cleanupExpired()" class="btn btn-secondary">
+                <i data-lucide="database" class="btn-icon"></i>
+                Check Status
+            </button>
         </div>
         
         <!-- Videos Grid -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 24px;">
             {% for video in cached_videos %}
-                <div style="background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); {% if not video.is_valid %}opacity: 0.6; border-left: 4px solid #dc3545;{% else %}border-left: 4px solid #28a745;{% endif %}">
+                <div class="card" style="overflow: hidden; transition: all 0.2s ease;">
                     <!-- Video Thumbnail and Info -->
-                    <div style="display: flex; padding: 15px;">
-                        <div style="flex-shrink: 0; margin-right: 15px;">
-                            <img src="https://img.youtube.com/vi/{{ video.video_id }}/maxresdefault.jpg" 
-                                 alt="Thumbnail" 
-                                 style="width: 120px; height: 68px; object-fit: cover; border-radius: 4px;"
-                                 onerror="this.src='https://img.youtube.com/vi/{{ video.video_id }}/default.jpg'">
-                        </div>
-                        <div style="flex-grow: 1; min-width: 0;">
-                            <h4 style="margin: 0 0 8px 0; font-size: 16px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
-                                {% if video.is_valid %}
-                                    <a href="/watch?v={{ video.video_id }}" style="color: #333; text-decoration: none;">{{ video.title }}</a>
-                                {% else %}
-                                    <span style="color: #999;">{{ video.title }}</span>
-                                {% endif %}
-                            </h4>
-                            <div style="color: #666; font-size: 14px; margin-bottom: 8px;">
-                                {% if video.uploader != 'Unknown' %}
-                                    <a href="https://www.youtube.com/results?search_query={{ video.uploader|urlencode }}" target="_blank" style="color: #0066cc; text-decoration: none;">{{ video.uploader }}</a>
-                                {% else %}
-                                    {{ video.uploader }}
-                                {% endif %}
+                    <div style="padding: 20px;">
+                        <div style="display: flex; gap: 16px;">
+                            <div style="flex-shrink: 0;">
+                                <img src="https://img.youtube.com/vi/{{ video.video_id }}/maxresdefault.jpg" 
+                                     alt="Video thumbnail" 
+                                     style="width: 120px; height: 68px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border-light);"
+                                     onerror="this.src='https://img.youtube.com/vi/{{ video.video_id }}/default.jpg'">
                             </div>
-                            <div style="color: #888; font-size: 12px;">
-                                {% if video.duration %}
-                                    ⏱️ {{ "%.0f"|format(video.duration // 60) }}:{{ "%02.0f"|format(video.duration % 60) }} • 
-                                {% endif %}
-                                📝 {{ video.transcript_entries }} entries
-                                {% if video.chapters_count > 0 %}
-                                    • 📚 {{ video.chapters_count }} chapters
-                                {% endif %}
+                            <div style="flex-grow: 1; min-width: 0;">
+                                <h4 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+                                    {% if video.is_valid %}
+                                        <a href="/watch?v={{ video.video_id }}" style="color: var(--text-primary); text-decoration: none;">{{ video.title }}</a>
+                                    {% else %}
+                                        <span style="color: var(--text-tertiary);">{{ video.title }}</span>
+                                    {% endif %}
+                                </h4>
+                                <div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 8px;">
+                                    {% if video.uploader != 'Unknown' %}
+                                        <a href="https://www.youtube.com/results?search_query={{ video.uploader|urlencode }}" target="_blank" style="color: var(--text-secondary); text-decoration: none;">{{ video.uploader }}</a>
+                                    {% else %}
+                                        {{ video.uploader }}
+                                    {% endif %}
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 12px; color: var(--text-tertiary); font-size: 13px;">
+                                    {% if video.duration %}
+                                        <span style="display: flex; align-items: center; gap: 4px;">
+                                            <i data-lucide="clock" style="width: 12px; height: 12px;"></i>
+                                            {{ "%.0f"|format(video.duration // 60) }}:{{ "%02.0f"|format(video.duration % 60) }}
+                                        </span>
+                                    {% endif %}
+                                    <span style="display: flex; align-items: center; gap: 4px;">
+                                        <i data-lucide="file-text" style="width: 12px; height: 12px;"></i>
+                                        {{ video.transcript_entries }} entries
+                                    </span>
+                                    {% if video.chapters_count > 0 %}
+                                        <span style="display: flex; align-items: center; gap: 4px;">
+                                            <i data-lucide="list" style="width: 12px; height: 12px;"></i>
+                                            {{ video.chapters_count }} chapters
+                                        </span>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Cache Info -->
-                    <div style="background: #f8f9fa; padding: 12px 15px; border-top: 1px solid #eee;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #666;">
-                            <div>
-                                <span style="display: inline-block; margin-right: 15px;">
-                                    🗄️ Database
-                                </span>
-                                <span style="display: inline-block; margin-right: 15px;">
-                                    🕒 {{ video.cache_age_hours }}h ago
+                    <!-- Footer with actions -->
+                    <div style="background: var(--light-surface); padding: 16px 20px; border-top: 1px solid var(--border-light);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--text-tertiary);">
+                                <span style="display: flex; align-items: center; gap: 4px;">
+                                    <i data-lucide="database" style="width: 12px; height: 12px;"></i>
+                                    {{ video.cache_age_hours }}h ago
                                 </span>
                                 {% if video.has_summary %}
-                                    <span style="color: #6f42c1; font-weight: bold;">📋 Summary</span>
+                                    <span style="display: flex; align-items: center; gap: 4px; color: #8b5cf6; font-weight: 500;">
+                                        <i data-lucide="sparkles" style="width: 12px; height: 12px;"></i>
+                                        Summary
+                                    </span>
                                 {% endif %}
-                                <span style="color: #28a745; font-weight: bold;">✅ STORED</span>
                             </div>
                             <div style="display: flex; gap: 8px;">
                                 {% if video.is_valid %}
-                                    <a href="/watch?v={{ video.video_id }}" style="background: #007bff; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">View</a>
+                                    <a href="/watch?v={{ video.video_id }}" class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">
+                                        <i data-lucide="eye" style="width: 12px; height: 12px;"></i>
+                                        View
+                                    </a>
                                 {% endif %}
-                                <a href="https://www.youtube.com/watch?v={{ video.video_id }}" target="_blank" style="background: #ff0000; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">YouTube</a>
+                                <a href="https://www.youtube.com/watch?v={{ video.video_id }}" target="_blank" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">
+                                    <i data-lucide="external-link" style="width: 12px; height: 12px;"></i>
+                                    YouTube
+                                </a>
                             </div>
                         </div>
                         
                         {% if video.error %}
-                            <div style="color: #dc3545; font-size: 11px; margin-top: 8px; padding: 6px; background: #f8d7da; border-radius: 3px;">
-                                Error: {{ video.error }}
+                            <div style="color: #ef4444; font-size: 12px; margin-top: 12px; padding: 8px; background: #fef2f2; border-radius: 6px; border: 1px solid #fecaca;">
+                                <i data-lucide="alert-circle" style="width: 12px; height: 12px; margin-right: 4px;"></i>
+                                {{ video.error }}
                             </div>
                         {% endif %}
                     </div>
@@ -131,29 +156,46 @@
         
     {% else %}
         <!-- Empty State -->
-        <div style="text-align: center; padding: 60px 20px; color: #666;">
-            <div style="font-size: 48px; margin-bottom: 20px;">📭</div>
-            <h3>No Saved Videos</h3>
-            <p>Visit some videos to see them appear here.</p>
-            <a href="/" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block; margin-top: 15px;">Search Videos</a>
+        <div class="card" style="text-align: center; padding: 60px 20px;">
+            <div style="width: 80px; height: 80px; background: var(--light-surface); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px;">
+                <i data-lucide="video-off" style="width: 32px; height: 32px; color: var(--text-tertiary);"></i>
+            </div>
+            <h3 style="margin: 0 0 8px 0; font-size: 20px; font-weight: 600; color: var(--text-primary);">No Saved Videos</h3>
+            <p style="margin: 0 0 24px 0; color: var(--text-secondary); font-size: 16px;">Start analyzing YouTube videos to build your library</p>
+            <a href="/" class="btn btn-primary">
+                <i data-lucide="search" class="btn-icon"></i>
+                Analyze Your First Video
+            </a>
         </div>
     {% endif %}
     
     <script>
         function cleanupExpired() {
+            const button = event.target;
+            const originalContent = button.innerHTML;
+            
+            button.innerHTML = '<span class="spinner"></span> Checking...';
+            button.disabled = true;
+            
             fetch('/api/cache/cleanup', {
                 method: 'POST'
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('Database status checked!\n\nVideos: {{ cache_stats.videos_count }}\nTranscripts: {{ cache_stats.transcripts_count }}\nSummaries: {{ cache_stats.summaries_count }}');
+                    // Create a modern modal-style alert
+                    const message = `Database Status:\n\n• Videos: {{ cache_stats.videos_count }}\n• Transcripts: {{ cache_stats.transcripts_count }}\n• Summaries: {{ cache_stats.summaries_count }}\n\n✓ Database is healthy`;
+                    alert(message);
                 } else {
                     alert('Error: ' + data.error);
                 }
             })
             .catch(error => {
                 alert('Error: ' + error.message);
+            })
+            .finally(() => {
+                button.innerHTML = originalContent;
+                button.disabled = false;
             });
         }
     </script>
