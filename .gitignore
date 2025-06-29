@@ -44,3 +44,6 @@ server.log
 
 # Transcript files
 transcript_*.txt
+
+# Cache directory
+cache/

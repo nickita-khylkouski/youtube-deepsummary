@@ -1,0 +1,136 @@
+#!/usr/bin/env python3
+"""
+Transcript caching module with TTL support
+"""
+
+import os
+import json
+import time
+from typing import Optional, Dict, List
+from pathlib import Path
+
+
+class TranscriptCache:
+    """Simple file-based cache for YouTube transcripts with TTL"""
+    
+    def __init__(self, cache_dir: str = "cache", ttl_hours: int = 24):
+        """
+        Initialize transcript cache
+        
+        Args:
+            cache_dir: Directory to store cache files
+            ttl_hours: Time to live in hours (default 24 hours = 1 day)
+        """
+        self.cache_dir = Path(cache_dir)
+        self.ttl_seconds = ttl_hours * 3600
+        
+        # Create cache directory if it doesn't exist
+        self.cache_dir.mkdir(exist_ok=True)
+        
+    def _get_cache_file(self, video_id: str) -> Path:
+        """Get cache file path for video ID"""
+        return self.cache_dir / f"{video_id}.json"
+    
+    def _is_cache_valid(self, cache_file: Path) -> bool:
+        """Check if cache file exists and is not expired"""
+        if not cache_file.exists():
+            return False
+        
+        # Check if file is older than TTL
+        file_age = time.time() - cache_file.stat().st_mtime
+        return file_age < self.ttl_seconds
+    
+    def get(self, video_id: str) -> Optional[Dict]:
+        """
+        Get cached transcript data for video ID
+        
+        Args:
+            video_id: YouTube video ID
+            
+        Returns:
+            Cached data dict or None if not found/expired
+        """
+        cache_file = self._get_cache_file(video_id)
+        
+        if not self._is_cache_valid(cache_file):
+            return None
+        
+        try:
+            with open(cache_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                print(f"Cache HIT for video {video_id}")
+                return data
+        except (json.JSONDecodeError, FileNotFoundError, KeyError) as e:
+            print(f"Cache read error for {video_id}: {e}")
+            # Remove corrupted cache file
+            cache_file.unlink(missing_ok=True)
+            return None
+    
+    def set(self, video_id: str, transcript: List[Dict], video_info: Dict, formatted_transcript: str):
+        """
+        Cache transcript data for video ID
+        
+        Args:
+            video_id: YouTube video ID
+            transcript: Raw transcript data
+            video_info: Video metadata (title, chapters, etc.)
+            formatted_transcript: Formatted readable transcript
+        """
+        cache_file = self._get_cache_file(video_id)
+        
+        cache_data = {
+            'video_id': video_id,
+            'timestamp': time.time(),
+            'transcript': transcript,
+            'video_info': video_info,
+            'formatted_transcript': formatted_transcript
+        }
+        
+        try:
+            with open(cache_file, 'w', encoding='utf-8') as f:
+                json.dump(cache_data, f, indent=2, ensure_ascii=False)
+                print(f"Cache SAVED for video {video_id}")
+        except Exception as e:
+            print(f"Cache write error for {video_id}: {e}")
+    
+    def clear_expired(self):
+        """Remove expired cache files"""
+        if not self.cache_dir.exists():
+            return
+        
+        removed_count = 0
+        for cache_file in self.cache_dir.glob("*.json"):
+            if not self._is_cache_valid(cache_file):
+                cache_file.unlink(missing_ok=True)
+                removed_count += 1
+        
+        if removed_count > 0:
+            print(f"Removed {removed_count} expired cache files")
+    
+    def get_cache_info(self) -> Dict:
+        """Get cache statistics"""
+        if not self.cache_dir.exists():
+            return {'total_files': 0, 'valid_files': 0, 'expired_files': 0}
+        
+        total_files = 0
+        valid_files = 0
+        expired_files = 0
+        
+        for cache_file in self.cache_dir.glob("*.json"):
+            total_files += 1
+            if self._is_cache_valid(cache_file):
+                valid_files += 1
+            else:
+                expired_files += 1
+        
+        return {
+            'total_files': total_files,
+            'valid_files': valid_files,
+            'expired_files': expired_files,
+            'cache_dir': str(self.cache_dir),
+            'ttl_hours': self.ttl_seconds / 3600
+        }
+
+
+# Global cache instance
+transcript_cache = TranscriptCache()

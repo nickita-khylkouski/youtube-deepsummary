@@ -10,6 +10,7 @@ from flask import Flask, request, render_template, jsonify
 from youtube_transcript_api import YouTubeTranscriptApi
 import re
 from transcript_summarizer import TranscriptSummarizer, format_transcript_for_readability, extract_video_chapters, extract_video_info
+from transcript_cache import transcript_cache
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -100,33 +101,58 @@ def watch():
                              error_message="Invalid video ID format"), 400
     
     try:
-        transcript = get_transcript(video_id)
-        proxy_used = os.getenv('YOUTUBE_PROXY', 'None')
+        # Check cache first
+        cached_data = transcript_cache.get(video_id)
         
-        # Extract video info (title, chapters, etc.)
-        print(f"Extracting video info for: {video_id}")
-        try:
-            video_info = extract_video_info(video_id)
+        if cached_data:
+            print(f"Using cached data for video: {video_id}")
+            transcript = cached_data['transcript']
+            video_info = cached_data['video_info']
+            formatted_transcript_text = cached_data['formatted_transcript']
+            
             video_title = video_info.get('title')
             chapters = video_info.get('chapters')
             video_duration = video_info.get('duration')
             video_uploader = video_info.get('uploader')
+        else:
+            print(f"Cache MISS for video: {video_id}, downloading fresh data")
+            transcript = get_transcript(video_id)
             
-            print(f"Video title: {video_title}")
-            print(f"Chapters extracted: {chapters}")
-            if chapters:
-                print(f"Found {len(chapters)} chapters")
-            else:
-                print("No chapters found or chapter extraction failed")
-        except Exception as e:
-            print(f"Video info extraction error: {e}")
-            video_title = None
-            chapters = None
-            video_duration = None
-            video_uploader = None
+            # Extract video info (title, chapters, etc.)
+            print(f"Extracting video info for: {video_id}")
+            try:
+                video_info = extract_video_info(video_id)
+                video_title = video_info.get('title')
+                chapters = video_info.get('chapters')
+                video_duration = video_info.get('duration')
+                video_uploader = video_info.get('uploader')
+                
+                print(f"Video title: {video_title}")
+                print(f"Chapters extracted: {chapters}")
+                if chapters:
+                    print(f"Found {len(chapters)} chapters")
+                else:
+                    print("No chapters found or chapter extraction failed")
+            except Exception as e:
+                print(f"Video info extraction error: {e}")
+                video_info = {
+                    'title': None,
+                    'chapters': None,
+                    'duration': None,
+                    'uploader': None
+                }
+                video_title = None
+                chapters = None
+                video_duration = None
+                video_uploader = None
+            
+            # Format transcript for improved readability
+            formatted_transcript_text = format_transcript_for_readability(transcript, chapters)
+            
+            # Cache the data for future use
+            transcript_cache.set(video_id, transcript, video_info, formatted_transcript_text)
         
-        # Format transcript for improved readability
-        formatted_transcript_text = format_transcript_for_readability(transcript, chapters)
+        proxy_used = os.getenv('YOUTUBE_PROXY', 'None')
         
         # Remove automatic summary generation - now handled via AJAX
         summary = None
@@ -157,13 +183,26 @@ def watch():
 def api_transcript(video_id):
     """API endpoint to get transcript as JSON"""
     try:
-        transcript = get_transcript(video_id)
-        chapters = extract_video_chapters(video_id)
-        formatted_transcript = format_transcript_for_readability(transcript, chapters)
+        # Check cache first for API endpoint too
+        cached_data = transcript_cache.get(video_id)
+        
+        if cached_data:
+            print(f"API: Using cached data for video: {video_id}")
+            transcript = cached_data['transcript']
+            video_info = cached_data['video_info']
+            formatted_transcript = cached_data['formatted_transcript']
+            chapters = video_info.get('chapters')
+        else:
+            print(f"API: Cache MISS for video: {video_id}, downloading fresh data")
+            transcript = get_transcript(video_id)
+            video_info = extract_video_info(video_id)
+            chapters = video_info.get('chapters')
+            formatted_transcript = format_transcript_for_readability(transcript, chapters)
+            
+            # Cache the data
+            transcript_cache.set(video_id, transcript, video_info, formatted_transcript)
         
         thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
-        
-        video_info = extract_video_info(video_id)
         
         return jsonify({
             'success': True,
@@ -248,7 +287,42 @@ def api_summary_with_data():
             'error': str(e)
         }), 500
 
+@app.route('/api/cache/info')
+def api_cache_info():
+    """API endpoint to get cache statistics"""
+    try:
+        cache_info = transcript_cache.get_cache_info()
+        return jsonify({
+            'success': True,
+            'cache_info': cache_info
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/cache/cleanup', methods=['POST'])
+def api_cache_cleanup():
+    """API endpoint to clean up expired cache files"""
+    try:
+        transcript_cache.clear_expired()
+        cache_info = transcript_cache.get_cache_info()
+        return jsonify({
+            'success': True,
+            'message': 'Expired cache files removed',
+            'cache_info': cache_info
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 if __name__ == '__main__':
+    # Clean up expired cache files on startup
+    transcript_cache.clear_expired()
+    
     # Get configuration from environment variables
     proxy = os.getenv('YOUTUBE_PROXY')
     host = os.getenv('FLASK_HOST', '0.0.0.0')
@@ -261,5 +335,9 @@ if __name__ == '__main__':
         print("No proxy configured")
     
     print(f"OpenAI API configured: {bool(os.getenv('OPENAI_API_KEY'))}")
+    
+    # Show cache info
+    cache_info = transcript_cache.get_cache_info()
+    print(f"Cache: {cache_info['valid_files']} valid files, {cache_info['expired_files']} expired files")
     
     app.run(host=host, port=port, debug=debug)
