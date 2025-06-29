@@ -2,8 +2,8 @@
 
 {% block content %}
     <div class="search-form">
-        <form action="/watch" method="get">
-            <input type="text" name="v" placeholder="Enter YouTube video ID or URL (e.g., FjHtZnjNEBU)" required>
+        <form action="/watch" method="get" onsubmit="if (!this.v.value.trim()) this.v.value = 'FjHtZnjNEBU';">
+            <input type="text" name="v" placeholder="Enter YouTube video ID or URL (e.g., FjHtZnjNEBU)">
             <button type="submit">Get Transcript</button>
         </form>
     </div>
