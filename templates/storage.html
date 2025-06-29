@@ -1,32 +1,51 @@
 {% extends "base.html" %}
 
-{% block title %}Saved Videos - YouTube Deep Search{% endblock %}
+{% block title %}Storage - YouTube Deep Search{% endblock %}
 
 {% block content %}
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h2>💾 Saved Videos</h2>
-        <a href="/" style="background: #666; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px;">← Back to Home</a>
+    <div class="page-header">
+        <h1 class="page-title">Your Video Library</h1>
+        <p class="page-subtitle">Access your saved videos, transcripts, and AI summaries in one place.</p>
     </div>
     
-    <!-- Storage Statistics -->
-    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
-        <h3 style="margin-top: 0;">📊 Database Statistics</h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
-            <div style="background: white; padding: 15px; border-radius: 6px; text-align: center; border-left: 4px solid #28a745;">
-                <div style="font-size: 24px; font-weight: bold; color: #28a745;">{{ cache_stats.videos_count }}</div>
-                <div style="color: #666; font-size: 14px;">Videos Stored</div>
-            </div>
-            <div style="background: white; padding: 15px; border-radius: 6px; text-align: center; border-left: 4px solid #17a2b8;">
-                <div style="font-size: 24px; font-weight: bold; color: #17a2b8;">{{ cache_stats.transcripts_count }}</div>
-                <div style="color: #666; font-size: 14px;">Transcripts</div>
-            </div>
-            <div style="background: white; padding: 15px; border-radius: 6px; text-align: center; border-left: 4px solid #6f42c1;">
-                <div style="font-size: 24px; font-weight: bold; color: #6f42c1;">{{ cache_stats.summaries_count }}</div>
-                <div style="color: #666; font-size: 14px;">AI Summaries</div>
-            </div>
-            <div style="background: white; padding: 15px; border-radius: 6px; text-align: center; border-left: 4px solid #007bff;">
-                <div style="font-size: 24px; font-weight: bold; color: #007bff;">{{ cache_stats.ttl_hours }}</div>
-                <div style="color: #666; font-size: 14px;">Storage Duration</div>
+    <!-- Database Statistics -->
+    <div class="card" style="margin-bottom: 32px;">
+        <div class="card-header">
+            <h3 style="margin: 0; display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 600;">
+                <i data-lucide="bar-chart-3" style="width: 20px; height: 20px; color: var(--yt-red);"></i>
+                Database Statistics
+            </h3>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                <div style="background: var(--light-surface); padding: 20px; border-radius: 12px; text-align: center; border: 1px solid var(--border-light);">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px;">
+                        <i data-lucide="video" style="width: 20px; height: 20px; color: var(--yt-red);"></i>
+                        <div style="font-size: 28px; font-weight: 700; color: var(--yt-red);">{{ cache_stats.videos_count }}</div>
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 14px; font-weight: 500;">Videos Stored</div>
+                </div>
+                <div style="background: var(--light-surface); padding: 20px; border-radius: 12px; text-align: center; border: 1px solid var(--border-light);">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px;">
+                        <i data-lucide="file-text" style="width: 20px; height: 20px; color: #0ea5e9;"></i>
+                        <div style="font-size: 28px; font-weight: 700; color: #0ea5e9;">{{ cache_stats.transcripts_count }}</div>
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 14px; font-weight: 500;">Transcripts</div>
+                </div>
+                <div style="background: var(--light-surface); padding: 20px; border-radius: 12px; text-align: center; border: 1px solid var(--border-light);">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px;">
+                        <i data-lucide="sparkles" style="width: 20px; height: 20px; color: #8b5cf6;"></i>
+                        <div style="font-size: 28px; font-weight: 700; color: #8b5cf6;">{{ cache_stats.summaries_count }}</div>
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 14px; font-weight: 500;">AI Summaries</div>
+                </div>
+                <div style="background: var(--light-surface); padding: 20px; border-radius: 12px; text-align: center; border: 1px solid var(--border-light);">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px;">
+                        <i data-lucide="infinity" style="width: 20px; height: 20px; color: #22c55e;"></i>
+                        <div style="font-size: 28px; font-weight: 700; color: #22c55e;">{{ cache_stats.ttl_hours }}</div>
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 14px; font-weight: 500;">Storage Duration</div>
+                </div>
             </div>
         </div>
     </div>
