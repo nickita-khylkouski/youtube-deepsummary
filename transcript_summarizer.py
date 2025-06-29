@@ -279,10 +279,10 @@ def _format_timestamp(seconds: float) -> str:
         return f"{minutes:02d}:{seconds:02d}"
 
 
-def extract_video_chapters(video_id: str) -> Optional[List[Dict]]:
+def extract_video_info(video_id: str) -> Dict[str, any]:
     """
-    Extract chapter information from YouTube video using yt-dlp Python module
-    Returns list of chapters with title and start time
+    Extract video information including title and chapters using yt-dlp Python module
+    Returns dict with title, chapters, and other video metadata
     """
     try:
         import yt_dlp
@@ -300,9 +300,9 @@ def extract_video_chapters(video_id: str) -> Optional[List[Dict]]:
         proxy = os.getenv('YOUTUBE_PROXY')
         if proxy:
             ydl_opts['proxy'] = f'http://{proxy}'
-            print(f"Using proxy for chapter extraction: {proxy}")
+            print(f"Using proxy for video info extraction: {proxy}")
         else:
-            print("No proxy configured for chapter extraction")
+            print("No proxy configured for video info extraction")
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             video_info = ydl.extract_info(
@@ -310,7 +310,12 @@ def extract_video_chapters(video_id: str) -> Optional[List[Dict]]:
                 download=False
             )
             
+            # Extract title
+            title = video_info.get('title', 'Unknown Title')
+            
+            # Extract chapters
             chapters = video_info.get('chapters', [])
+            formatted_chapters = None
             
             if chapters:
                 formatted_chapters = []
@@ -319,13 +324,34 @@ def extract_video_chapters(video_id: str) -> Optional[List[Dict]]:
                         'title': chapter.get('title', 'Unknown Chapter'),
                         'time': chapter.get('start_time', 0)
                     })
-                return formatted_chapters
+            
+            return {
+                'title': title,
+                'chapters': formatted_chapters,
+                'duration': video_info.get('duration'),
+                'uploader': video_info.get('uploader'),
+                'upload_date': video_info.get('upload_date')
+            }
         
     except (ImportError, Exception) as e:
-        # Silently fail if yt-dlp is not available or chapter extraction fails
-        print(f"Chapter extraction failed for video {video_id}: {e}")
+        # Silently fail if yt-dlp is not available or video info extraction fails
+        print(f"Video info extraction failed for video {video_id}: {e}")
         import traceback
         traceback.print_exc()
         pass
     
-    return None
+    return {
+        'title': None,
+        'chapters': None,
+        'duration': None,
+        'uploader': None,
+        'upload_date': None
+    }
+
+
+def extract_video_chapters(video_id: str) -> Optional[List[Dict]]:
+    """
+    Extract only chapter information (for backward compatibility)
+    """
+    video_info = extract_video_info(video_id)
+    return video_info.get('chapters')

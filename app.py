@@ -9,7 +9,7 @@ import os
 from flask import Flask, request, render_template, jsonify
 from youtube_transcript_api import YouTubeTranscriptApi
 import re
-from transcript_summarizer import TranscriptSummarizer, format_transcript_for_readability, extract_video_chapters
+from transcript_summarizer import TranscriptSummarizer, format_transcript_for_readability, extract_video_chapters, extract_video_info
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -102,18 +102,27 @@ def watch():
         transcript = get_transcript(video_id)
         proxy_used = os.getenv('YOUTUBE_PROXY', 'None')
         
-        # Extract video chapters for enhanced formatting
-        print(f"Extracting chapters for video: {video_id}")
+        # Extract video info (title, chapters, etc.)
+        print(f"Extracting video info for: {video_id}")
         try:
-            chapters = extract_video_chapters(video_id)
+            video_info = extract_video_info(video_id)
+            video_title = video_info.get('title')
+            chapters = video_info.get('chapters')
+            video_duration = video_info.get('duration')
+            video_uploader = video_info.get('uploader')
+            
+            print(f"Video title: {video_title}")
             print(f"Chapters extracted: {chapters}")
             if chapters:
                 print(f"Found {len(chapters)} chapters")
             else:
                 print("No chapters found or chapter extraction failed")
         except Exception as e:
-            print(f"Chapter extraction error: {e}")
+            print(f"Video info extraction error: {e}")
+            video_title = None
             chapters = None
+            video_duration = None
+            video_uploader = None
         
         # Format transcript for improved readability
         formatted_transcript_text = format_transcript_for_readability(transcript, chapters)
@@ -129,11 +138,18 @@ def watch():
         elif summarize and (not summarizer or not summarizer.is_configured()):
             summary_error = "OpenAI API key not configured. Set OPENAI_API_KEY environment variable."
         
+        # Generate thumbnail URL
+        thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+        
         return render_template('transcript.html', 
                              video_id=video_id,
+                             video_title=video_title,
+                             video_duration=video_duration,
+                             video_uploader=video_uploader,
                              transcript=transcript,
                              formatted_transcript=formatted_transcript_text,
                              chapters=chapters,
+                             thumbnail_url=thumbnail_url,
                              proxy_used=proxy_used,
                              summary=summary,
                              summary_error=summary_error,
@@ -151,12 +167,20 @@ def api_transcript(video_id):
         chapters = extract_video_chapters(video_id)
         formatted_transcript = format_transcript_for_readability(transcript, chapters)
         
+        thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+        
+        video_info = extract_video_info(video_id)
+        
         return jsonify({
             'success': True,
             'video_id': video_id,
+            'video_title': video_info.get('title'),
+            'video_duration': video_info.get('duration'),
+            'video_uploader': video_info.get('uploader'),
             'transcript': transcript,
             'formatted_transcript': formatted_transcript,
             'chapters': chapters,
+            'thumbnail_url': thumbnail_url,
             'proxy_used': os.getenv('YOUTUBE_PROXY', None)
         })
     except Exception as e:
