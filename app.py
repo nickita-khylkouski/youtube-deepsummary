@@ -86,7 +86,8 @@ def index():
 def watch():
     """Display transcript for YouTube video"""
     video_id_param = request.args.get('v')
-    summarize = request.args.get('summarize', 'false').lower() == 'true'
+    # Remove summarize parameter since we're using AJAX now
+    # summarize = request.args.get('summarize', 'false').lower() == 'true'
     
     if not video_id_param:
         return render_template('error.html', 
@@ -127,16 +128,9 @@ def watch():
         # Format transcript for improved readability
         formatted_transcript_text = format_transcript_for_readability(transcript, chapters)
         
+        # Remove automatic summary generation - now handled via AJAX
         summary = None
         summary_error = None
-        
-        if summarize and summarizer and summarizer.is_configured():
-            try:
-                summary = summarizer.summarize_transcript(transcript)
-            except Exception as e:
-                summary_error = f"Failed to generate summary: {str(e)}"
-        elif summarize and (not summarizer or not summarizer.is_configured()):
-            summary_error = "OpenAI API key not configured. Set OPENAI_API_KEY environment variable."
         
         # Generate thumbnail URL
         thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
@@ -191,7 +185,7 @@ def api_transcript(video_id):
 
 @app.route('/api/summary/<video_id>')
 def api_summary(video_id):
-    """API endpoint to get transcript summary as JSON"""
+    """API endpoint to get transcript summary as JSON (legacy - downloads transcript)"""
     try:
         if not summarizer or not summarizer.is_configured():
             return jsonify({
@@ -207,6 +201,46 @@ def api_summary(video_id):
             'video_id': video_id,
             'summary': summary,
             'proxy_used': os.getenv('YOUTUBE_PROXY', None)
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/summary', methods=['POST'])
+def api_summary_with_data():
+    """API endpoint to generate summary from provided transcript data"""
+    try:
+        if not summarizer or not summarizer.is_configured():
+            return jsonify({
+                'success': False,
+                'error': 'OpenAI API key not configured'
+            }), 400
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No JSON data provided'
+            }), 400
+        
+        video_id = data.get('video_id')
+        formatted_transcript = data.get('formatted_transcript')
+        
+        if not video_id or not formatted_transcript:
+            return jsonify({
+                'success': False,
+                'error': 'video_id and formatted_transcript are required'
+            }), 400
+        
+        # Generate summary using provided formatted transcript text
+        summary = summarizer.summarize_with_openai(formatted_transcript)
+        
+        return jsonify({
+            'success': True,
+            'video_id': video_id,
+            'summary': summary
         })
     except Exception as e:
         return jsonify({
