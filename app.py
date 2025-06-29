@@ -362,6 +362,11 @@ def api_cache_cleanup():
             'error': str(e)
         }), 500
 
+@app.route('/favicon.ico')
+def favicon():
+    """Serve favicon from static directory"""
+    return app.send_static_file('favicon.ico')
+
 if __name__ == '__main__':
     # Clean up expired cache files on startup
     transcript_cache.clear_expired()
