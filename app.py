@@ -308,8 +308,14 @@ def api_summary_with_data():
                 'error': 'video_id and formatted_transcript are required'
             }), 400
         
+        # Get chapters from cache to include in summary
+        cached_data = transcript_cache.get(video_id)
+        chapters = None
+        if cached_data and cached_data.get('video_info'):
+            chapters = cached_data['video_info'].get('chapters')
+        
         # Generate summary using provided formatted transcript text
-        summary = summarizer.summarize_with_openai(formatted_transcript)
+        summary = summarizer.summarize_with_openai(formatted_transcript, chapters=chapters, video_id=video_id)
         
         return jsonify({
             'success': True,

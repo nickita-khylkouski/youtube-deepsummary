@@ -84,7 +84,7 @@
             <h3>📚 Video Chapters ({{ chapters|length }} chapters):</h3>
             <ul style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0;">
                 {% for chapter in chapters %}
-                    <li><strong>{{ chapter.title }}</strong> - {{ "%.0f"|format(chapter.time // 60) }}:{{ "%02.0f"|format(chapter.time % 60) }}</li>
+                    <li><strong>{{ chapter.title }}</strong> - <a href="https://www.youtube.com/watch?v={{ video_id }}&t={{ chapter.time|int }}s" target="_blank" style="color: #0066cc; text-decoration: underline;">{{ "%.0f"|format(chapter.time // 60) }}:{{ "%02.0f"|format(chapter.time % 60) }}</a></li>
                 {% endfor %}
             </ul>
         </div>
@@ -160,13 +160,18 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
+                        // Convert markdown links to HTML links
+                        let summaryHtml = data.summary;
+                        // Convert [text](url) to <a href="url" target="_blank">text</a>
+                        summaryHtml = summaryHtml.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #0066cc; text-decoration: underline;">$1</a>');
+                        
                         // Show summary section
                         summarySection.style.display = 'block';
                         summarySection.innerHTML = `
                             <div class="summary-section">
                                 <h3>🤖 AI-Generated Summary:</h3>
                                 <div class="summary-content">
-                                    <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit;">${data.summary}</pre>
+                                    <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit;">${summaryHtml}</pre>
                                 </div>
                             </div>
                             <hr style="margin: 30px 0; border: 1px solid #ddd;">

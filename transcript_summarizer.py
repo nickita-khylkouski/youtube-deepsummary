@@ -126,7 +126,7 @@ Here is the transcript to summarize:
         
         return self.summarize_with_openai(transcript_text)
     
-    def summarize_with_openai(self, transcript_content: str, chapters: Optional[List[Dict]] = None) -> str:
+    def summarize_with_openai(self, transcript_content: str, chapters: Optional[List[Dict]] = None, video_id: str = None) -> str:
         """Generate summary using OpenAI's chat completion API"""
         # Ensure client is initialized
         if not self.client:
@@ -156,10 +156,42 @@ Here is the transcript to summarize:
             
             summary = response.choices[0].message.content.strip()
             formatted_summary = self.format_text_for_readability(summary)
+            
+            # Add clickable chapters section if chapters and video_id are provided
+            if chapters and video_id:
+                chapters_section = self._create_clickable_chapters_section(chapters, video_id)
+                formatted_summary = chapters_section + "\n\n" + formatted_summary
+            
             return formatted_summary
             
         except Exception as e:
             raise Exception(f"Error generating summary: {str(e)}")
+    
+    def _create_clickable_chapters_section(self, chapters: List[Dict], video_id: str) -> str:
+        """Create a clickable chapters section for the summary"""
+        chapters_html = "📚 Video Chapters ({} chapters):\n\n".format(len(chapters))
+        
+        for chapter in chapters:
+            title = chapter.get('title', 'Chapter')
+            time_seconds = chapter.get('time', 0)
+            
+            # Format timestamp
+            hours = int(time_seconds // 3600)
+            minutes = int((time_seconds % 3600) // 60)
+            seconds = int(time_seconds % 60)
+            
+            if hours > 0:
+                timestamp = f"{hours}:{minutes:02d}:{seconds:02d}"
+            else:
+                timestamp = f"{minutes}:{seconds:02d}"
+            
+            # Create YouTube URL with timestamp
+            youtube_url = f"https://www.youtube.com/watch?v={video_id}&t={int(time_seconds)}s"
+            
+            # Format as clickable link (HTML will be rendered in the summary)
+            chapters_html += f"• [{title}]({youtube_url}) - {timestamp}\n"
+        
+        return chapters_html
     
     def is_configured(self) -> bool:
         """Check if OpenAI API key is configured"""
