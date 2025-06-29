@@ -130,6 +130,61 @@ class TranscriptCache:
             'cache_dir': str(self.cache_dir),
             'ttl_hours': self.ttl_seconds / 3600
         }
+    
+    def get_all_cached_videos(self) -> List[Dict]:
+        """Get list of all cached videos with metadata"""
+        if not self.cache_dir.exists():
+            return []
+        
+        cached_videos = []
+        
+        for cache_file in self.cache_dir.glob("*.json"):
+            video_id = cache_file.stem
+            
+            # Check if cache is valid
+            is_valid = self._is_cache_valid(cache_file)
+            
+            try:
+                with open(cache_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    video_info = data.get('video_info', {})
+                    
+                    # Calculate cache age
+                    cache_timestamp = data.get('timestamp', 0)
+                    cache_age_hours = (time.time() - cache_timestamp) / 3600
+                    
+                    cached_videos.append({
+                        'video_id': video_id,
+                        'title': video_info.get('title', 'Unknown Title'),
+                        'uploader': video_info.get('uploader', 'Unknown Channel'),
+                        'duration': video_info.get('duration'),
+                        'chapters_count': len(video_info.get('chapters', [])) if video_info.get('chapters') else 0,
+                        'transcript_entries': len(data.get('transcript', [])),
+                        'cache_age_hours': round(cache_age_hours, 1),
+                        'is_valid': is_valid,
+                        'cache_timestamp': cache_timestamp,
+                        'file_size': cache_file.stat().st_size
+                    })
+            except (json.JSONDecodeError, KeyError, FileNotFoundError) as e:
+                # Include corrupted/unreadable files
+                cached_videos.append({
+                    'video_id': video_id,
+                    'title': 'Error reading cache',
+                    'uploader': 'Unknown',
+                    'duration': None,
+                    'chapters_count': 0,
+                    'transcript_entries': 0,
+                    'cache_age_hours': 0,
+                    'is_valid': False,
+                    'cache_timestamp': 0,
+                    'file_size': cache_file.stat().st_size,
+                    'error': str(e)
+                })
+        
+        # Sort by cache timestamp (newest first)
+        cached_videos.sort(key=lambda x: x['cache_timestamp'], reverse=True)
+        
+        return cached_videos
 
 
 # Global cache instance

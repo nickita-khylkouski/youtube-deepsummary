@@ -362,6 +362,20 @@ def api_cache_cleanup():
             'error': str(e)
         }), 500
 
+@app.route('/storage')
+def storage_page():
+    """Display all saved videos"""
+    try:
+        cached_videos = transcript_cache.get_all_cached_videos()
+        cache_stats = transcript_cache.get_cache_info()
+        
+        return render_template('storage.html', 
+                             cached_videos=cached_videos,
+                             cache_stats=cache_stats)
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading storage page: {str(e)}"), 500
+
 @app.route('/favicon.ico')
 def favicon():
     """Serve favicon from static directory"""

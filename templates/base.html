@@ -142,6 +142,12 @@
             background: #1976d2;
         }
         
+        /* Navigation hover effects */
+        .header nav a:hover {
+            background-color: #f0f0f0 !important;
+            color: #333 !important;
+        }
+        
         /* Mobile responsive adjustments */
         @media (max-width: 768px) {
             body {
@@ -172,7 +178,13 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔍 YouTube Deep Search</h1>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h1 style="margin: 0;">🔍 YouTube Deep Search</h1>
+                <nav style="display: flex; gap: 15px; font-size: 14px;">
+                    <a href="/" style="color: #666; text-decoration: none; padding: 8px 12px; border-radius: 4px; transition: background-color 0.3s;">🏠 Home</a>
+                    <a href="/storage" style="color: #666; text-decoration: none; padding: 8px 12px; border-radius: 4px; transition: background-color 0.3s;">💾 Saved Videos</a>
+                </nav>
+            </div>
         </div>
         
         {% block content %}{% endblock %}
