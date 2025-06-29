@@ -10,7 +10,7 @@ from flask import Flask, request, render_template, jsonify
 from youtube_transcript_api import YouTubeTranscriptApi
 import re
 from transcript_summarizer import TranscriptSummarizer, format_transcript_for_readability, extract_video_chapters, extract_video_info
-from transcript_cache import transcript_cache
+from database_storage import database_storage
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -136,8 +136,8 @@ def watch():
                              error_message="Invalid video ID format"), 400
     
     try:
-        # Check cache first
-        cached_data = transcript_cache.get(video_id)
+        # Check database first
+        cached_data = database_storage.get(video_id)
         
         if cached_data:
             print(f"Using cached data for video: {video_id}")
@@ -150,7 +150,7 @@ def watch():
             video_duration = video_info.get('duration')
             video_uploader = video_info.get('uploader')
         else:
-            print(f"Cache MISS for video: {video_id}, downloading fresh data")
+            print(f"Database MISS for video: {video_id}, downloading fresh data")
             transcript = get_transcript(video_id)
             
             # Extract video info (title, chapters, etc.)
@@ -184,8 +184,8 @@ def watch():
             # Format transcript for improved readability
             formatted_transcript_text = format_transcript_for_readability(transcript, chapters)
             
-            # Cache the data for future use
-            transcript_cache.set(video_id, transcript, video_info, formatted_transcript_text)
+            # Store the data in database for future use
+            database_storage.set(video_id, transcript, video_info, formatted_transcript_text)
         
         proxy_used = os.getenv('YOUTUBE_PROXY', 'None')
         
@@ -218,8 +218,8 @@ def watch():
 def api_transcript(video_id):
     """API endpoint to get transcript as JSON"""
     try:
-        # Check cache first for API endpoint too
-        cached_data = transcript_cache.get(video_id)
+        # Check database first for API endpoint too
+        cached_data = database_storage.get(video_id)
         
         if cached_data:
             print(f"API: Using cached data for video: {video_id}")
@@ -228,14 +228,14 @@ def api_transcript(video_id):
             formatted_transcript = cached_data['formatted_transcript']
             chapters = video_info.get('chapters')
         else:
-            print(f"API: Cache MISS for video: {video_id}, downloading fresh data")
+            print(f"API: Database MISS for video: {video_id}, downloading fresh data")
             transcript = get_transcript(video_id)
             video_info = extract_video_info(video_id)
             chapters = video_info.get('chapters')
             formatted_transcript = format_transcript_for_readability(transcript, chapters)
             
-            # Cache the data
-            transcript_cache.set(video_id, transcript, video_info, formatted_transcript)
+            # Store the data in database
+            database_storage.set(video_id, transcript, video_info, formatted_transcript)
         
         thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
         
@@ -308,21 +308,41 @@ def api_summary_with_data():
                 'error': 'video_id and formatted_transcript are required'
             }), 400
         
-        # Get video info and chapters from cache to include in summary
-        cached_data = transcript_cache.get(video_id)
+        # First check if summary already exists in database
+        existing_summary = database_storage.get_summary(video_id)
+        if existing_summary:
+            print(f"Using existing summary for video {video_id}")
+            return jsonify({
+                'success': True,
+                'video_id': video_id,
+                'summary': existing_summary,
+                'from_cache': True
+            })
+        
+        # Get video info and chapters from database to include in summary
+        cached_data = database_storage.get(video_id)
         chapters = None
         video_info = None
         if cached_data and cached_data.get('video_info'):
             video_info = cached_data['video_info']
             chapters = video_info.get('chapters')
         
-        # Generate summary using provided formatted transcript text
+        # Generate new summary using provided formatted transcript text
+        print(f"Generating new summary for video {video_id}")
         summary = summarizer.summarize_with_openai(formatted_transcript, chapters=chapters, video_id=video_id, video_info=video_info)
+        
+        # Save the summary to database
+        try:
+            database_storage.save_summary(video_id, summary)
+            print(f"Summary saved to database for video {video_id}")
+        except Exception as e:
+            print(f"Warning: Failed to save summary to database: {e}")
         
         return jsonify({
             'success': True,
             'video_id': video_id,
-            'summary': summary
+            'summary': summary,
+            'from_cache': False
         })
     except Exception as e:
         return jsonify({
@@ -332,9 +352,9 @@ def api_summary_with_data():
 
 @app.route('/api/cache/info')
 def api_cache_info():
-    """API endpoint to get cache statistics"""
+    """API endpoint to get database statistics"""
     try:
-        cache_info = transcript_cache.get_cache_info()
+        cache_info = database_storage.get_cache_info()
         return jsonify({
             'success': True,
             'cache_info': cache_info
@@ -347,13 +367,13 @@ def api_cache_info():
 
 @app.route('/api/cache/cleanup', methods=['POST'])
 def api_cache_cleanup():
-    """API endpoint to clean up expired cache files"""
+    """API endpoint to clean up expired cache files (no-op for database)"""
     try:
-        transcript_cache.clear_expired()
-        cache_info = transcript_cache.get_cache_info()
+        database_storage.clear_expired()
+        cache_info = database_storage.get_cache_info()
         return jsonify({
             'success': True,
-            'message': 'Expired cache files removed',
+            'message': 'Database cleanup completed (no action needed)',
             'cache_info': cache_info
         })
     except Exception as e:
@@ -366,8 +386,8 @@ def api_cache_cleanup():
 def storage_page():
     """Display all saved videos"""
     try:
-        cached_videos = transcript_cache.get_all_cached_videos()
-        cache_stats = transcript_cache.get_cache_info()
+        cached_videos = database_storage.get_all_cached_videos()
+        cache_stats = database_storage.get_cache_info()
         
         return render_template('storage.html', 
                              cached_videos=cached_videos,
@@ -382,8 +402,8 @@ def favicon():
     return app.send_static_file('favicon.ico')
 
 if __name__ == '__main__':
-    # Clean up expired cache files on startup
-    transcript_cache.clear_expired()
+    # Initialize database storage on startup
+    database_storage.clear_expired()
     
     # Get configuration from environment variables
     proxy = os.getenv('YOUTUBE_PROXY')
@@ -398,8 +418,8 @@ if __name__ == '__main__':
     
     print(f"OpenAI API configured: {bool(os.getenv('OPENAI_API_KEY'))}")
     
-    # Show cache info
-    cache_info = transcript_cache.get_cache_info()
-    print(f"Cache: {cache_info['valid_files']} valid files, {cache_info['expired_files']} expired files")
+    # Show database info
+    cache_info = database_storage.get_cache_info()
+    print(f"Database: {cache_info['videos_count']} videos, {cache_info['transcripts_count']} transcripts, {cache_info['summaries_count']} summaries")
     
     app.run(host=host, port=port, debug=debug)
