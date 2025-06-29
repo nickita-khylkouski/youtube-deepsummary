@@ -3,4 +3,4 @@ youtube-transcript-api==1.1.0
 openai==1.93.0
 python-dotenv==1.0.0
 yt-dlp==2025.6.9
-supabase==2.2.0
+supabase==2.15.0

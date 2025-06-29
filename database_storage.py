@@ -26,8 +26,26 @@ class DatabaseStorage:
         if not self.url or not self.key:
             raise ValueError("SUPABASE_URL and SUPABASE_API_KEY must be set in environment variables")
         
-        self.supabase: Client = create_client(self.url, self.key)
-        print("Database storage initialized with Supabase")
+        # Temporarily clear proxy environment variables for Supabase
+        original_http_proxy = os.environ.pop('HTTP_PROXY', None)
+        original_https_proxy = os.environ.pop('HTTPS_PROXY', None)
+        original_http_proxy_lower = os.environ.pop('http_proxy', None)
+        original_https_proxy_lower = os.environ.pop('https_proxy', None)
+        
+        try:
+            # Create Supabase client without any proxy interference
+            self.supabase: Client = create_client(self.url, self.key)
+        finally:
+            # Restore original proxy settings
+            if original_http_proxy:
+                os.environ['HTTP_PROXY'] = original_http_proxy
+            if original_https_proxy:
+                os.environ['HTTPS_PROXY'] = original_https_proxy
+            if original_http_proxy_lower:
+                os.environ['http_proxy'] = original_http_proxy_lower
+            if original_https_proxy_lower:
+                os.environ['https_proxy'] = original_https_proxy_lower
+        print("Database storage initialized with Supabase (no proxy)")
     
     def get(self, video_id: str) -> Optional[Dict]:
         """
@@ -132,7 +150,7 @@ class DatabaseStorage:
                 
                 # Delete existing chapters and insert new ones
                 self.supabase.table('video_chapters').delete().eq('video_id', video_id).execute()
-                chapter_insert_result = self.supabase.table('video_chapters').insert(chapters_data).execute()
+                self.supabase.table('video_chapters').insert(chapters_data).execute()
                 print(f"Chapters saved for {video_id}: {len(chapters)} chapters")
             else:
                 print(f"No chapters found for video {video_id}")
