@@ -43,7 +43,40 @@ def download_transcript(video_url, proxy=None):
         else:
             print("No proxy specified")
         
-        transcript_list = YouTubeTranscriptApi.get_transcript(video_id, proxies=proxies)
+        # First try to get English transcript directly
+        try:
+            transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=['en'], proxies=proxies)
+            print(f"Successfully fetched English transcript with {len(transcript_list)} entries")
+            language_used = "en (English)"
+        except Exception as e:
+            print(f"English transcript not available: {str(e)}")
+            
+            # If English not available, get the first available transcript
+            try:
+                print("Attempting to find available transcripts...")
+                transcript_list_data = YouTubeTranscriptApi.list_transcripts(video_id, proxies=proxies)
+                
+                # Get list of available language codes
+                available_languages = []
+                for transcript in transcript_list_data:
+                    available_languages.append(transcript.language_code)
+                    print(f"Available: {transcript.language} ({transcript.language_code})")
+                
+                if available_languages:
+                    # Use the first available language code with the standard get_transcript method
+                    first_lang = available_languages[0]
+                    transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=[first_lang], proxies=proxies)
+                    
+                    # Get language name for logging
+                    first_transcript = next(iter(transcript_list_data))
+                    language_used = f"{first_transcript.language} ({first_transcript.language_code})"
+                    print(f"Successfully fetched {language_used} transcript with {len(transcript_list)} entries")
+                else:
+                    raise Exception("No transcripts found")
+                    
+            except Exception as fallback_error:
+                print(f"Fallback transcript fetch failed: {str(fallback_error)}")
+                raise Exception(f"No transcripts available for this video: {str(fallback_error)}")
         
         full_transcript = ""
         for entry in transcript_list:
@@ -51,6 +84,7 @@ def download_transcript(video_url, proxy=None):
             start_time = entry['start']
             full_transcript += f"[{start_time:.2f}s] {text}\n"
         
+        print(f"Transcript language used: {language_used}")
         return full_transcript
         
     except Exception as e:
