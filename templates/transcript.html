@@ -15,7 +15,7 @@
                 {% if video_title %}
                     <h2>{{ video_title }}</h2>
                     <p style="color: #666; margin: 5px 0;">
-                        {% if video_uploader %}<strong>{{ video_uploader }}</strong>{% endif %}
+                        {% if video_uploader %}<strong><a href="https://www.youtube.com/results?search_query={{ video_uploader|urlencode }}" target="_blank" style="color: #0066cc; text-decoration: none;">{{ video_uploader }}</a></strong>{% endif %}
                         {% if video_duration %} • {{ "%.0f"|format(video_duration // 60) }}:{{ "%02.0f"|format(video_duration % 60) }} minutes{% endif %}
                     </p>
                 {% else %}
@@ -160,10 +160,12 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Convert markdown links to HTML links
+                        // Convert markdown links and formatting to HTML
                         let summaryHtml = data.summary;
                         // Convert [text](url) to <a href="url" target="_blank">text</a>
                         summaryHtml = summaryHtml.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #0066cc; text-decoration: underline;">$1</a>');
+                        // Convert **text** to <strong>text</strong>
+                        summaryHtml = summaryHtml.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
                         
                         // Show summary section
                         summarySection.style.display = 'block';

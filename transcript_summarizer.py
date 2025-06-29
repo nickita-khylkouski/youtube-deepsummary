@@ -126,7 +126,7 @@ Here is the transcript to summarize:
         
         return self.summarize_with_openai(transcript_text)
     
-    def summarize_with_openai(self, transcript_content: str, chapters: Optional[List[Dict]] = None, video_id: str = None) -> str:
+    def summarize_with_openai(self, transcript_content: str, chapters: Optional[List[Dict]] = None, video_id: str = None, video_info: Optional[Dict] = None) -> str:
         """Generate summary using OpenAI's chat completion API"""
         # Ensure client is initialized
         if not self.client:
@@ -157,10 +157,19 @@ Here is the transcript to summarize:
             summary = response.choices[0].message.content.strip()
             formatted_summary = self.format_text_for_readability(summary)
             
+            # Add video info section if video_info and video_id are provided
+            prefix_sections = []
+            if video_info and video_id:
+                video_info_section = self._create_video_info_section(video_info, video_id)
+                prefix_sections.append(video_info_section)
+            
             # Add clickable chapters section if chapters and video_id are provided
             if chapters and video_id:
                 chapters_section = self._create_clickable_chapters_section(chapters, video_id)
-                formatted_summary = chapters_section + "\n\n" + formatted_summary
+                prefix_sections.append(chapters_section)
+            
+            if prefix_sections:
+                formatted_summary = "".join(prefix_sections) + formatted_summary
             
             return formatted_summary
             
@@ -192,6 +201,32 @@ Here is the transcript to summarize:
             chapters_html += f"• [{title}]({youtube_url}) - {timestamp}\n"
         
         return chapters_html
+    
+    def _create_video_info_section(self, video_info: Dict, video_id: str) -> str:
+        """Create a video info section with clickable channel link"""
+        info_html = ""
+        
+        title = video_info.get('title')
+        uploader = video_info.get('uploader')
+        duration = video_info.get('duration')
+        
+        if title:
+            info_html += f"🎥 **{title}**\n\n"
+        
+        if uploader:
+            # Create YouTube channel search URL (since we don't have direct channel URL)
+            channel_search_url = f"https://www.youtube.com/results?search_query={uploader.replace(' ', '+')}"
+            info_html += f"👤 Channel: [{uploader}]({channel_search_url})\n"
+        
+        if duration:
+            minutes = int(duration // 60)
+            seconds = int(duration % 60)
+            info_html += f"⏱️ Duration: {minutes}:{seconds:02d}\n"
+        
+        video_url = f"https://www.youtube.com/watch?v={video_id}"
+        info_html += f"🔗 [Watch on YouTube]({video_url})\n\n"
+        
+        return info_html
     
     def is_configured(self) -> bool:
         """Check if OpenAI API key is configured"""
