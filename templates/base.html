@@ -41,7 +41,8 @@
             overflow-y: auto;
             border: 1px solid #ddd;
             border-radius: 5px;
-            padding: 20px;
+            padding: 0;
+            margin: 0;
         }
         .transcript-entry {
             margin-bottom: 15px;
@@ -138,6 +139,32 @@
         }
         .summary-button:hover {
             background: #1976d2;
+        }
+        
+        /* Mobile responsive adjustments */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            .container {
+                padding: 15px;
+            }
+            .transcript-container {
+                padding: 0;
+                margin: 0;
+            }
+            .formatted-text {
+                padding: 10px !important;
+            }
+            .video-info > div {
+                flex-direction: column !important;
+                gap: 15px !important;
+            }
+            .video-info img {
+                width: 100% !important;
+                max-width: 320px;
+                height: auto !important;
+            }
         }
     </style>
 </head>
