@@ -1,127 +1,69 @@
 {% extends "base.html" %}
 
 {% block content %}
+    <div class="page-header">
+        <h1 class="page-title">Extract & Analyze YouTube Content</h1>
+        <p class="page-subtitle">Transform any YouTube video into searchable transcripts and AI-powered insights. Perfect for research, content creation, and learning.</p>
+    </div>
+
     <div class="search-form">
+        <h3 style="margin: 0 0 16px 0; color: var(--text-primary); font-size: 18px; font-weight: 600;">
+            <i data-lucide="search" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: text-bottom;"></i>
+            Get Transcript
+        </h3>
         <form action="/watch" method="get" onsubmit="if (!this.v.value.trim()) this.v.value = 'FjHtZnjNEBU';">
-            <input type="text" name="v" placeholder="Enter YouTube video ID or URL (e.g., FjHtZnjNEBU)">
-            <button type="submit">Get Transcript</button>
+            <div class="input-group">
+                <input type="text" name="v" class="input-field" placeholder="Enter YouTube URL or video ID (e.g., https://youtube.com/watch?v=FjHtZnjNEBU)">
+                <button type="submit" class="btn btn-primary">
+                    <i data-lucide="play-circle" class="btn-icon"></i>
+                    Analyze Video
+                </button>
+            </div>
         </form>
+        <p style="margin: 16px 0 0 0; color: var(--text-tertiary); font-size: 14px;">
+            <i data-lucide="info" style="width: 14px; height: 14px; margin-right: 4px;"></i>
+            Supports videos with available captions or auto-generated transcripts
+        </p>
     </div>
-    
-    <div style="background: #f8f9fa; padding: 20px; border-radius: 5px; margin-top: 20px;">
-        <h3 style="text-align: center; margin-bottom: 20px; color: #333;">💬 What users say</h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
-            <div style="background: white; padding: 18px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                <p style="margin: 0 0 15px 0; color: #444; line-height: 1.5;">"YouTube Deep Search is a game changer for my research workflow. I can quickly extract insights from hour-long academic lectures and build comprehensive notes. The chapter organization helps me navigate to specific topics instantly, and the AI summaries capture the key points I would have missed. It's like having a research assistant!"</p>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">SC</div>
-                    <div>
-                        <div style="font-weight: bold; color: #333;">Sarah Chen</div>
-                        <div style="color: #666; font-size: 0.9em;">PhD Student, Stanford</div>
+
+
+    <!-- Features Section -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin: 48px 0;">
+        <div class="card">
+            <div class="card-body">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                    <div style="width: 48px; height: 48px; background: linear-gradient(135deg, var(--yt-red) 0%, var(--yt-red-dark) 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <i data-lucide="file-text" style="width: 24px; height: 24px; color: white;"></i>
                     </div>
+                    <h3 style="margin: 0; font-size: 18px; font-weight: 600;">Smart Transcripts</h3>
                 </div>
-            </div>
-            
-            <div style="background: white; padding: 18px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                <p style="margin: 0 0 15px 0; color: #444; line-height: 1.5;">"I used to spend hours watching conference talks for competitive research. Now I can scan transcripts, get AI summaries, and focus on the most relevant parts. The tool processes videos in any language which is perfect for global market research. Absolutely love the efficiency this brings to my workflow!"</p>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">MR</div>
-                    <div>
-                        <div style="font-weight: bold; color: #333;">Marcus Rodriguez</div>
-                        <div style="color: #666; font-size: 0.9em;">Product Manager</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div style="background: white; padding: 18px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                <p style="margin: 0 0 15px 0; color: #444; line-height: 1.5;">"Content creation is so much easier now! I can analyze popular videos in my niche, extract key talking points, and identify trending topics. The structured summaries help me understand what resonates with audiences. It's like having X-ray vision for YouTube content strategy."</p>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">AT</div>
-                    <div>
-                        <div style="font-weight: bold; color: #333;">Alex Thompson</div>
-                        <div style="color: #666; font-size: 0.9em;">Content Creator</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div style="background: white; padding: 18px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                <p style="margin: 0 0 15px 0; color: #444; line-height: 1.5;">"Perfect for online learning! I watch a lot of programming tutorials and technical talks. Being able to search through transcripts and jump to specific concepts saves me hours. The mobile interface works great too - I can review summaries during commutes."</p>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">JL</div>
-                    <div>
-                        <div style="font-weight: bold; color: #333;">Jordan Lee</div>
-                        <div style="color: #666; font-size: 0.9em;">Software Engineer</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div style="background: white; padding: 18px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                <p style="margin: 0 0 15px 0; color: #444; line-height: 1.5;">"As a journalist, I need to quickly fact-check and reference video content. This tool lets me search through interview transcripts, extract quotes with timestamps, and build comprehensive story research. The caching means I can revisit content instantly. Essential for my work!"</p>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">EP</div>
-                    <div>
-                        <div style="font-weight: bold; color: #333;">Emma Parker</div>
-                        <div style="color: #666; font-size: 0.9em;">Investigative Journalist</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div style="background: white; padding: 18px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                <p style="margin: 0 0 15px 0; color: #444; line-height: 1.5;">"I analyze market research videos and customer interviews regularly. The AI summaries help me identify patterns and insights across multiple videos quickly. Being able to organize by chapters and search specific topics has revolutionized how I do qualitative research."</p>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #d299c2 0%, #fef9d7 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">RK</div>
-                    <div>
-                        <div style="font-weight: bold; color: #333;">Raj Kumar</div>
-                        <div style="color: #666; font-size: 0.9em;">Market Researcher</div>
-                    </div>
-                </div>
+                <p style="margin: 0; color: var(--text-secondary); line-height: 1.6;">Extract clean, formatted transcripts with timestamps. Perfect for research, note-taking, and content analysis.</p>
             </div>
         </div>
-        
-        <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e0e0e0; color: #666; font-size: 0.9em;">
-            ✨ Join 10,000+ researchers, creators, and professionals who save hours every week
-        </div>
-    </div>
-    
-    <div style="margin-top: 30px;">
-        <details style="border: 1px solid #ddd; border-radius: 5px; padding: 0; overflow: hidden;">
-            <summary style="background: #f8f9fa; padding: 15px; cursor: pointer; border-bottom: 1px solid #ddd; font-weight: bold; color: #333;">
-                📚 How to use YouTube Deep Search
-            </summary>
-            <div style="padding: 20px; background: white;">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
-                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
-                        <h4 style="margin: 0 0 10px 0; color: #333;">🎯 Quick Start</h4>
-                        <ol style="margin: 0; padding-left: 20px; color: #555;">
-                            <li>Paste any YouTube URL or video ID above</li>
-                            <li>Click "Get Transcript" to view formatted text</li>
-                            <li>Use "Generate AI Summary" for key insights</li>
-                            <li>Search within transcripts using browser search (Ctrl+F)</li>
-                        </ol>
+
+        <div class="card">
+            <div class="card-body">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                    <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <i data-lucide="sparkles" style="width: 24px; height: 24px; color: white;"></i>
                     </div>
-                    
-                    <div style="background: #f0f8ff; padding: 20px; border-radius: 8px;">
-                        <h4 style="margin: 0 0 10px 0; color: #333;">⚡ Features</h4>
-                        <ul style="margin: 0; padding-left: 20px; color: #555;">
-                            <li>Organized chapter navigation</li>
-                            <li>Mobile-optimized interface</li>
-                            <li>Cached transcripts for faster loading</li>
-                            <li>Works with videos in multiple languages</li>
-                        </ul>
-                    </div>
-                    
-                    <div style="background: #fff5f5; padding: 20px; border-radius: 8px;">
-                        <h4 style="margin: 0 0 10px 0; color: #333;">💡 Pro Tips</h4>
-                        <ul style="margin: 0; padding-left: 20px; color: #555;">
-                            <li>Use timestamps to jump to specific moments</li>
-                            <li>AI summaries work best with educational content</li>
-                            <li>Toggle between detailed and readable views</li>
-                            <li>Bookmark transcript pages for later reference</li>
-                        </ul>
-                    </div>
+                    <h3 style="margin: 0; font-size: 18px; font-weight: 600;">AI Summaries</h3>
                 </div>
+                <p style="margin: 0; color: var(--text-secondary); line-height: 1.6;">Generate intelligent summaries with key takeaways, insights, and actionable strategies using GPT-4.</p>
             </div>
-        </details>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                    <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <i data-lucide="database" style="width: 24px; height: 24px; color: white;"></i>
+                    </div>
+                    <h3 style="margin: 0; font-size: 18px; font-weight: 600;">Smart Storage</h3>
+                </div>
+                <p style="margin: 0; color: var(--text-secondary); line-height: 1.6;">Save and organize your analyzed videos with instant access to transcripts and summaries.</p>
+            </div>
+        </div>
     </div>
     
 {% endblock %}
