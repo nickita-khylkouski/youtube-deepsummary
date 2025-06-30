@@ -259,7 +259,7 @@ def api_transcript(video_id):
 
 @app.route('/api/summary/<video_id>')
 def api_summary(video_id):
-    """API endpoint to get transcript summary as JSON (legacy - downloads transcript)"""
+    """API endpoint to get or generate transcript summary as JSON"""
     try:
         if not summarizer or not summarizer.is_configured():
             return jsonify({
@@ -267,16 +267,49 @@ def api_summary(video_id):
                 'error': 'OpenAI API key not configured'
             }), 400
         
-        transcript = get_transcript(video_id)
+        # First check if we already have a summary in the database
+        existing_summary = database_storage.get_summary(video_id)
+        if existing_summary:
+            print(f"API: Using cached summary for video: {video_id}")
+            return jsonify({
+                'success': True,
+                'video_id': video_id,
+                'summary': existing_summary,
+                'cached': True
+            })
+        
+        print(f"API: No cached summary found, generating new summary for video: {video_id}")
+        
+        # Check if we have transcript data in database first
+        cached_data = database_storage.get(video_id)
+        if cached_data:
+            print(f"API: Using cached transcript data for summary generation")
+            transcript = cached_data['transcript']
+        else:
+            print(f"API: Fetching fresh transcript for summary generation")
+            transcript = get_transcript(video_id)
+            video_info = extract_video_info(video_id)
+            chapters = video_info.get('chapters')
+            formatted_transcript = format_transcript_for_readability(transcript, chapters)
+            
+            # Store the transcript data
+            database_storage.set(video_id, transcript, video_info, formatted_transcript)
+        
+        # Generate summary using the transcript list
         summary = summarizer.summarize_transcript(transcript)
+        
+        # Save summary to database
+        database_storage.save_summary(video_id, summary)
+        print(f"API: Generated and saved new summary for video: {video_id}")
         
         return jsonify({
             'success': True,
             'video_id': video_id,
             'summary': summary,
-            'proxy_used': os.getenv('YOUTUBE_PROXY', None)
+            'cached': False
         })
     except Exception as e:
+        print(f"API: Error generating summary for {video_id}: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)

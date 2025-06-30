@@ -8,14 +8,20 @@
         <div class="card-body">
             <div style="display: flex; gap: 20px;">
                 <div style="flex-shrink: 0;">
-                    <img src="{{ thumbnail_url }}" 
-                         alt="Video thumbnail" 
-                         style="width: 320px; height: 180px; object-fit: cover; border-radius: 12px; border: 1px solid var(--border-light);"
-                         onerror="this.style.display='none'">
+                    <a href="https://www.youtube.com/watch?v={{ video_id }}" target="_blank">
+                        <img src="{{ thumbnail_url }}" 
+                             alt="Video thumbnail" 
+                             style="width: 320px; height: 180px; object-fit: cover; border-radius: 12px; border: 1px solid var(--border-light); cursor: pointer; transition: opacity 0.2s ease;"
+                             onerror="this.style.display='none'"
+                             onmouseover="this.style.opacity='0.8'"
+                             onmouseout="this.style.opacity='1'">
+                    </a>
                 </div>
                 <div style="flex-grow: 1; min-width: 0;">
                     {% if video_title %}
-                        <h1 style="margin: 0 0 12px 0; font-size: 24px; font-weight: 700; line-height: 1.3; color: var(--text-primary);">{{ video_title }}</h1>
+                        <a href="https://www.youtube.com/watch?v={{ video_id }}" target="_blank" style="text-decoration: none; color: inherit;">
+                            <h1 style="margin: 0 0 12px 0; font-size: 24px; font-weight: 700; line-height: 1.3; color: var(--text-primary); cursor: pointer; transition: color 0.2s ease;" onmouseover="this.style.color='var(--yt-red)'" onmouseout="this.style.color='var(--text-primary)'">{{ video_title }}</h1>
+                        </a>
                         <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px; color: var(--text-secondary);">
                             {% if video_uploader %}
                                 <div style="display: flex; align-items: center; gap: 6px;">
@@ -43,71 +49,91 @@
                             <i data-lucide="play" class="btn-icon"></i>
                             Watch on YouTube
                         </a>
-                        {% if summarize_enabled %}
-                            <button id="generateSummaryBtn" onclick="generateSummary('{{ video_id }}')" class="btn btn-secondary" style="display: {% if summary %}none{% else %}inline-flex{% endif %};">
-                                <i data-lucide="sparkles" class="btn-icon"></i>
-                                Generate AI Summary
-                            </button>
-                        {% endif %}
-                        <button onclick="toggleTranscriptView()" id="toggleBtn" class="btn btn-secondary">
-                            <i data-lucide="book-open" class="btn-icon"></i>
-                            Switch to Detailed View
-                        </button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- Summary section (full width, only shown when exists) -->
-    {% if summary or summary_error %}
-        <!-- Summary section -->
-        <div id="summary-section" style="margin-bottom: 24px;">
-            {% if summary %}
-                <div class="card summary-section">
-                    <div class="card-header">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <h3 style="margin: 0; display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 600;">
-                                <i data-lucide="sparkles" style="width: 20px; height: 20px; color: #8b5cf6;"></i>
-                                AI-Generated Summary
-                            </h3>
-                            <div style="display: flex; gap: 8px;">
-                                <button onclick="copySummary()" class="btn btn-secondary" style="padding: 6px 12px; font-size: 14px;">
-                                    <i data-lucide="copy" style="width: 14px; height: 14px;"></i>
-                                    Copy
-                                </button>
-                                <button onclick="toggleSummary()" id="summaryToggleBtn" class="btn btn-secondary" style="padding: 6px 12px; font-size: 14px;">
-                                    <i data-lucide="chevron-down" style="width: 14px; height: 14px;"></i>
-                                    Expand
-                                </button>
+    <!-- Content Navigation Tabs -->
+    <div style="margin-bottom: 24px;">
+        <div style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-light);">
+            <a href="/watch?v={{ video_id }}&view=transcript" class="content-nav-item {% if request.args.get('view', 'transcript') == 'transcript' %}active{% endif %}">
+                <i data-lucide="file-text" style="width: 16px; height: 16px;"></i>
+                Transcript
+            </a>
+            {% if summarize_enabled %}
+                <a href="/watch?v={{ video_id }}&view=summary" class="content-nav-item {% if request.args.get('view') == 'summary' %}active{% endif %}">
+                    <i data-lucide="sparkles" style="width: 16px; height: 16px;"></i>
+                    Summary
+                </a>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Summary section (only show in summary view) -->
+    {% if request.args.get('view') == 'summary' %}
+        {% if summarize_enabled %}
+            <!-- Summary section -->
+            <div id="summary-section" style="margin-bottom: 24px;">
+                {% if summary %}
+                    <div class="card summary-section">
+                        <div class="card-header">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <h3 style="margin: 0; display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 600;">
+                                    <i data-lucide="sparkles" style="width: 20px; height: 20px; color: #8b5cf6;"></i>
+                                    AI-Generated Summary
+                                </h3>
+                                <div style="display: flex; gap: 8px;">
+                                    <button onclick="copySummary()" class="btn btn-secondary" style="padding: 6px 12px; font-size: 14px;">
+                                        <i data-lucide="copy" style="width: 14px; height: 14px;"></i>
+                                        Copy
+                                    </button>
+                                    <button onclick="toggleSummary()" id="summaryToggleBtn" class="btn btn-secondary" style="padding: 6px 12px; font-size: 14px;">
+                                        <i data-lucide="chevron-up" style="width: 14px; height: 14px;"></i>
+                                        Collapse
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="summary-content" id="summaryContent">
+                                <pre>{{ summary }}</pre>
                             </div>
                         </div>
                     </div>
-                    <div class="card-body">
-                        <div class="summary-content summary-collapsed" id="summaryContent">
-                            <pre>{{ summary }}</pre>
+                {% elif summary_error %}
+                    <div class="alert alert-warning">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <i data-lucide="alert-triangle" style="width: 16px; height: 16px;"></i>
+                            <strong>Summary Generation Failed</strong>
+                        </div>
+                        <p style="margin: 0;">{{ summary_error }}</p>
+                    </div>
+                {% elif summarize_enabled %}
+                    <div class="card">
+                        <div class="card-body" style="text-align: center; padding: 40px 20px;">
+                            <div style="width: 80px; height: 80px; background: var(--light-surface); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px;">
+                                <i data-lucide="sparkles" style="width: 32px; height: 32px; color: #8b5cf6;"></i>
+                            </div>
+                            <h3 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 600; color: var(--text-primary);">No Summary Generated</h3>
+                            <p style="margin: 0 0 24px 0; color: var(--text-secondary); font-size: 16px;">Generate an AI-powered summary of this video's content</p>
+                            <button id="generateSummaryBtn" onclick="generateSummary('{{ video_id }}')" class="btn btn-primary">
+                                <i data-lucide="sparkles" class="btn-icon"></i>
+                                Generate AI Summary
+                            </button>
                         </div>
                     </div>
-                </div>
-            {% endif %}
-            
-            {% if summary_error %}
-                <div class="alert alert-warning">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                        <i data-lucide="alert-triangle" style="width: 16px; height: 16px;"></i>
-                        <strong>Summary Generation Failed</strong>
-                    </div>
-                    <p style="margin: 0;">{{ summary_error }}</p>
-                </div>
-            {% endif %}
-        </div>
+                {% endif %}
+            </div>
+        {% endif %}
     {% else %}
-        <!-- Hidden summary section for AJAX loading -->
+        <!-- Hidden summary section for AJAX loading in transcript view -->
         <div id="summary-section" style="display: none;"></div>
     {% endif %}
     
-    <!-- Chapters section (if any) -->
-    {% if chapters %}
+    <!-- Chapters section (if any, only show in transcript view) -->
+    {% if chapters and request.args.get('view', 'transcript') == 'transcript' %}
         <div class="card" style="margin-bottom: 24px;">
             <div class="card-header">
                 <h4 style="margin: 0; font-size: 16px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
@@ -130,7 +156,8 @@
         </div>
     {% endif %}
     
-    <!-- Transcript Content -->
+    <!-- Transcript Content (only show in transcript view) -->
+    {% if request.args.get('view', 'transcript') == 'transcript' %}
     <div class="card">
         <div class="card-header">
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -169,8 +196,10 @@
             </div>
         </div>
     </div>
+    {% endif %}
     
     <script>
+        
         function toggleTranscriptView() {
             const formattedDiv = document.getElementById('formatted-transcript');
             const detailedDiv = document.getElementById('detailed-transcript');
@@ -209,28 +238,19 @@
             const btn = document.getElementById('generateSummaryBtn');
             const summarySection = document.getElementById('summary-section');
             
-            // Get formatted transcript text (readable version, not detailed timestamps)
-            const formattedTranscript = {{ formatted_transcript|tojson }};
-            
             // Update button to show loading state
             btn.innerHTML = '<span class="spinner"></span> Generating...';
             btn.disabled = true;
             btn.classList.add('loading');
             
-            // Make AJAX request to generate summary with formatted transcript
-            fetch('/api/summary', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    video_id: videoId,
-                    formatted_transcript: formattedTranscript
-                })
+            // Use the summary API endpoint that fetches its own transcript
+            fetch(`/api/summary/${videoId}`, {
+                method: 'GET'
             })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.success) {
+                    console.log('Summary API response:', data);
+                    if (data.success && data.summary) {
                         // Convert markdown links and formatting to HTML
                         let summaryHtml = data.summary;
                         // Convert [text](url) to <a href="url" target="_blank">text</a>
@@ -256,14 +276,14 @@
                                                 Copy
                                             </button>
                                             <button onclick="toggleSummary()" id="summaryToggleBtn" class="btn btn-secondary" style="padding: 6px 12px; font-size: 14px;">
-                                                <i data-lucide="chevron-down" style="width: 14px; height: 14px;"></i>
-                                                Expand
+                                                <i data-lucide="chevron-up" style="width: 14px; height: 14px;"></i>
+                                                Collapse
                                             </button>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="card-body">
-                                    <div class="summary-content summary-collapsed" id="summaryContent">
+                                    <div class="summary-content" id="summaryContent">
                                         <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; color: var(--text-primary);">${summaryHtml}</pre>
                                     </div>
                                 </div>
@@ -291,7 +311,7 @@
                         `;
                         
                         // Reset button
-                        btn.innerHTML = '<i data-lucide="sparkles" class="btn-icon"></i>Generate AI Summary';
+                        btn.innerHTML = '<i data-lucide="sparkles"></i>Generate AI Summary';
                         btn.disabled = false;
                         btn.classList.remove('loading');
                         
@@ -315,7 +335,7 @@
                     `;
                     
                     // Reset button
-                    btn.innerHTML = '<i data-lucide="sparkles" class="btn-icon"></i>Generate AI Summary';
+                    btn.innerHTML = '<i data-lucide="sparkles"></i>Generate AI Summary';
                     btn.disabled = false;
                     btn.classList.remove('loading');
                     
@@ -373,18 +393,8 @@
         }
         
         function showCopySuccess(message) {
-            const content = `
-                <div>
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: #22c55e;">
-                        <i data-lucide="check" style="width: 16px; height: 16px;"></i>
-                        <span style="font-weight: 500;">Copy Successful</span>
-                    </div>
-                    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 12px;">
-                        <p style="margin: 0; color: var(--text-primary); font-size: 14px;">${message}</p>
-                    </div>
-                </div>
-            `;
-            showModal('statusModal', 'Copy Status', content);
+            // No popup - just silently copy
+            console.log(message);
         }
         
         function showCopyError() {
