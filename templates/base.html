@@ -4,743 +4,190 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}YouTube Deep Search{% endblock %}</title>
-    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
-        :root {
-            --yt-red: #ff0000;
-            --yt-red-dark: #cc0000;
-            --yt-red-light: #ff4444;
-            --dark-bg: #0f0f0f;
-            --dark-surface: #181818;
-            --dark-surface-variant: #272727;
-            --light-bg: #ffffff;
-            --light-surface: #f9f9f9;
-            --light-surface-variant: #f1f1f1;
-            --text-primary: #0f0f0f;
-            --text-secondary: #606060;
-            --text-tertiary: #909090;
-            --border-light: #e5e5e5;
-            --border-dark: #3f3f3f;
-            --shadow: 0 1px 2px rgba(0,0,0,0.1);
-            --shadow-hover: 0 4px 12px rgba(0,0,0,0.15);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             line-height: 1.6;
-            color: var(--text-primary);
-            background-color: var(--light-bg);
-            transition: all 0.3s ease;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
         }
         .container {
-            min-height: 100vh;
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-
         .header {
-            background: var(--light-bg);
-            border-bottom: 1px solid var(--border-light);
-            padding: 16px 24px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            backdrop-filter: blur(10px);
-            background-color: rgba(255, 255, 255, 0.95);
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 20px;
         }
-
-        .header-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            max-width: 1200px;
-            margin: 0 auto;
+        .header h1 {
+            color: #ff0000;
+            margin: 0;
         }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 20px;
-            font-weight: 600;
-            color: var(--text-primary);
-            text-decoration: none;
-        }
-
-        .logo-icon {
-            width: 28px;
-            height: 28px;
-            color: var(--yt-red);
-        }
-        .nav {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
-            border-radius: 8px;
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-        }
-
-        .nav-item:hover {
-            background: var(--light-surface-variant);
-            color: var(--text-primary);
-        }
-
-        .nav-item.active {
-            color: var(--text-primary);
-            font-weight: 600;
-        }
-
-        .nav-icon {
-            width: 16px;
-            height: 16px;
-        }
-
-        .main-content {
-            padding: 24px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .page-header {
-            margin-bottom: 32px;
-        }
-
-        .page-title {
-            font-size: 32px;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 8px;
-        }
-
-        .page-subtitle {
-            font-size: 16px;
-            color: var(--text-secondary);
-        }
-
-        .card {
-            background: var(--light-bg);
-            border: 1px solid var(--border-light);
-            border-radius: 12px;
-            box-shadow: var(--shadow);
-            transition: all 0.2s ease;
-        }
-
-        .card:hover {
-            box-shadow: var(--shadow-hover);
-        }
-
-        .card-header {
-            padding: 20px 24px;
-            border-bottom: 1px solid var(--border-light);
-        }
-
-        .card-body {
-            padding: 24px;
-        }
-
         .video-info {
-            background: var(--light-surface);
-            border: 1px solid var(--border-light);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 24px;
-        }
-
-        .search-form {
-            background: var(--light-surface);
-            border: 1px solid var(--border-light);
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
-        }
-
-        .input-group {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-
-        .input-field {
-            flex: 1;
-            padding: 12px 16px;
-            border: 1px solid var(--border-light);
-            border-radius: 8px;
-            font-size: 16px;
-            font-family: inherit;
-            transition: all 0.2s ease;
-        }
-
-        .input-field:focus {
-            outline: none;
-            border-color: var(--yt-red);
-            box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.1);
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            font-family: inherit;
-            cursor: pointer;
-            text-decoration: none;
-            transition: all 0.2s ease;
-        }
-
-        .btn-primary {
-            background: var(--yt-red);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: var(--yt-red-dark);
-            transform: translateY(-1px);
-        }
-
-        .btn-secondary {
-            background: var(--light-surface-variant);
-            color: var(--text-primary);
-            border: 1px solid var(--border-light);
-        }
-
-        .btn-secondary:hover {
-            background: var(--border-light);
-        }
-
-        .btn-icon {
-            width: 16px;
-            height: 16px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
         }
         .transcript-container {
-            background: var(--light-bg);
-            border: 1px solid var(--border-light);
-            border-radius: 12px;
             max-height: 600px;
             overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 0;
+            margin: 0;
         }
-
         .transcript-entry {
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--border-light);
-            transition: background 0.2s ease;
+            margin-bottom: 15px;
+            padding: 10px;
+            border-left: 3px solid #ff0000;
+            background: #fafafa;
         }
-
-        .transcript-entry:hover {
-            background: var(--light-surface);
-        }
-
-        .transcript-entry:last-child {
-            border-bottom: none;
-        }
-
         .timestamp {
-            font-weight: 600;
-            color: var(--yt-red);
-            font-size: 14px;
-            margin-bottom: 4px;
+            font-weight: bold;
+            color: #666;
+            font-size: 0.9em;
         }
-
         .text {
-            color: var(--text-primary);
+            margin-top: 5px;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 20px;
+            border-radius: 5px;
+            border-left: 4px solid #c62828;
+        }
+        .proxy-info {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            color: #1565c0;
+            margin-bottom: 20px;
+        }
+        .search-form {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .search-form input {
+            width: 70%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .search-form button {
+            background: #ff0000;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        .search-form button:hover {
+            background: #cc0000;
+        }
+        .summary-section {
+            background: #f0f7ff;
+            border: 1px solid #2196f3;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .summary-content {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #2196f3;
+            font-size: 14px;
             line-height: 1.6;
         }
-
-        .summary-section {
-            background: var(--light-bg);
-            border: 1px solid var(--border-light);
-            border-radius: 12px;
-        }
-
-        .summary-content {
-            background: var(--light-surface);
-            padding: 20px;
-            border-radius: 8px;
-            border-left: 4px solid #8b5cf6;
-            font-size: 15px;
-            line-height: 1.7;
-        }
-        
-        .summary-collapsed {
-            max-height: 150px;
-            overflow: hidden;
-            position: relative;
-        }
-        
-        .summary-collapsed::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 40px;
-            background: linear-gradient(transparent, var(--light-surface));
-        }
-        
-        /* Content Navigation Tabs */
-        .content-nav-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 16px;
-            border-radius: 8px 8px 0 0;
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-        }
-        
-        .content-nav-item:hover {
-            background: var(--light-surface-variant);
-            color: var(--text-primary);
-        }
-        
-        .content-nav-item.active {
-            background: var(--light-surface);
-            color: var(--text-primary);
-            font-weight: 600;
-            border-bottom: 2px solid var(--yt-red);
-        }
-
         .summary-content pre {
             white-space: pre-wrap;
             word-wrap: break-word;
             margin: 0;
             font-family: inherit;
         }
-
-        .error {
-            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-            border: 1px solid #ef4444;
-            border-radius: 12px;
-            padding: 20px;
-            color: #dc2626;
-        }
-
-        .alert {
-            padding: 16px 20px;
+        .summary-error {
+            background: #ffebee;
+            border: 1px solid #f44336;
             border-radius: 8px;
-            margin-bottom: 24px;
-            border-left: 4px solid;
+            padding: 20px;
+            margin-bottom: 20px;
         }
-
-        .alert-info {
-            background: #eff6ff;
-            border-color: #3b82f6;
-            color: #1e40af;
-        }
-
-        .alert-success {
-            background: #f0fdf4;
-            border-color: #22c55e;
-            color: #15803d;
-        }
-
-        .alert-warning {
-            background: #fffbeb;
-            border-color: #f59e0b;
-            color: #d97706;
-        }
-
-        /* Loading states */
-        .loading {
-            opacity: 0.6;
-            pointer-events: none;
-        }
-
-        .spinner {
+        .summary-button {
             display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid transparent;
-            border-top: 2px solid currentColor;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-        
-        .progress-step.completed .step-icon::after {
-            content: '✓';
+            background: #2196f3;
             color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
             font-weight: bold;
-            font-size: 14px;
+            transition: background-color 0.3s;
         }
-
-        /* Clean Modal Styles */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(15, 15, 15, 0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.2s ease;
-            backdrop-filter: blur(4px);
+        .summary-button:hover {
+            background: #1976d2;
         }
         
-        .modal-overlay.show {
-            opacity: 1;
-            visibility: visible;
+        /* Navigation hover effects */
+        .header nav a:hover {
+            background-color: #f0f0f0 !important;
+            color: #333 !important;
         }
         
-        .modal {
-            background: var(--light-bg);
-            border-radius: 8px;
-            border: 1px solid var(--border-light);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            max-width: 480px;
-            width: 90%;
-            max-height: 70vh;
-            overflow: hidden;
-            transform: translateY(-20px);
-            transition: transform 0.2s ease;
-        }
-        
-        .modal-overlay.show .modal {
-            transform: translateY(0);
-        }
-        
-        .modal-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--border-light);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: var(--light-surface);
-        }
-        
-        .modal-title {
-            margin: 0;
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-        
-        .modal-close {
-            background: none;
-            border: none;
-            cursor: pointer;
-            color: var(--text-tertiary);
-            padding: 4px;
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 4px;
-            transition: all 0.2s ease;
-        }
-        
-        .modal-close:hover {
-            background: var(--border-light);
-            color: var(--text-primary);
-        }
-        
-        .modal-body {
-            padding: 20px;
-        }
-        
-        .modal-footer {
-            padding: 12px 20px;
-            border-top: 1px solid var(--border-light);
-            display: flex;
-            justify-content: flex-end;
-            background: var(--light-surface);
-        }
-
         /* Mobile responsive adjustments */
         @media (max-width: 768px) {
-            .header {
-                padding: 12px 16px;
+            body {
+                padding: 10px;
             }
-            
-            .header-content {
-                flex-direction: column;
-                gap: 16px;
-                align-items: flex-start;
+            .container {
+                padding: 15px;
             }
-            
-            .nav {
-                width: 100%;
-                justify-content: space-around;
+            .transcript-container {
+                padding: 0;
+                margin: 0;
             }
-            
-            .main-content {
-                padding: 16px;
+            .formatted-text {
+                padding: 10px !important;
             }
-            
-            .page-title {
-                font-size: 24px;
-            }
-            
-            .input-group {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            
-            .search-form {
-                padding: 16px;
-            }
-            
-            .card-body {
-                padding: 16px;
-            }
-            
-            /* Transcript page responsive */
-            .video-info .card-body > div {
+            .video-info > div {
                 flex-direction: column !important;
-                gap: 16px !important;
+                gap: 15px !important;
             }
-            
             .video-info img {
                 width: 100% !important;
-                max-width: 400px !important;
+                max-width: 320px;
                 height: auto !important;
-                margin: 0 auto !important;
-            }
-            
-            /* Chapter grid responsive */
-            div[style*="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr))"] {
-                grid-template-columns: 1fr !important;
-            }
-            
-            /* Modal responsive */
-            .modal {
-                margin: 20px;
-                width: calc(100% - 40px);
-                max-width: none;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <header class="header">
-            <div class="header-content">
-                <a href="/" class="logo">
-                    <i data-lucide="play-circle" class="logo-icon"></i>
-                    YouTube Deep Search
-                </a>
-                <nav class="nav">
-                    <a href="/" class="nav-item {{ 'active' if request.endpoint == 'index' }}">
-                        <i data-lucide="home" class="nav-icon"></i>
-                        Home
-                    </a>
-                    <a href="/storage" class="nav-item {{ 'active' if request.endpoint == 'storage_page' }}">
-                        <i data-lucide="database" class="nav-icon"></i>
-                        Storage
-                    </a>
+        <div class="header">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h1 style="margin: 0;">🔍 YouTube Deep Search</h1>
+                <nav style="display: flex; gap: 15px; font-size: 14px;">
+                    <a href="/" style="color: #666; text-decoration: none; padding: 8px 12px; border-radius: 4px; transition: background-color 0.3s;">🏠 Home</a>
+                    <a href="/storage" style="color: #666; text-decoration: none; padding: 8px 12px; border-radius: 4px; transition: background-color 0.3s;">💾 Saved Videos</a>
                 </nav>
             </div>
-        </header>
-        
-        <main class="main-content">
-            {% block content %}{% endblock %}
-        </main>
-    </div>
-    
-    <!-- Clean Status Modal -->
-    <div id="statusModal" class="modal-overlay">
-        <div class="modal">
-            <div class="modal-header">
-                <h3 class="modal-title" id="modalTitle">Status</h3>
-                <button class="modal-close" onclick="closeModal('statusModal')">
-                    <i data-lucide="x" style="width: 14px; height: 14px;"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div id="modalContent"></div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('statusModal')" style="font-size: 14px; padding: 8px 16px;">
-                    Close
-                </button>
-            </div>
         </div>
+        
+        {% block content %}{% endblock %}
     </div>
-    
-
-    <script>
-        // Initialize Lucide icons
-        lucide.createIcons();
-        
-        // Add loading states for forms
-        document.addEventListener('DOMContentLoaded', function() {
-            const forms = document.querySelectorAll('form');
-            forms.forEach(form => {
-                form.addEventListener('submit', function(e) {
-                    // Regular form loading state for all forms
-                    const submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
-                    if (submitBtn) {
-                        submitBtn.classList.add('loading');
-                        submitBtn.innerHTML = '<span class="spinner"></span> Processing...';
-                    }
-                });
-            });
-        });
-        
-        // Modal functions
-        function showModal(modalId, title, content) {
-            const modal = document.getElementById(modalId);
-            const modalTitle = document.getElementById('modalTitle');
-            const modalContent = document.getElementById('modalContent');
-            
-            modalTitle.textContent = title;
-            modalContent.innerHTML = content;
-            modal.classList.add('show');
-            
-            // Re-initialize Lucide icons
-            lucide.createIcons();
-        }
-        
-        function closeModal(modalId) {
-            const modal = document.getElementById(modalId);
-            modal.classList.remove('show');
-        }
-        
-        // Close modal when clicking outside
-        document.addEventListener('click', function(event) {
-            if (event.target.classList.contains('modal-overlay')) {
-                event.target.classList.remove('show');
-            }
-        });
-        
-        // Close modal with escape key
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape') {
-                const openModal = document.querySelector('.modal-overlay.show');
-                if (openModal) {
-                    openModal.classList.remove('show');
-                }
-            }
-        });
-        
-        // Copy to clipboard function
-        function copyToClipboard(text) {
-            if (navigator.clipboard && window.isSecureContext) {
-                return navigator.clipboard.writeText(text);
-            } else {
-                // Fallback for older browsers
-                const textArea = document.createElement('textarea');
-                textArea.value = text;
-                textArea.style.position = 'fixed';
-                textArea.style.left = '-999999px';
-                textArea.style.top = '-999999px';
-                document.body.appendChild(textArea);
-                textArea.focus();
-                textArea.select();
-                return new Promise((resolve, reject) => {
-                    if (document.execCommand('copy')) {
-                        resolve();
-                    } else {
-                        reject();
-                    }
-                    document.body.removeChild(textArea);
-                });
-            }
-        }
-        
-        // Progress modal functions
-        function showProgressModal() {
-            const modal = document.getElementById('progressModal');
-            modal.classList.add('show');
-            
-            // Reset all steps
-            document.querySelectorAll('.progress-step').forEach(step => {
-                step.classList.remove('active', 'completed');
-            });
-            
-            // Start step 1
-            setTimeout(() => {
-                updateProgressStep(1, 'active');
-            }, 100);
-            
-            // Simulate progress
-            setTimeout(() => {
-                updateProgressStep(1, 'completed');
-                updateProgressStep(2, 'active');
-            }, 1000);
-            
-            setTimeout(() => {
-                updateProgressStep(2, 'completed');
-                updateProgressStep(3, 'active');
-            }, 2000);
-        }
-        
-        function updateProgressStep(stepNumber, status) {
-            const step = document.getElementById(`step${stepNumber}`);
-            const stepIcon = step.querySelector('.step-icon');
-            
-            if (status === 'active') {
-                step.classList.add('active');
-                step.style.opacity = '1';
-                step.querySelector('div').style.borderColor = 'var(--yt-red)';
-                
-                // Update spinner or icon
-                if (stepNumber === 1) {
-                    stepIcon.innerHTML = '<span class="spinner" style="width: 12px; height: 12px; border: 2px solid white; border-top: 2px solid transparent;"></span>';
-                } else if (stepNumber === 2) {
-                    stepIcon.innerHTML = '<span class="spinner" style="width: 12px; height: 12px; border: 2px solid white; border-top: 2px solid transparent;"></span>';
-                } else if (stepNumber === 3) {
-                    stepIcon.innerHTML = '<span class="spinner" style="width: 12px; height: 12px; border: 2px solid white; border-top: 2px solid transparent;"></span>';
-                }
-            } else if (status === 'completed') {
-                step.classList.remove('active');
-                step.classList.add('completed');
-                stepIcon.style.background = '#22c55e';
-                stepIcon.innerHTML = '<i data-lucide="check" style="width: 12px; height: 12px; color: white;"></i>';
-                
-                // Re-initialize icons
-                lucide.createIcons();
-            }
-        }
-        
-        function closeProgressModal() {
-            const modal = document.getElementById('progressModal');
-            modal.classList.remove('show');
-        }
-    </script>
 </body>
 </html>
