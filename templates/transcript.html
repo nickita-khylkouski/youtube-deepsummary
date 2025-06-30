@@ -84,7 +84,7 @@
             <h3>📚 Video Chapters ({{ chapters|length }} chapters):</h3>
             <ul style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0;">
                 {% for chapter in chapters %}
-                    <li><strong>{{ chapter.title }}</strong> - <a href="https://www.youtube.com/watch?v={{ video_id }}&t={{ chapter.time|int }}s" target="_blank" style="color: #0066cc; text-decoration: underline;">{{ "%.0f"|format(chapter.time // 60) }}:{{ "%02.0f"|format(chapter.time % 60) }}</a></li>
+                    <li><strong>{{ chapter.title }}</strong> - <a href="#chapter-{{ chapter.time|int }}" onclick="scrollToChapter({{ chapter.time|int }})" style="color: #0066cc; text-decoration: underline; cursor: pointer;">{{ "%.0f"|format(chapter.time // 60) }}:{{ "%02.0f"|format(chapter.time % 60) }}</a> <span style="color: #666; font-size: 0.9em;">(<a href="https://www.youtube.com/watch?v={{ video_id }}&t={{ chapter.time|int }}s" target="_blank" style="color: #999; text-decoration: none;" title="Watch on YouTube">▶️</a>)</span></li>
                 {% endfor %}
             </ul>
         </div>
@@ -101,14 +101,14 @@
     <!-- Formatted readable transcript (default view) -->
     <div id="formatted-transcript" class="transcript-container" style="display: block;">
         <div class="formatted-text" style="background: #f9f9f9; padding: 15px; border-radius: 5px; line-height: 1.6; font-family: Georgia, serif;">
-            <pre style="white-space: pre-wrap; font-family: Georgia, serif; margin: 0;">{{ formatted_transcript }}</pre>
+            <div id="formatted-transcript-content" style="white-space: pre-wrap; font-family: Georgia, serif; margin: 0;">{{ formatted_transcript|safe }}</div>
         </div>
     </div>
     
     <!-- Detailed timestamp transcript (hidden by default) -->
     <div id="detailed-transcript" class="transcript-container" style="display: none;">
         {% for entry in transcript %}
-            <div class="transcript-entry">
+            <div class="transcript-entry" data-time="{{ entry.time|int }}" id="timestamp-{{ entry.time|int }}">
                 <div class="timestamp">[{{ entry.formatted_time }}] ({{ "%.2f"|format(entry.time) }}s)</div>
                 <div class="text">{{ entry.text }}</div>
             </div>
@@ -131,6 +131,61 @@
                 formattedDiv.style.display = 'none';
                 detailedDiv.style.display = 'block';
                 toggleBtn.textContent = '📄 Switch to Readable View';
+            }
+        }
+        
+        function scrollToChapter(chapterTime) {
+            const formattedDiv = document.getElementById('formatted-transcript');
+            const detailedDiv = document.getElementById('detailed-transcript');
+            const chapterId = 'chapter-' + chapterTime;
+            
+            if (formattedDiv.style.display !== 'none') {
+                // In formatted view - scroll to the chapter anchor
+                const chapterAnchor = document.getElementById(chapterId);
+                if (chapterAnchor) {
+                    chapterAnchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    
+                    // Highlight the section temporarily
+                    const formattedContent = document.getElementById('formatted-transcript-content');
+                    const originalBg = formattedContent.parentElement.style.backgroundColor;
+                    formattedContent.parentElement.style.backgroundColor = '#fff3cd';
+                    setTimeout(() => {
+                        formattedContent.parentElement.style.backgroundColor = originalBg;
+                    }, 2000);
+                } else {
+                    // Fallback: scroll to formatted transcript
+                    const formattedContent = document.getElementById('formatted-transcript-content');
+                    formattedContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            } else {
+                // In detailed view - find the closest timestamp entry
+                const timestampEntries = document.querySelectorAll('.transcript-entry[data-time]');
+                let closestEntry = null;
+                let closestDiff = Infinity;
+                
+                timestampEntries.forEach(entry => {
+                    const entryTime = parseInt(entry.getAttribute('data-time'));
+                    const diff = Math.abs(entryTime - chapterTime);
+                    if (diff < closestDiff) {
+                        closestDiff = diff;
+                        closestEntry = entry;
+                    }
+                });
+                
+                if (closestEntry) {
+                    closestEntry.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    
+                    // Highlight the entry temporarily
+                    const originalBg = closestEntry.style.backgroundColor;
+                    closestEntry.style.backgroundColor = '#fff3cd';
+                    closestEntry.style.borderLeft = '4px solid #ffc107';
+                    closestEntry.style.paddingLeft = '10px';
+                    setTimeout(() => {
+                        closestEntry.style.backgroundColor = originalBg;
+                        closestEntry.style.borderLeft = '';
+                        closestEntry.style.paddingLeft = '';
+                    }, 2000);
+                }
             }
         }
         

@@ -321,10 +321,11 @@ def _organize_transcript_by_chapters(transcript: List[Dict], chapters: List[Dict
         ]
         
         if chapter_entries:
-            # Format chapter header
+            # Format chapter header with anchor
             chapter_title = chapter.get('title', f'Chapter {i + 1}')
             chapter_time = _format_timestamp(chapter_start)
-            header = f"\n## {chapter_title} [{chapter_time}]\n"
+            chapter_id = f"chapter-{int(chapter_start)}"
+            header = f"\n<a id='{chapter_id}'></a>## {chapter_title} [{chapter_time}]\n"
             
             # Format chapter content
             chapter_content = _group_transcript_into_paragraphs(chapter_entries, sentences_per_paragraph=4)
