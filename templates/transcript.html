@@ -66,13 +66,25 @@
             {% if summary %}
                 <div class="card summary-section">
                     <div class="card-header">
-                        <h3 style="margin: 0; display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 600;">
-                            <i data-lucide="sparkles" style="width: 20px; height: 20px; color: #8b5cf6;"></i>
-                            AI-Generated Summary
-                        </h3>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="margin: 0; display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 600;">
+                                <i data-lucide="sparkles" style="width: 20px; height: 20px; color: #8b5cf6;"></i>
+                                AI-Generated Summary
+                            </h3>
+                            <div style="display: flex; gap: 8px;">
+                                <button onclick="copySummary()" class="btn btn-secondary" style="padding: 6px 12px; font-size: 14px;">
+                                    <i data-lucide="copy" style="width: 14px; height: 14px;"></i>
+                                    Copy
+                                </button>
+                                <button onclick="toggleSummary()" id="summaryToggleBtn" class="btn btn-secondary" style="padding: 6px 12px; font-size: 14px;">
+                                    <i data-lucide="chevron-down" style="width: 14px; height: 14px;"></i>
+                                    Expand
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     <div class="card-body">
-                        <div class="summary-content">
+                        <div class="summary-content summary-collapsed" id="summaryContent">
                             <pre>{{ summary }}</pre>
                         </div>
                     </div>
@@ -226,19 +238,32 @@
                         // Convert **text** to <strong>text</strong>
                         summaryHtml = summaryHtml.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
                         
+                        
                         // Show summary section with new design
                         summarySection.style.display = 'block';
                         summarySection.style.marginBottom = '24px';
                         summarySection.innerHTML = `
                             <div class="card summary-section">
                                 <div class="card-header">
-                                    <h3 style="margin: 0; display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 600;">
-                                        <i data-lucide="sparkles" style="width: 20px; height: 20px; color: #8b5cf6;"></i>
-                                        AI-Generated Summary
-                                    </h3>
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <h3 style="margin: 0; display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 600;">
+                                            <i data-lucide="sparkles" style="width: 20px; height: 20px; color: #8b5cf6;"></i>
+                                            AI-Generated Summary
+                                        </h3>
+                                        <div style="display: flex; gap: 8px;">
+                                            <button onclick="copySummary()" class="btn btn-secondary" style="padding: 6px 12px; font-size: 14px;">
+                                                <i data-lucide="copy" style="width: 14px; height: 14px;"></i>
+                                                Copy
+                                            </button>
+                                            <button onclick="toggleSummary()" id="summaryToggleBtn" class="btn btn-secondary" style="padding: 6px 12px; font-size: 14px;">
+                                                <i data-lucide="chevron-down" style="width: 14px; height: 14px;"></i>
+                                                Expand
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="card-body">
-                                    <div class="summary-content">
+                                    <div class="summary-content summary-collapsed" id="summaryContent">
                                         <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit; color: var(--text-primary);">${summaryHtml}</pre>
                                     </div>
                                 </div>
@@ -251,6 +276,7 @@
                         // Reinitialize Lucide icons
                         lucide.createIcons();
                     } else {
+                        
                         // Show error
                         summarySection.style.display = 'block';
                         summarySection.style.marginBottom = '24px';
@@ -274,6 +300,7 @@
                     }
                 })
                 .catch(error => {
+                    
                     // Show error
                     summarySection.style.display = 'block';
                     summarySection.style.marginBottom = '24px';
@@ -323,33 +350,72 @@
             if (textToCopy) {
                 copyToClipboard(textToCopy)
                     .then(() => {
-                        // Show success modal
-                        const content = `
-                            <div style="text-align: center;">
-                                <div style="width: 60px; height: 60px; background: #22c55e; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
-                                    <i data-lucide="check" style="width: 24px; height: 24px; color: white;"></i>
-                                </div>
-                                <h4 style="margin: 0 0 8px 0; color: var(--text-primary);">Copied Successfully</h4>
-                                <p style="margin: 0; color: var(--text-secondary);">Transcript has been copied to your clipboard</p>
-                            </div>
-                        `;
-                        showModal('statusModal', 'Success', content);
+                        showCopySuccess('Transcript copied to clipboard');
                     })
                     .catch(() => {
-                        // Show error modal
-                        const content = `
-                            <div style="text-align: center;">
-                                <div style="width: 60px; height: 60px; background: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
-                                    <i data-lucide="alert-triangle" style="width: 24px; height: 24px; color: white;"></i>
-                                </div>
-                                <h4 style="margin: 0 0 8px 0; color: var(--text-primary);">Copy Failed</h4>
-                                <p style="margin: 0; color: var(--text-secondary);">Unable to copy to clipboard. Please select and copy the text manually.</p>
-                            </div>
-                        `;
-                        showModal('statusModal', 'Error', content);
+                        showCopyError();
                     });
             }
         }
+        
+        function copySummary() {
+            const summaryElement = document.querySelector('#summaryContent pre');
+            if (summaryElement) {
+                const textToCopy = summaryElement.textContent;
+                copyToClipboard(textToCopy)
+                    .then(() => {
+                        showCopySuccess('Summary copied to clipboard');
+                    })
+                    .catch(() => {
+                        showCopyError();
+                    });
+            }
+        }
+        
+        function showCopySuccess(message) {
+            const content = `
+                <div>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: #22c55e;">
+                        <i data-lucide="check" style="width: 16px; height: 16px;"></i>
+                        <span style="font-weight: 500;">Copy Successful</span>
+                    </div>
+                    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 12px;">
+                        <p style="margin: 0; color: var(--text-primary); font-size: 14px;">${message}</p>
+                    </div>
+                </div>
+            `;
+            showModal('statusModal', 'Copy Status', content);
+        }
+        
+        function showCopyError() {
+            const content = `
+                <div>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: #ef4444;">
+                        <i data-lucide="alert-triangle" style="width: 16px; height: 16px;"></i>
+                        <span style="font-weight: 500;">Copy Failed</span>
+                    </div>
+                    <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 12px;">
+                        <p style="margin: 0; color: var(--text-primary); font-size: 14px; line-height: 1.4;">Unable to copy to clipboard. Please select and copy the text manually.</p>
+                    </div>
+                </div>
+            `;
+            showModal('statusModal', 'Copy Status', content);
+        }
+        
+        function toggleSummary() {
+            const summaryContent = document.getElementById('summaryContent');
+            const toggleBtn = document.getElementById('summaryToggleBtn');
+            
+            if (summaryContent.classList.contains('summary-collapsed')) {
+                summaryContent.classList.remove('summary-collapsed');
+                toggleBtn.innerHTML = '<i data-lucide="chevron-up" style="width: 14px; height: 14px;"></i> Collapse';
+            } else {
+                summaryContent.classList.add('summary-collapsed');
+                toggleBtn.innerHTML = '<i data-lucide="chevron-down" style="width: 14px; height: 14px;"></i> Expand';
+            }
+            lucide.createIcons();
+        }
+        
     </script>
     
 {% endblock %}

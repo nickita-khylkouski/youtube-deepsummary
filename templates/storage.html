@@ -189,42 +189,48 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Show success in modal
+                    // Clean database status display
                     const content = `
-                        <div style="text-align: center;">
-                            <div style="width: 60px; height: 60px; background: #22c55e; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
-                                <i data-lucide="check" style="width: 24px; height: 24px; color: white;"></i>
+                        <div style="font-family: 'Inter', sans-serif;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; color: var(--text-primary);">
+                                <i data-lucide="database" style="width: 16px; height: 16px;"></i>
+                                <span style="font-weight: 500;">Database Statistics</span>
                             </div>
-                            <h4 style="margin: 0 0 16px 0; color: var(--text-primary);">Database Status</h4>
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 16px; margin-bottom: 16px;">
-                                <div style="text-align: center; padding: 12px; background: var(--light-surface); border-radius: 8px;">
-                                    <div style="font-size: 24px; font-weight: 700; color: var(--yt-red);">{{ cache_stats.videos_count }}</div>
-                                    <div style="font-size: 12px; color: var(--text-secondary);">Videos</div>
-                                </div>
-                                <div style="text-align: center; padding: 12px; background: var(--light-surface); border-radius: 8px;">
-                                    <div style="font-size: 24px; font-weight: 700; color: #0ea5e9;">{{ cache_stats.transcripts_count }}</div>
-                                    <div style="font-size: 12px; color: var(--text-secondary);">Transcripts</div>
-                                </div>
-                                <div style="text-align: center; padding: 12px; background: var(--light-surface); border-radius: 8px;">
-                                    <div style="font-size: 24px; font-weight: 700; color: #8b5cf6;">{{ cache_stats.summaries_count }}</div>
-                                    <div style="font-size: 12px; color: var(--text-secondary);">Summaries</div>
+                            
+                            <div style="background: var(--light-surface); border: 1px solid var(--border-light); border-radius: 6px; padding: 16px; margin-bottom: 16px;">
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; text-align: center;">
+                                    <div>
+                                        <div style="font-size: 24px; font-weight: 700; color: var(--yt-red); margin-bottom: 4px;">{{ cache_stats.videos_count }}</div>
+                                        <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Videos</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 24px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">{{ cache_stats.transcripts_count }}</div>
+                                        <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Transcripts</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 24px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">{{ cache_stats.summaries_count }}</div>
+                                        <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Summaries</div>
+                                    </div>
                                 </div>
                             </div>
-                            <p style="margin: 0; color: #22c55e; font-weight: 500;">
-                                <i data-lucide="check-circle" style="width: 16px; height: 16px; margin-right: 4px;"></i>
-                                Database is healthy
-                            </p>
+                            
+                            <div style="display: flex; align-items: center; gap: 8px; color: #22c55e; font-size: 14px;">
+                                <i data-lucide="check" style="width: 14px; height: 14px;"></i>
+                                <span>Database operational</span>
+                            </div>
                         </div>
                     `;
                     showModal('statusModal', 'Database Status', content);
                 } else {
                     const content = `
-                        <div style="text-align: center;">
-                            <div style="width: 60px; height: 60px; background: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
-                                <i data-lucide="alert-triangle" style="width: 24px; height: 24px; color: white;"></i>
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: #ef4444;">
+                                <i data-lucide="alert-triangle" style="width: 16px; height: 16px;"></i>
+                                <span style="font-weight: 500;">Database Error</span>
                             </div>
-                            <h4 style="margin: 0 0 8px 0; color: var(--text-primary);">Error</h4>
-                            <p style="margin: 0; color: var(--text-secondary);">${data.error}</p>
+                            <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 12px;">
+                                <p style="margin: 0; color: var(--text-primary); font-size: 14px; line-height: 1.4;">${data.error}</p>
+                            </div>
                         </div>
                     `;
                     showModal('statusModal', 'Error', content);
@@ -232,12 +238,14 @@
             })
             .catch(error => {
                 const content = `
-                    <div style="text-align: center;">
-                        <div style="width: 60px; height: 60px; background: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
-                            <i data-lucide="wifi-off" style="width: 24px; height: 24px; color: white;"></i>
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: #ef4444;">
+                            <i data-lucide="wifi-off" style="width: 16px; height: 16px;"></i>
+                            <span style="font-weight: 500;">Connection Error</span>
                         </div>
-                        <h4 style="margin: 0 0 8px 0; color: var(--text-primary);">Connection Error</h4>
-                        <p style="margin: 0; color: var(--text-secondary);">${error.message}</p>
+                        <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 12px;">
+                            <p style="margin: 0; color: var(--text-primary); font-size: 14px; line-height: 1.4;">${error.message}</p>
+                        </div>
                     </div>
                 `;
                 showModal('statusModal', 'Connection Error', content);

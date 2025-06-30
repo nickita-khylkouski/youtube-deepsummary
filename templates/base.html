@@ -272,20 +272,34 @@
         }
 
         .summary-section {
-            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-            border: 1px solid #0ea5e9;
+            background: var(--light-bg);
+            border: 1px solid var(--border-light);
             border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
         }
 
         .summary-content {
-            background: white;
+            background: var(--light-surface);
             padding: 20px;
             border-radius: 8px;
-            border-left: 4px solid #0ea5e9;
+            border-left: 4px solid #8b5cf6;
             font-size: 15px;
             line-height: 1.7;
+        }
+        
+        .summary-collapsed {
+            max-height: 150px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .summary-collapsed::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: linear-gradient(transparent, var(--light-surface));
         }
 
         .summary-content pre {
@@ -348,22 +362,35 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .progress-step.completed .step-icon::after {
+            content: '✓';
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
 
-        /* Modal styles */
+        /* Clean Modal Styles */
         .modal-overlay {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(15, 15, 15, 0.8);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 1000;
             opacity: 0;
             visibility: hidden;
-            transition: all 0.3s ease;
+            transition: opacity 0.2s ease;
+            backdrop-filter: blur(4px);
         }
         
         .modal-overlay.show {
@@ -373,31 +400,33 @@
         
         .modal {
             background: var(--light-bg);
-            border-radius: 12px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-            max-width: 400px;
+            border-radius: 8px;
+            border: 1px solid var(--border-light);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            max-width: 480px;
             width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-            transform: scale(0.95);
-            transition: transform 0.3s ease;
+            max-height: 70vh;
+            overflow: hidden;
+            transform: translateY(-20px);
+            transition: transform 0.2s ease;
         }
         
         .modal-overlay.show .modal {
-            transform: scale(1);
+            transform: translateY(0);
         }
         
         .modal-header {
-            padding: 20px 24px;
+            padding: 16px 20px;
             border-bottom: 1px solid var(--border-light);
             display: flex;
             align-items: center;
             justify-content: space-between;
+            background: var(--light-surface);
         }
         
         .modal-title {
             margin: 0;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 600;
             color: var(--text-primary);
         }
@@ -405,34 +434,33 @@
         .modal-close {
             background: none;
             border: none;
-            font-size: 24px;
             cursor: pointer;
             color: var(--text-tertiary);
-            padding: 0;
-            width: 32px;
-            height: 32px;
+            padding: 4px;
+            width: 24px;
+            height: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 6px;
+            border-radius: 4px;
             transition: all 0.2s ease;
         }
         
         .modal-close:hover {
-            background: var(--light-surface-variant);
+            background: var(--border-light);
             color: var(--text-primary);
         }
         
         .modal-body {
-            padding: 24px;
+            padding: 20px;
         }
         
         .modal-footer {
-            padding: 16px 24px;
+            padding: 12px 20px;
             border-top: 1px solid var(--border-light);
             display: flex;
             justify-content: flex-end;
-            gap: 12px;
+            background: var(--light-surface);
         }
 
         /* Mobile responsive adjustments */
@@ -526,26 +554,26 @@
         </main>
     </div>
     
-    <!-- Modal for status messages -->
+    <!-- Clean Status Modal -->
     <div id="statusModal" class="modal-overlay">
         <div class="modal">
             <div class="modal-header">
                 <h3 class="modal-title" id="modalTitle">Status</h3>
                 <button class="modal-close" onclick="closeModal('statusModal')">
-                    <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+                    <i data-lucide="x" style="width: 14px; height: 14px;"></i>
                 </button>
             </div>
             <div class="modal-body">
                 <div id="modalContent"></div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-primary" onclick="closeModal('statusModal')">
-                    <i data-lucide="check" class="btn-icon"></i>
-                    OK
+                <button class="btn btn-secondary" onclick="closeModal('statusModal')" style="font-size: 14px; padding: 8px 16px;">
+                    Close
                 </button>
             </div>
         </div>
     </div>
+    
 
     <script>
         // Initialize Lucide icons
@@ -555,7 +583,8 @@
         document.addEventListener('DOMContentLoaded', function() {
             const forms = document.querySelectorAll('form');
             forms.forEach(form => {
-                form.addEventListener('submit', function() {
+                form.addEventListener('submit', function(e) {
+                    // Regular form loading state for all forms
                     const submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
                     if (submitBtn) {
                         submitBtn.classList.add('loading');
@@ -624,6 +653,66 @@
                     document.body.removeChild(textArea);
                 });
             }
+        }
+        
+        // Progress modal functions
+        function showProgressModal() {
+            const modal = document.getElementById('progressModal');
+            modal.classList.add('show');
+            
+            // Reset all steps
+            document.querySelectorAll('.progress-step').forEach(step => {
+                step.classList.remove('active', 'completed');
+            });
+            
+            // Start step 1
+            setTimeout(() => {
+                updateProgressStep(1, 'active');
+            }, 100);
+            
+            // Simulate progress
+            setTimeout(() => {
+                updateProgressStep(1, 'completed');
+                updateProgressStep(2, 'active');
+            }, 1000);
+            
+            setTimeout(() => {
+                updateProgressStep(2, 'completed');
+                updateProgressStep(3, 'active');
+            }, 2000);
+        }
+        
+        function updateProgressStep(stepNumber, status) {
+            const step = document.getElementById(`step${stepNumber}`);
+            const stepIcon = step.querySelector('.step-icon');
+            
+            if (status === 'active') {
+                step.classList.add('active');
+                step.style.opacity = '1';
+                step.querySelector('div').style.borderColor = 'var(--yt-red)';
+                
+                // Update spinner or icon
+                if (stepNumber === 1) {
+                    stepIcon.innerHTML = '<span class="spinner" style="width: 12px; height: 12px; border: 2px solid white; border-top: 2px solid transparent;"></span>';
+                } else if (stepNumber === 2) {
+                    stepIcon.innerHTML = '<span class="spinner" style="width: 12px; height: 12px; border: 2px solid white; border-top: 2px solid transparent;"></span>';
+                } else if (stepNumber === 3) {
+                    stepIcon.innerHTML = '<span class="spinner" style="width: 12px; height: 12px; border: 2px solid white; border-top: 2px solid transparent;"></span>';
+                }
+            } else if (status === 'completed') {
+                step.classList.remove('active');
+                step.classList.add('completed');
+                stepIcon.style.background = '#22c55e';
+                stepIcon.innerHTML = '<i data-lucide="check" style="width: 12px; height: 12px; color: white;"></i>';
+                
+                // Re-initialize icons
+                lucide.createIcons();
+            }
+        }
+        
+        function closeProgressModal() {
+            const modal = document.getElementById('progressModal');
+            modal.classList.remove('show');
         }
     </script>
 </body>
