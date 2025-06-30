@@ -1,34 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}Saved Videos - YouTube Deep Search{% endblock %}
+{% block title %}Storage - YouTube Deep Search{% endblock %}
 
 {% block content %}
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h2>💾 Saved Videos</h2>
-        <a href="/" style="background: #666; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px;">← Back to Home</a>
-    </div>
-    
-    <!-- Storage Statistics -->
-    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
-        <h3 style="margin-top: 0;">📊 Database Statistics</h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
-            <div style="background: white; padding: 15px; border-radius: 6px; text-align: center; border-left: 4px solid #28a745;">
-                <div style="font-size: 24px; font-weight: bold; color: #28a745;">{{ cache_stats.videos_count }}</div>
-                <div style="color: #666; font-size: 14px;">Videos Stored</div>
-            </div>
-            <div style="background: white; padding: 15px; border-radius: 6px; text-align: center; border-left: 4px solid #17a2b8;">
-                <div style="font-size: 24px; font-weight: bold; color: #17a2b8;">{{ cache_stats.transcripts_count }}</div>
-                <div style="color: #666; font-size: 14px;">Transcripts</div>
-            </div>
-            <div style="background: white; padding: 15px; border-radius: 6px; text-align: center; border-left: 4px solid #6f42c1;">
-                <div style="font-size: 24px; font-weight: bold; color: #6f42c1;">{{ cache_stats.summaries_count }}</div>
-                <div style="color: #666; font-size: 14px;">AI Summaries</div>
-            </div>
-            <div style="background: white; padding: 15px; border-radius: 6px; text-align: center; border-left: 4px solid #007bff;">
-                <div style="font-size: 24px; font-weight: bold; color: #007bff;">{{ cache_stats.ttl_hours }}</div>
-                <div style="color: #666; font-size: 14px;">Storage Duration</div>
-            </div>
-        </div>
+    <div style="margin-bottom: 20px;">
+        <h2 style="margin: 0;">💾 Storage</h2>
+        <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">{{ cache_stats.videos_count }} videos stored</p>
     </div>
     
     {% if cached_videos %}
@@ -104,7 +81,7 @@
         <!-- Empty State -->
         <div style="text-align: center; padding: 60px 20px; color: #666;">
             <div style="font-size: 48px; margin-bottom: 20px;">📭</div>
-            <h3>No Saved Videos</h3>
+            <h3>No Videos in Storage</h3>
             <p>Visit some videos to see them appear here.</p>
             <a href="/" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block; margin-top: 15px;">Search Videos</a>
         </div>
@@ -198,7 +175,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('Database status checked!\n\nVideos: {{ cache_stats.videos_count }}\nTranscripts: {{ cache_stats.transcripts_count }}\nSummaries: {{ cache_stats.summaries_count }}');
+                    alert('Database status checked!\n\nVideos: {{ cache_stats.videos_count }}');
                 } else {
                     alert('Error: ' + data.error);
                 }
