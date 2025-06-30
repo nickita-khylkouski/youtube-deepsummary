@@ -81,19 +81,7 @@
                     
                     <!-- Cache Info -->
                     <div style="background: #f8f9fa; padding: 12px 15px; border-top: 1px solid #eee;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #666;">
-                            <div>
-                                <span style="display: inline-block; margin-right: 15px;">
-                                    🗄️ Database
-                                </span>
-                                <span style="display: inline-block; margin-right: 15px;">
-                                    🕒 {{ video.cache_age_hours }}h ago
-                                </span>
-                                {% if video.has_summary %}
-                                    <span style="color: #6f42c1; font-weight: bold;">📋 Summary</span>
-                                {% endif %}
-                                <span style="color: #28a745; font-weight: bold;">✅ STORED</span>
-                            </div>
+                        <div style="display: flex; justify-content: flex-end; align-items: center;">
                             <div style="display: flex; gap: 8px;">
                                 {% if video.is_valid %}
                                     <a href="/watch?v={{ video.video_id }}" style="background: #007bff; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">View</a>
