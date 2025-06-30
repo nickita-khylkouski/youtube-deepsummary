@@ -33,15 +33,17 @@
     
     {% if cached_videos %}
         <!-- Storage Actions -->
-        <div style="margin-bottom: 20px; text-align: right;">
-            <button onclick="cleanupExpired()" style="background: #17a2b8; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">🗄️ Database Status</button>
+        <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <button id="groupToggle" onclick="toggleGrouping()" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">📁 Group by Channel</button>
+            </div>
             <span style="color: #666; font-size: 14px;">{{ cached_videos|length }} videos shown</span>
         </div>
         
         <!-- Videos Grid -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 20px;">
+        <div id="videosContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 20px;">
             {% for video in cached_videos %}
-                <div style="background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); {% if not video.is_valid %}opacity: 0.6; border-left: 4px solid #dc3545;{% else %}border-left: 4px solid #28a745;{% endif %}">
+                <div class="video-card" data-uploader="{{ video.uploader or 'Unknown Channel' }}" style="background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); {% if not video.is_valid %}opacity: 0.6; border-left: 4px solid #dc3545;{% else %}border-left: 4px solid #28a745;{% endif %}">
                     <!-- Video Thumbnail and Info -->
                     <div style="display: flex; padding: 15px;">
                         <div style="flex-shrink: 0; margin-right: 15px;">
@@ -121,6 +123,86 @@
     {% endif %}
     
     <script>
+        let isGrouped = false;
+        
+        function toggleGrouping() {
+            const container = document.getElementById('videosContainer');
+            const toggleButton = document.getElementById('groupToggle');
+            
+            if (!isGrouped) {
+                groupByChannel(container);
+                toggleButton.textContent = '📋 Show All Videos';
+                isGrouped = true;
+            } else {
+                ungroupVideos(container);
+                toggleButton.textContent = '📁 Group by Channel';
+                isGrouped = false;
+            }
+        }
+        
+        function groupByChannel(container) {
+            const videoCards = Array.from(container.querySelectorAll('.video-card'));
+            const channels = {};
+            
+            // Group videos by channel
+            videoCards.forEach(card => {
+                const uploader = card.dataset.uploader || 'Unknown Channel';
+                if (!channels[uploader]) {
+                    channels[uploader] = [];
+                }
+                channels[uploader].push(card);
+            });
+            
+            // Clear container
+            container.innerHTML = '';
+            container.style.display = 'block';
+            
+            // Create channel sections
+            Object.keys(channels).forEach(channelName => {
+                const channelSection = document.createElement('div');
+                channelSection.className = 'channel-section';
+                channelSection.style.marginBottom = '30px';
+                
+                const channelHeader = document.createElement('div');
+                channelHeader.className = 'channel-header';
+                channelHeader.innerHTML = `
+                    <h3 style="margin: 0 0 15px 0; padding: 10px 15px; background: #f8f9fa; border-left: 4px solid #007bff; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>📺 ${channelName}</span>
+                        <span style="font-size: 14px; font-weight: normal; color: #666;">${channels[channelName].length} video${channels[channelName].length !== 1 ? 's' : ''}</span>
+                    </h3>
+                `;
+                
+                const channelGrid = document.createElement('div');
+                channelGrid.className = 'channel-grid';
+                channelGrid.style.display = 'grid';
+                channelGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(400px, 1fr))';
+                channelGrid.style.gap = '20px';
+                
+                channels[channelName].forEach(card => {
+                    channelGrid.appendChild(card);
+                });
+                
+                channelSection.appendChild(channelHeader);
+                channelSection.appendChild(channelGrid);
+                container.appendChild(channelSection);
+            });
+        }
+        
+        function ungroupVideos(container) {
+            const videoCards = Array.from(container.querySelectorAll('.video-card'));
+            
+            // Clear container and restore grid layout
+            container.innerHTML = '';
+            container.style.display = 'grid';
+            container.style.gridTemplateColumns = 'repeat(auto-fill, minmax(400px, 1fr))';
+            container.style.gap = '20px';
+            
+            // Add all video cards back
+            videoCards.forEach(card => {
+                container.appendChild(card);
+            });
+        }
+        
         function cleanupExpired() {
             fetch('/api/cache/cleanup', {
                 method: 'POST'
