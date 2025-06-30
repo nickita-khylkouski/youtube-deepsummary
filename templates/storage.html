@@ -10,22 +10,22 @@
     
     <!-- Storage Statistics -->
     <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
-        <h3 style="margin-top: 0;">📊 Storage Statistics</h3>
+        <h3 style="margin-top: 0;">📊 Database Statistics</h3>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
             <div style="background: white; padding: 15px; border-radius: 6px; text-align: center; border-left: 4px solid #28a745;">
-                <div style="font-size: 24px; font-weight: bold; color: #28a745;">{{ cache_stats.valid_files }}</div>
-                <div style="color: #666; font-size: 14px;">Saved Videos</div>
-            </div>
-            <div style="background: white; padding: 15px; border-radius: 6px; text-align: center; border-left: 4px solid #ffc107;">
-                <div style="font-size: 24px; font-weight: bold; color: #ffc107;">{{ cache_stats.expired_files }}</div>
-                <div style="color: #666; font-size: 14px;">Expired Files</div>
+                <div style="font-size: 24px; font-weight: bold; color: #28a745;">{{ cache_stats.videos_count }}</div>
+                <div style="color: #666; font-size: 14px;">Videos Stored</div>
             </div>
             <div style="background: white; padding: 15px; border-radius: 6px; text-align: center; border-left: 4px solid #17a2b8;">
-                <div style="font-size: 24px; font-weight: bold; color: #17a2b8;">{{ cache_stats.total_files }}</div>
-                <div style="color: #666; font-size: 14px;">Total Files</div>
+                <div style="font-size: 24px; font-weight: bold; color: #17a2b8;">{{ cache_stats.transcripts_count }}</div>
+                <div style="color: #666; font-size: 14px;">Transcripts</div>
             </div>
             <div style="background: white; padding: 15px; border-radius: 6px; text-align: center; border-left: 4px solid #6f42c1;">
-                <div style="font-size: 24px; font-weight: bold; color: #6f42c1;">{{ cache_stats.ttl_hours }}h</div>
+                <div style="font-size: 24px; font-weight: bold; color: #6f42c1;">{{ cache_stats.summaries_count }}</div>
+                <div style="color: #666; font-size: 14px;">AI Summaries</div>
+            </div>
+            <div style="background: white; padding: 15px; border-radius: 6px; text-align: center; border-left: 4px solid #007bff;">
+                <div style="font-size: 24px; font-weight: bold; color: #007bff;">{{ cache_stats.ttl_hours }}</div>
                 <div style="color: #666; font-size: 14px;">Storage Duration</div>
             </div>
         </div>
@@ -34,7 +34,7 @@
     {% if cached_videos %}
         <!-- Storage Actions -->
         <div style="margin-bottom: 20px; text-align: right;">
-            <button onclick="cleanupExpired()" style="background: #ffc107; color: #212529; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">🧹 Cleanup Expired</button>
+            <button onclick="cleanupExpired()" style="background: #17a2b8; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">🗄️ Database Status</button>
             <span style="color: #666; font-size: 14px;">{{ cached_videos|length }} videos shown</span>
         </div>
         
@@ -82,16 +82,15 @@
                         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #666;">
                             <div>
                                 <span style="display: inline-block; margin-right: 15px;">
-                                    📁 {{ "%.1f"|format(video.file_size / 1024) }} KB
+                                    🗄️ Database
                                 </span>
                                 <span style="display: inline-block; margin-right: 15px;">
                                     🕒 {{ video.cache_age_hours }}h ago
                                 </span>
-                                {% if not video.is_valid %}
-                                    <span style="color: #dc3545; font-weight: bold;">⚠️ EXPIRED</span>
-                                {% else %}
-                                    <span style="color: #28a745; font-weight: bold;">✅ VALID</span>
+                                {% if video.has_summary %}
+                                    <span style="color: #6f42c1; font-weight: bold;">📋 Summary</span>
                                 {% endif %}
+                                <span style="color: #28a745; font-weight: bold;">✅ STORED</span>
                             </div>
                             <div style="display: flex; gap: 8px;">
                                 {% if video.is_valid %}
@@ -123,23 +122,20 @@
     
     <script>
         function cleanupExpired() {
-            if (confirm('Remove all expired cache files?')) {
-                fetch('/api/cache/cleanup', {
-                    method: 'POST'
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('Storage cleanup completed!');
-                        location.reload();
-                    } else {
-                        alert('Error: ' + data.error);
-                    }
-                })
-                .catch(error => {
-                    alert('Error: ' + error.message);
-                });
-            }
+            fetch('/api/cache/cleanup', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Database status checked!\n\nVideos: {{ cache_stats.videos_count }}\nTranscripts: {{ cache_stats.transcripts_count }}\nSummaries: {{ cache_stats.summaries_count }}');
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error.message);
+            });
         }
     </script>
     
