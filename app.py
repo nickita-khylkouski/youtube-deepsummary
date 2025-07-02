@@ -509,6 +509,118 @@ def channel_summaries(channel_name):
         return render_template('error.html', 
                              error_message=f"Error loading channel summaries: {str(e)}"), 500
 
+@app.route('/memories')
+def memories_page():
+    """Display user's saved memories"""
+    try:
+        # Get filter type from query params
+        filter_type = request.args.get('type')
+        
+        # Get memories from database
+        memories = database_storage.get_memories()
+        
+        # Filter by type if specified
+        if filter_type:
+            memories = [m for m in memories if m['source_type'] == filter_type]
+        
+        # Get memory statistics
+        memory_stats = database_storage.get_memory_stats()
+        
+        return render_template('memories.html', 
+                             memories=memories,
+                             memory_stats=memory_stats,
+                             filter_type=filter_type)
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading memories: {str(e)}"), 500
+
+@app.route('/api/memories', methods=['POST'])
+def api_save_memory():
+    """API endpoint to save a new memory"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No JSON data provided'
+            }), 400
+        
+        video_id = data.get('video_id')
+        selected_text = data.get('selected_text')
+        source_type = data.get('source_type', 'transcript')
+        context_text = data.get('context_text')
+        timestamp_seconds = data.get('timestamp_seconds')
+        note = data.get('note')
+        
+        if not video_id or not selected_text:
+            return jsonify({
+                'success': False,
+                'error': 'video_id and selected_text are required'
+            }), 400
+        
+        # Save memory to database
+        success = database_storage.save_memory(
+            video_id=video_id,
+            selected_text=selected_text,
+            source_type=source_type,
+            context_text=context_text,
+            timestamp_seconds=timestamp_seconds,
+            note=note
+        )
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Memory saved successfully'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to save memory'
+            }), 500
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/memories/<memory_id>', methods=['DELETE'])
+def api_delete_memory(memory_id):
+    """API endpoint to delete a memory"""
+    try:
+        success = database_storage.delete_memory(memory_id)
+        if success:
+            return jsonify({
+                'success': True,
+                'message': f'Memory {memory_id} deleted successfully'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to delete memory'
+            }), 500
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/memories/<video_id>')
+def api_get_video_memories(video_id):
+    """API endpoint to get memories for a specific video"""
+    try:
+        memories = database_storage.get_memories(video_id=video_id)
+        return jsonify({
+            'success': True,
+            'memories': memories
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/favicon.ico')
 def favicon():
     """Serve favicon from static directory"""
