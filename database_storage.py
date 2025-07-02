@@ -18,6 +18,22 @@ load_dotenv()
 class DatabaseStorage:
     """Supabase database storage for YouTube transcripts, summaries, and metadata"""
     
+    def _parse_datetime(self, datetime_str: str) -> datetime:
+        """Parse datetime string with variable microsecond precision"""
+        # Replace Z with +00:00 for proper timezone parsing
+        datetime_str = datetime_str.replace('Z', '+00:00')
+        
+        # Handle variable microsecond precision by padding with zeros if needed
+        if '+' in datetime_str and '.' in datetime_str:
+            timestamp_part, tz_part = datetime_str.rsplit('+', 1)
+            if '.' in timestamp_part:
+                date_part, microsec_part = timestamp_part.rsplit('.', 1)
+                # Pad microseconds to 6 digits
+                microsec_part = microsec_part.ljust(6, '0')
+                datetime_str = f"{date_part}.{microsec_part}+{tz_part}"
+        
+        return datetime.fromisoformat(datetime_str)
+    
     def __init__(self):
         """Initialize Supabase client"""
         self.url = os.getenv('SUPABASE_URL')
@@ -83,7 +99,7 @@ class DatabaseStorage:
             # Reconstruct the cache format
             cached_data = {
                 'video_id': video_id,
-                'timestamp': time.mktime(datetime.fromisoformat(video_data['created_at'].replace('Z', '+00:00')).timetuple()),
+                'timestamp': time.mktime(self._parse_datetime(video_data['created_at']).timetuple()),
                 'transcript': transcript_data['transcript_data'],
                 'video_info': {
                     'title': video_data['title'],
@@ -220,17 +236,17 @@ class DatabaseStorage:
     def get_cache_info(self) -> Dict:
         """Get database statistics"""
         try:
-            # Count videos
-            videos_response = self.supabase.table('youtube_videos').select('id', count='exact').execute()
-            videos_count = videos_response.count
+            # Alternative count method - get all records and count them
+            videos_response = self.supabase.table('youtube_videos').select('video_id').execute()
+            videos_count = len(videos_response.data) if videos_response.data else 0
             
-            # Count transcripts
-            transcripts_response = self.supabase.table('transcripts').select('id', count='exact').execute()
-            transcripts_count = transcripts_response.count
+            transcripts_response = self.supabase.table('transcripts').select('video_id').execute()
+            transcripts_count = len(transcripts_response.data) if transcripts_response.data else 0
             
-            # Count summaries
-            summaries_response = self.supabase.table('summaries').select('id', count='exact').execute()
-            summaries_count = summaries_response.count
+            summaries_response = self.supabase.table('summaries').select('video_id').execute()
+            summaries_count = len(summaries_response.data) if summaries_response.data else 0
+            
+            print(f"Database stats: {videos_count} videos, {transcripts_count} transcripts, {summaries_count} summaries")
             
             return {
                 'total_files': videos_count,
@@ -281,7 +297,7 @@ class DatabaseStorage:
                     chapters_count = len(chapters_data) if chapters_data else 0
                 
                 # Calculate cache age
-                created_at = datetime.fromisoformat(video['created_at'].replace('Z', '+00:00'))
+                created_at = self._parse_datetime(video['created_at'])
                 cache_age_hours = (datetime.now(timezone.utc) - created_at).total_seconds() / 3600
                 
                 # Check if summary exists
@@ -307,6 +323,33 @@ class DatabaseStorage:
         except Exception as e:
             print(f"Error getting all cached videos: {e}")
             return []
+    
+    def delete(self, video_id: str) -> bool:
+        """Delete a video and all its associated data"""
+        try:
+            print(f"Deleting video {video_id} and all associated data...")
+            
+            # Delete summaries first (foreign key dependency)
+            summaries_response = self.supabase.table('summaries').delete().eq('video_id', video_id).execute()
+            print(f"Deleted summaries: {len(summaries_response.data) if summaries_response.data else 0}")
+            
+            # Delete chapters
+            chapters_response = self.supabase.table('video_chapters').delete().eq('video_id', video_id).execute()
+            print(f"Deleted chapters: {len(chapters_response.data) if chapters_response.data else 0}")
+            
+            # Delete transcripts
+            transcripts_response = self.supabase.table('transcripts').delete().eq('video_id', video_id).execute()
+            print(f"Deleted transcripts: {len(transcripts_response.data) if transcripts_response.data else 0}")
+            
+            # Delete the main video record
+            video_response = self.supabase.table('youtube_videos').delete().eq('video_id', video_id).execute()
+            print(f"Deleted video: {len(video_response.data) if video_response.data else 0}")
+            
+            return True
+            
+        except Exception as e:
+            print(f"Error deleting video {video_id}: {e}")
+            return False
 
 
 # Global database storage instance

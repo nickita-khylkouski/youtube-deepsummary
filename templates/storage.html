@@ -64,6 +64,7 @@
                                     <a href="/watch?v={{ video.video_id }}" style="background: #007bff; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">View</a>
                                 {% endif %}
                                 <a href="https://www.youtube.com/watch?v={{ video.video_id }}" target="_blank" style="background: #ff0000; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">YouTube</a>
+                                <button onclick="deleteVideo('{{ video.video_id }}', '{{ video.title|e }}')" style="background: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 3px; font-size: 11px; cursor: pointer;">🗑️ Delete</button>
                             </div>
                         </div>
                         
@@ -182,6 +183,57 @@
             })
             .catch(error => {
                 alert('Error: ' + error.message);
+            });
+        }
+        
+        function deleteVideo(videoId, videoTitle) {
+            if (!confirm(`Are you sure you want to delete "${videoTitle}"?\n\nThis will permanently remove the video, transcript, and summary from storage.`)) {
+                return;
+            }
+            
+            // Show loading state
+            const button = event.target;
+            const originalText = button.textContent;
+            button.textContent = '⏳ Deleting...';
+            button.disabled = true;
+            
+            fetch(`/api/delete/${videoId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Remove the video card from the DOM
+                    const videoCard = button.closest('.video-card');
+                    videoCard.style.transition = 'opacity 0.3s ease';
+                    videoCard.style.opacity = '0';
+                    
+                    setTimeout(() => {
+                        videoCard.remove();
+                        
+                        // Check if there are any videos left
+                        const remainingVideos = document.querySelectorAll('.video-card').length;
+                        if (remainingVideos === 0) {
+                            // Reload the page to show the empty state
+                            window.location.reload();
+                        } else {
+                            // Update the video count display
+                            const videoCountSpan = document.querySelector('div[style*="justify-content: space-between"] span');
+                            if (videoCountSpan) {
+                                videoCountSpan.textContent = `${remainingVideos} videos shown`;
+                            }
+                        }
+                    }, 300);
+                } else {
+                    alert('Error deleting video: ' + data.message);
+                    button.textContent = originalText;
+                    button.disabled = false;
+                }
+            })
+            .catch(error => {
+                alert('Error deleting video: ' + error.message);
+                button.textContent = originalText;
+                button.disabled = false;
             });
         }
     </script>

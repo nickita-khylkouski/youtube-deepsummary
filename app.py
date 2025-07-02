@@ -396,6 +396,18 @@ def storage_page():
         return render_template('error.html', 
                              error_message=f"Error loading storage page: {str(e)}"), 500
 
+@app.route('/api/delete/<video_id>', methods=['DELETE'])
+def api_delete_video(video_id):
+    """API endpoint to delete a video from storage"""
+    try:
+        success = database_storage.delete(video_id)
+        if success:
+            return jsonify({'success': True, 'message': f'Video {video_id} deleted successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Failed to delete video'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.route('/favicon.ico')
 def favicon():
     """Serve favicon from static directory"""
