@@ -408,7 +408,7 @@ if __name__ == '__main__':
     # Get configuration from environment variables
     proxy = os.getenv('YOUTUBE_PROXY')
     host = os.getenv('FLASK_HOST', '0.0.0.0')
-    port = int(os.getenv('FLASK_PORT', 33079))
+    port = int(os.getenv('FLASK_PORT', 5000))
     debug = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
     
     if proxy:

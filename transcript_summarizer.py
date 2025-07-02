@@ -20,7 +20,7 @@ class TranscriptSummarizer:
         """Initialize the summarizer with OpenAI client and configuration"""
         self.api_key = os.getenv('OPENAI_API_KEY')
         self.client = None
-        self.model = os.getenv('OPENAI_MODEL', 'gpt-4.1')
+        self.model = os.getenv('OPENAI_MODEL', 'gpt-4')
         self.max_tokens = int(os.getenv('OPENAI_MAX_TOKENS', '100000'))
         self.temperature = float(os.getenv('OPENAI_TEMPERATURE', '0.7'))
         

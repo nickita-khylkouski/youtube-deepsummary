@@ -19,33 +19,21 @@ class DatabaseStorage:
     """Supabase database storage for YouTube transcripts, summaries, and metadata"""
     
     def __init__(self):
-        """Initialize Supabase client"""
-        self.url = os.getenv('SUPABASE_URL')
-        self.key = os.getenv('SUPABASE_API_KEY')
+        """Initialize database storage with Supabase"""
+        self.supabase_url = os.getenv('SUPABASE_URL')
+        self.supabase_api_key = os.getenv('SUPABASE_API_KEY')
         
-        if not self.url or not self.key:
-            raise ValueError("SUPABASE_URL and SUPABASE_API_KEY must be set in environment variables")
-        
-        # Temporarily clear proxy environment variables for Supabase
-        original_http_proxy = os.environ.pop('HTTP_PROXY', None)
-        original_https_proxy = os.environ.pop('HTTPS_PROXY', None)
-        original_http_proxy_lower = os.environ.pop('http_proxy', None)
-        original_https_proxy_lower = os.environ.pop('https_proxy', None)
-        
+        if not self.supabase_url or not self.supabase_api_key:
+            print("Warning: SUPABASE_URL and SUPABASE_API_KEY not set. Database functionality will be limited.")
+            self.supabase = None
+            return
+            
         try:
-            # Create Supabase client without any proxy interference
-            self.supabase: Client = create_client(self.url, self.key)
-        finally:
-            # Restore original proxy settings
-            if original_http_proxy:
-                os.environ['HTTP_PROXY'] = original_http_proxy
-            if original_https_proxy:
-                os.environ['HTTPS_PROXY'] = original_https_proxy
-            if original_http_proxy_lower:
-                os.environ['http_proxy'] = original_http_proxy_lower
-            if original_https_proxy_lower:
-                os.environ['https_proxy'] = original_https_proxy_lower
-        print("Database storage initialized with Supabase (no proxy)")
+            self.supabase = create_client(self.supabase_url, self.supabase_api_key)
+            print("Supabase client initialized successfully")
+        except Exception as e:
+            print(f"Warning: Failed to initialize Supabase client: {e}")
+            self.supabase = None
     
     def get(self, video_id: str) -> Optional[Dict]:
         """
@@ -57,6 +45,10 @@ class DatabaseStorage:
         Returns:
             Cached data dict or None if not found
         """
+        if not self.supabase:
+            print(f"Database not configured, cannot get video {video_id}")
+            return None
+            
         try:
             # Get video metadata
             video_response = self.supabase.table('youtube_videos').select('*').eq('video_id', video_id).execute()
@@ -111,6 +103,10 @@ class DatabaseStorage:
             video_info: Video metadata (title, chapters, etc.)
             formatted_transcript: Formatted readable transcript
         """
+        if not self.supabase:
+            print(f"Database not configured, cannot save video {video_id}")
+            return
+            
         try:
             # Insert or update video metadata
             video_data = {
@@ -161,7 +157,7 @@ class DatabaseStorage:
             print(f"Database write error for {video_id}: {e}")
             raise
     
-    def save_summary(self, video_id: str, summary: str, model_used: str = 'gpt-4.1'):
+    def save_summary(self, video_id: str, summary: str, model_used: str = 'gpt-4'):
         """
         Save AI summary for a video
         
@@ -170,6 +166,10 @@ class DatabaseStorage:
             summary: Generated summary text
             model_used: AI model used for summary
         """
+        if not self.supabase:
+            print(f"Database not configured, cannot save summary for {video_id}")
+            return
+            
         try:
             summary_data = {
                 'video_id': video_id,
@@ -198,6 +198,10 @@ class DatabaseStorage:
         Returns:
             Summary text or None if not found
         """
+        if not self.supabase:
+            print(f"Database not configured, cannot get summary for {video_id}")
+            return None
+            
         try:
             response = self.supabase.table('summaries').select('summary_text').eq('video_id', video_id).execute()
             
@@ -219,6 +223,18 @@ class DatabaseStorage:
     
     def get_cache_info(self) -> Dict:
         """Get database statistics"""
+        if not self.supabase:
+            return {
+                'total_files': 0,
+                'valid_files': 0,
+                'expired_files': 0,
+                'cache_dir': 'Database not configured',
+                'ttl_hours': 'N/A',
+                'videos_count': 0,
+                'transcripts_count': 0,
+                'summaries_count': 0
+            }
+            
         try:
             # Count videos
             videos_response = self.supabase.table('youtube_videos').select('id', count='exact').execute()
@@ -258,6 +274,10 @@ class DatabaseStorage:
     
     def get_all_cached_videos(self) -> List[Dict]:
         """Get list of all cached videos with metadata from database"""
+        if not self.supabase:
+            print("Database not configured, cannot get cached videos")
+            return []
+            
         try:
             # Get all videos with their transcripts and summaries
             response = self.supabase.table('youtube_videos')\
