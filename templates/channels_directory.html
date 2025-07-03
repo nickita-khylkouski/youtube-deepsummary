@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Channels with AI Summaries - YouTube Deep Search{% endblock %}
+
+{% block content %}
+    <div style="margin-bottom: 20px;">
+        <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+            📺 Channels with AI Summaries
+        </h2>
+        <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">{{ total_channels }} channel{{ 's' if total_channels != 1 else '' }} with AI summaries available</p>
+    </div>
+    
+    <!-- Navigation -->
+    <div style="margin-bottom: 20px; display: flex; gap: 10px;">
+        <a href="/storage" style="background: #6c757d; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; font-size: 14px;">← Back to Storage</a>
+        <a href="/" style="background: #007bff; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; font-size: 14px;">🏠 Home</a>
+    </div>
+    
+    {% if channels %}
+        <!-- Channels Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px;">
+            {% for channel in channels %}
+                <div class="channel-card" style="background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #28a745;">
+                    <div style="padding: 20px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                            <h3 style="margin: 0; font-size: 18px; color: #333; display: flex; align-items: center; gap: 8px;">
+                                📺 {{ channel.name }}
+                            </h3>
+                            <span style="background: #28a745; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold;">
+                                🤖 {{ channel.summary_count }}
+                            </span>
+                        </div>
+                        
+                        <p style="margin: 0 0 15px 0; color: #666; font-size: 14px;">
+                            {{ channel.summary_count }} AI summar{{ 'ies' if channel.summary_count != 1 else 'y' }} available
+                        </p>
+                        
+                        <div style="display: flex; gap: 8px;">
+                            <a href="/channel/{{ channel.name|urlencode }}/summaries" 
+                               style="background: #28a745; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; font-size: 14px; flex: 1; text-align: center;">
+                                🤖 View Summaries
+                            </a>
+                            <a href="https://www.youtube.com/results?search_query={{ channel.name|urlencode }}" 
+                               target="_blank"
+                               style="background: #ff0000; color: white; padding: 8px 12px; text-decoration: none; border-radius: 4px; font-size: 14px;">
+                                📺
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        
+    {% else %}
+        <!-- Empty State -->
+        <div style="text-align: center; padding: 60px 20px; color: #666;">
+            <div style="font-size: 48px; margin-bottom: 20px;">🤖</div>
+            <h3>No AI Summaries Found</h3>
+            <p>Generate some AI summaries for videos to see channels appear here.</p>
+            <a href="/storage" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block; margin-top: 15px;">View Stored Videos</a>
+        </div>
+    {% endif %}
+    
+    <style>
+        .channel-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transition: box-shadow 0.2s ease;
+        }
+        
+        .channel-card a:hover {
+            transform: translateY(-1px);
+            transition: transform 0.2s ease;
+        }
+    </style>
+
+{% endblock %}
