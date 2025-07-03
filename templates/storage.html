@@ -5,342 +5,81 @@
 {% block content %}
     <div style="margin-bottom: 20px;">
         <h2 style="margin: 0;">💾 Storage</h2>
-        <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">
-            {{ cache_stats.videos_count }} videos stored
-            {% if cache_stats.summaries_count > 0 %}
-                • {{ cache_stats.summaries_count }} summaries available
-            {% endif %}
-        </p>
+        <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">{{ cache_stats.videos_count }} videos stored</p>
     </div>
 
-    <div style="display: flex; gap: 20px;">
-        <!-- Main content area for videos -->
-        <div id="mainContent" style="flex-grow: 1;">
-            {% if cached_videos %}
-                <!-- Storage Actions -->
-                <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <button id="groupToggle" onclick="toggleGrouping()" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">📁 Group by Channel</button>
-                    </div>
-                    <span style="color: #666; font-size: 14px;">{{ cached_videos|length }} videos shown</span>
-                </div>
+    {% if cached_videos %}
+        <!-- Storage Actions -->
+        <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <button id="groupToggle" onclick="toggleGrouping()" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">📁 Group by Channel</button>
+            </div>
+            <span style="color: #666; font-size: 14px;">{{ cached_videos|length }} videos shown</span>
+        </div>
 
-                <!-- Videos Grid -->
-                <div id="videosContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 20px;">
-                    {% for video in cached_videos %}
-                        <div class="video-card" data-video-id="{{ video.video_id }}" data-uploader="{{ video.uploader or 'Unknown Channel' }}" data-title="{{ video.title|e }}" style="background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); {% if not video.is_valid %}opacity: 0.6; border-left: 4px solid #dc3545;{% else %}border-left: 4px solid #28a745;{% endif %}">
-                            <!-- Video Thumbnail and Info -->
-                            <div style="display: flex; padding: 15px;">
-                                <div style="flex-shrink: 0; margin-right: 15px;">
-                                    <img src="https://img.youtube.com/vi/{{ video.video_id }}/maxresdefault.jpg"
-                                         alt="Thumbnail"
-                                         style="width: 120px; height: 68px; object-fit: cover; border-radius: 4px;"
-                                         onerror="this.src='https://img.youtube.com/vi/{{ video.video_id }}/default.jpg'">
-                                </div>
-                                <div style="flex-grow: 1; min-width: 0;">
-                                    <h4 style="margin: 0 0 8px 0; font-size: 16px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
-                                        {% if video.is_valid %}
-                                            <a href="/watch?v={{ video.video_id }}" style="color: #333; text-decoration: none;">{{ video.title }}</a>
-                                        {% else %}
-                                            <span style="color: #999;">{{ video.title }}</span>
-                                        {% endif %}
-                                    </h4>
-                                    <div style="color: #666; font-size: 14px; margin-bottom: 8px;">
-                                        {% if video.uploader != 'Unknown' %}
-                                            <a href="https://www.youtube.com/results?search_query={{ video.uploader|urlencode }}" target="_blank" style="color: #0066cc; text-decoration: none;">{{ video.uploader }}</a>
-                                        {% else %}
-                                            {{ video.uploader }}
-                                        {% endif %}
-                                    </div>
-                                    <div style="color: #888; font-size: 12px;">
-                                        {% if video.duration %}
-                                            ⏱️ {{ "%.0f"|format(video.duration // 60) }}:{{ "%02.0f"|format(video.duration % 60) }} •
-                                        {% endif %}
-                                        📝 {{ video.transcript_entries }} entries
-                                        {% if video.chapters_count > 0 %}
-                                            • 📚 {{ video.chapters_count }} chapters
-                                        {% endif %}
-                                        {% if video.has_summary %}
-                                            • 📄 Summary
-                                        {% endif %}
-                                    </div>
-                                </div>
+        <!-- Videos Grid -->
+        <div id="videosContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 20px;">
+            {% for video in cached_videos %}
+                <div class="video-card" data-uploader="{{ video.uploader or 'Unknown Channel' }}" style="background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); {% if not video.is_valid %}opacity: 0.6; border-left: 4px solid #dc3545;{% else %}border-left: 4px solid #28a745;{% endif %}">
+                    <!-- Video Thumbnail and Info -->
+                    <div style="display: flex; padding: 15px;">
+                        <div style="flex-shrink: 0; margin-right: 15px;">
+                            <img src="https://img.youtube.com/vi/{{ video.video_id }}/maxresdefault.jpg"
+                                 alt="Thumbnail"
+                                 style="width: 120px; height: 68px; object-fit: cover; border-radius: 4px;"
+                                 onerror="this.src='https://img.youtube.com/vi/{{ video.video_id }}/default.jpg'">
+                        </div>
+                        <div style="flex-grow: 1; min-width: 0;">
+                            <h4 style="margin: 0 0 8px 0; font-size: 16px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+                                {% if video.is_valid %}
+                                    <a href="/watch?v={{ video.video_id }}" style="color: #333; text-decoration: none;">{{ video.title }}</a>
+                                {% else %}
+                                    <span style="color: #999;">{{ video.title }}</span>
+                                {% endif %}
+                            </h4>
+                            <div style="color: #666; font-size: 14px; margin-bottom: 8px;">
+                                {% if video.uploader != 'Unknown' %}
+                                    <a href="https://www.youtube.com/results?search_query={{ video.uploader|urlencode }}" target="_blank" style="color: #0066cc; text-decoration: none;">{{ video.uploader }}</a>
+                                {% else %}
+                                    {{ video.uploader }}
+                                {% endif %}
                             </div>
-
-                            <!-- Cache Info and Actions -->
-                            <div style="background: #f8f9fa; padding: 12px 15px; border-top: 1px solid #eee;">
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <div> <!-- Placeholder for future left-aligned items if any --> </div>
-                                    <div style="display: flex; gap: 8px;">
-                                        {% if video.is_valid %}
-                                            {% if video.has_summary %}
-                                                <button onclick="showSummary('{{ video.video_id }}')" style="background: #28a745; color: white; padding: 4px 8px; border: none; border-radius: 3px; font-size: 11px; cursor: pointer;">View Summary</button>
-                                            {% else %}
-                                                 <button style="background: #6c757d; color: white; padding: 4px 8px; border: none; border-radius: 3px; font-size: 11px; cursor: not-allowed;" disabled>No Summary</button>
-                                            {% endif %}
-                                            <a href="/watch?v={{ video.video_id }}" style="background: #007bff; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">View Transcript</a>
-                                        {% endif %}
-                                        <a href="https://www.youtube.com/watch?v={{ video.video_id }}" target="_blank" style="background: #ff0000; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">YouTube</a>
-                                        <button onclick="deleteVideo('{{ video.video_id }}', '{{ video.title|e }}')" style="background: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 3px; font-size: 11px; cursor: pointer;">🗑️ Delete</button>
-                                    </div>
-                                </div>
-
-                                {% if video.error %}
-                                    <div style="color: #dc3545; font-size: 11px; margin-top: 8px; padding: 6px; background: #f8d7da; border-radius: 3px;">
-                                        Error: {{ video.error }}
-                                    </div>
+                            <div style="color: #888; font-size: 12px;">
+                                {% if video.duration %}
+                                    ⏱️ {{ "%.0f"|format(video.duration // 60) }}:{{ "%02.0f"|format(video.duration % 60) }} •
+                                {% endif %}
+                                📝 {{ video.transcript_entries }} entries
+                                {% if video.chapters_count > 0 %}
+                                    • 📚 {{ video.chapters_count }} chapters
                                 {% endif %}
                             </div>
                         </div>
-                    {% endfor %}
+                    </div>
+
+                    <!-- Cache Info -->
+                    <div style="background: #f8f9fa; padding: 12px 15px; border-top: 1px solid #eee;">
+                        <div style="display: flex; justify-content: flex-end; align-items: center;">
+                            <div style="display: flex; gap: 8px;">
+                                {% if video.is_valid %}
+                                    <a href="/watch?v={{ video.video_id }}" style="background: #007bff; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">View</a>
+                                {% endif %}
+                                <a href="https://www.youtube.com/watch?v={{ video.video_id }}" target="_blank" style="background: #ff0000; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">YouTube</a>
+                                <button onclick="deleteVideo('{{ video.video_id }}', '{{ video.title|e }}')" style="background: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 3px; font-size: 11px; cursor: pointer;">🗑️ Delete</button>
+                            </div>
+                        </div>
+
+                        {% if video.error %}
+                            <div style="color: #dc3545; font-size: 11px; margin-top: 8px; padding: 6px; background: #f8d7da; border-radius: 3px;">
+                                Error: {{ video.error }}
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
-
-            {% else %}
-                <!-- Empty State -->
-        <div style="text-align: center; padding: 60px 20px; color: #666;">
-            <div style="font-size: 48px; margin-bottom: 20px;">📭</div>
-            <h3>No Videos in Storage</h3>
-            <p>Visit some videos to see them appear here.</p>
-            <a href="/" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block; margin-top: 15px;">Search Videos</a>
+            {% endfor %}
         </div>
-            {% endif %}
-        </div>
-
-        <!-- Summary Display Area -->
-        <div id="summaryArea" style="width: 400px; flex-shrink: 0; background: #f8f9fa; border: 1px solid #ddd; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: none; height: fit-content; max-height: 80vh; overflow-y: auto;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 id="summaryVideoTitle" style="margin: 0; font-size: 18px;">Summary</h3>
-                <button onclick="closeSummary()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #666;">&times;</button>
-            </div>
-            <div id="summaryVideoChannel" style="font-size: 14px; color: #555; margin-bottom: 15px;"></div>
-            <div id="summaryContent" style="font-size: 14px; line-height: 1.6; white-space: pre-wrap;">
-                <!-- Summary will be loaded here -->
-                <p>Select a video with a summary to view it here.</p>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        let isGrouped = false;
-        const summaryArea = document.getElementById('summaryArea');
-        const summaryVideoTitle = document.getElementById('summaryVideoTitle');
-        const summaryVideoChannel = document.getElementById('summaryVideoChannel');
-        const summaryContent = document.getElementById('summaryContent');
-        const mainContent = document.getElementById('mainContent');
-
-        function toggleGrouping() {
-            const container = document.getElementById('videosContainer');
-            const toggleButton = document.getElementById('groupToggle');
-
-            if (!isGrouped) {
-                groupByChannel(container);
-                toggleButton.textContent = '📋 Show All Videos';
-                isGrouped = true;
-            } else {
-                ungroupVideos(container);
-                toggleButton.textContent = '📁 Group by Channel';
-                isGrouped = false;
-            }
-        }
         
-        function groupByChannel(container) {
-            const videoCards = Array.from(container.querySelectorAll('.video-card'));
-            const channels = {};
-
-            videoCards.forEach(card => {
-                const uploader = card.dataset.uploader || 'Unknown Channel';
-                if (!channels[uploader]) {
-                    channels[uploader] = [];
-                }
-                channels[uploader].push(card);
-            });
-
-            container.innerHTML = '';
-            container.style.display = 'block'; // Change from grid to block for sections
-
-            Object.keys(channels).sort().forEach(channelName => {
-                const channelSection = document.createElement('div');
-                channelSection.className = 'channel-section';
-                channelSection.style.marginBottom = '30px';
-
-                const channelHeader = document.createElement('div');
-                channelHeader.className = 'channel-header';
-                channelHeader.innerHTML = `
-                    <h3 style="margin: 0 0 15px 0; padding: 10px 15px; background: #e9ecef; border-left: 4px solid #007bff; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
-                        <span>📺 ${channelName}</span>
-                        <span style="font-size: 14px; font-weight: normal; color: #666;">${channels[channelName].length} video${channels[channelName].length !== 1 ? 's' : ''}</span>
-                    </h3>
-                `;
-
-                const channelGrid = document.createElement('div');
-                channelGrid.className = 'channel-grid';
-                channelGrid.style.display = 'grid';
-                channelGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(380px, 1fr))';
-                channelGrid.style.gap = '20px';
-
-                channels[channelName].forEach(card => {
-                    channelGrid.appendChild(card);
-                });
-
-                channelSection.appendChild(channelHeader);
-                channelSection.appendChild(channelGrid);
-                container.appendChild(channelSection);
-            });
-        }
-
-        function ungroupVideos(container) {
-            const videoCards = Array.from(document.querySelectorAll('.video-card')); // Get all cards from potentially grouped structure
-
-            container.innerHTML = '';
-            container.style.display = 'grid';
-            container.style.gridTemplateColumns = 'repeat(auto-fill, minmax(380px, 1fr))';
-            container.style.gap = '20px';
-
-            videoCards.sort((a, b) => { // Optional: sort by a data attribute if needed, e.g., title or date
-                return (a.dataset.title || '').localeCompare(b.dataset.title || '');
-            });
-            videoCards.forEach(card => {
-                container.appendChild(card);
-            });
-        }
-
-        function showSummary(videoId) {
-            summaryArea.style.display = 'block';
-            mainContent.style.width = 'calc(100% - 420px)'; // Adjust main content width
-            summaryContent.innerHTML = '<p>Loading summary...</p>';
-            summaryVideoTitle.textContent = 'Loading...';
-            summaryVideoChannel.textContent = '';
-
-            // Find the video card to get title and uploader instantly
-            const videoCard = document.querySelector(`.video-card[data-video-id="${videoId}"]`);
-            if (videoCard) {
-                summaryVideoTitle.textContent = videoCard.dataset.title || 'Summary';
-                summaryVideoChannel.textContent = `Channel: ${videoCard.dataset.uploader || 'Unknown'}`;
-            }
-
-            fetch(`/api/video_summary/${videoId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        summaryVideoTitle.textContent = data.video_title || 'Summary';
-                        summaryVideoChannel.textContent = `Channel: ${data.video_uploader || 'Unknown'}`;
-                        // Render markdown-like text correctly in HTML
-                        const formattedSummary = data.summary
-                            .replace(/## (.*)/g, '<h3>$1</h3>') // ## Section -> <h3>Section</h3>
-                            .replace(/\* (.*)/g, '<li>$1</li>') // * Item -> <li>Item</li>
-                            .replace(/(\r\n|\n|\r){2,}/g, '<br><br>') // Double newlines to <br><br>
-                            .replace(/(\r\n|\n|\r)/g, '<br>'); // Single newlines to <br>
-                        summaryContent.innerHTML = `<div>${formattedSummary}</div>`;
-                    } else {
-                        summaryContent.innerHTML = `<p style="color: red;">Error: ${data.error || 'Could not load summary.'}</p>`;
-                         if (videoCard) { // Fallback to card data if API fails but card exists
-                            summaryVideoTitle.textContent = videoCard.dataset.title || 'Summary';
-                        }
-                    }
-                })
-                .catch(error => {
-                    summaryContent.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
-                    if (videoCard) { // Fallback to card data if API fails but card exists
-                        summaryVideoTitle.textContent = videoCard.dataset.title || 'Summary';
-                    }
-                });
-        }
-
-        function closeSummary() {
-            summaryArea.style.display = 'none';
-            mainContent.style.width = '100%'; // Restore main content width
-            summaryVideoTitle.textContent = 'Summary';
-            summaryVideoChannel.textContent = '';
-            summaryContent.innerHTML = '<p>Select a video with a summary to view it here.</p>';
-        }
-
-        function cleanupExpired() {
-            fetch('/api/cache/cleanup', {
-                method: 'POST'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(`Database status checked!\n\nVideos: ${data.cache_info.videos_count}\nSummaries: ${data.cache_info.summaries_count}`);
-                } else {
-                    alert('Error: ' + data.error);
-                }
-            })
-            .catch(error => {
-                alert('Error: ' + error.message);
-            });
-        }
-
-        function deleteVideo(videoId, videoTitle) {
-            if (!confirm(`Are you sure you want to delete "${videoTitle}"?\n\nThis will permanently remove the video, transcript, and summary from storage.`)) {
-                return;
-            }
-
-            const button = event.target;
-            const originalText = button.textContent;
-            button.textContent = '⏳ Deleting...';
-            button.disabled = true;
-
-            fetch(`/api/delete/${videoId}`, {
-                method: 'DELETE'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const videoCard = button.closest('.video-card');
-                    videoCard.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                    videoCard.style.opacity = '0';
-                    videoCard.style.transform = 'scale(0.95)';
-
-                    setTimeout(() => {
-                        videoCard.remove();
-                        // If the deleted video's summary was shown, close the panel
-                        if (summaryArea.style.display !== 'none' && summaryVideoTitle.textContent === videoTitle) {
-                            closeSummary();
-                        }
-                        updateVideoCount();
-                    }, 300);
-                } else {
-                    alert('Error deleting video: ' + data.message);
-                    button.textContent = originalText;
-                    button.disabled = false;
-                }
-            })
-            .catch(error => {
-                alert('Error deleting video: ' + error.message);
-                button.textContent = originalText;
-                button.disabled = false;
-            });
-        }
-
-        function updateVideoCount() {
-            const remainingVideos = document.querySelectorAll('.video-card').length;
-            const videoCountSpan = document.querySelector('#mainContent > div:nth-child(1) > span'); // More specific selector for video count
-
-            if (videoCountSpan) {
-                videoCountSpan.textContent = `${remainingVideos} videos shown`;
-            }
-
-            if (remainingVideos === 0 && document.getElementById('videosContainer')) { // Check if videosContainer exists
-                 // If the main videos container is empty, but we are in grouped view, ungrouping might show videos.
-                // For simplicity, we'll reload to show the main empty state if all cards are gone.
-                // A more sophisticated check for grouped view could be added here.
-                if (!isGrouped || document.querySelectorAll('.channel-section .video-card').length === 0) {
-                    window.location.reload();
-                }
-            }
-        }
-
-        // Ensure the summary panel is closed if the window is resized significantly (e.g. mobile view changes)
-        window.addEventListener('resize', () => {
-            if (window.innerWidth < 768 && summaryArea.style.display !== 'none') { // Example breakpoint
-                // closeSummary(); // Optionally close on resize for smaller screens
-            }
-        });
-
-    </script>
-
-{% endblock %}
+    {% else %}
+        <!-- Empty State -->
         <div style="text-align: center; padding: 60px 20px; color: #666;">
             <div style="font-size: 48px; margin-bottom: 20px;">📭</div>
             <h3>No Videos in Storage</h3>

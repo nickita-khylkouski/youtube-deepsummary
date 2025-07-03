@@ -351,6 +351,74 @@ class DatabaseStorage:
             print(f"Error deleting video {video_id}: {e}")
             return False
 
+    def get_all_videos_with_summaries_grouped_by_channel(self) -> Dict[str, List[Dict]]:
+        """
+        Get all videos that have summaries, along with their summary text,
+        grouped by channel (uploader).
+
+        Returns:
+            A dictionary where keys are channel names (uploader) and values are lists
+            of video dictionaries. Each video dictionary contains:
+            {'video_id': str, 'title': str, 'uploader': str, 'summary_text': str}
+        """
+        try:
+            # Query to select video_id, title, uploader from youtube_videos
+            # and summary_text from summaries, joining on video_id.
+            # The join ensures we only get videos that have a summary.
+            # The foreign key relationship should be: summaries.video_id -> youtube_videos.video_id
+
+            # Correct Supabase query:
+            # We need to fetch from youtube_videos and do a join with summaries.
+            # The select string should specify columns from both tables.
+            # Supabase foreign key joins look like: table!fk_column(joined_table_columns)
+            # Or, if the FK is on the 'summaries' table pointing to 'youtube_videos',
+            # we can query 'youtube_videos' and specify a join to 'summaries'.
+            # Let's assume 'summaries' has a 'video_id' FK to 'youtube_videos.video_id'.
+            # And 'youtube_videos' has 'uploader'.
+
+            response = self.supabase.table('youtube_videos') \
+                .select('video_id, title, uploader, summaries(summary_text)') \
+                .not_.is_('summaries', 'null')  # Ensures we only get videos with at least one summary
+                .order('uploader', desc=False) \
+                .order('created_at', desc=True) \
+                .execute()
+
+            if not response.data:
+                print("No videos with summaries found.")
+                return {}
+
+            grouped_summaries: Dict[str, List[Dict]] = {}
+            for item in response.data:
+                uploader = item.get('uploader') or "Unknown Channel"
+                # Ensure 'summaries' is a list and not empty, and access its first element for summary_text
+                summary_info = item.get('summaries')
+                summary_text = None
+                if isinstance(summary_info, list) and len(summary_info) > 0:
+                    summary_text = summary_info[0].get('summary_text')
+
+                if summary_text is None: # Skip if no actual summary text, though .not_.is_ should prevent this
+                    continue
+
+                video_details = {
+                    'video_id': item['video_id'],
+                    'title': item.get('title') or "Unknown Title",
+                    'summary_text': summary_text
+                    # 'uploader' is the key in grouped_summaries, so not needed inside the list item itself
+                }
+
+                if uploader not in grouped_summaries:
+                    grouped_summaries[uploader] = []
+                grouped_summaries[uploader].append(video_details)
+
+            print(f"Found summaries for {len(grouped_summaries)} channels.")
+            return grouped_summaries
+
+        except Exception as e:
+            print(f"Error getting all videos with summaries grouped by channel: {e}")
+            # import traceback
+            # traceback.print_exc() # For more detailed error during development
+            return {}
+
 
 # Global database storage instance
 database_storage = DatabaseStorage()
