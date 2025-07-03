@@ -413,6 +413,55 @@ def favicon():
     """Serve favicon from static directory"""
     return app.send_static_file('favicon.ico')
 
+@app.route('/channel/<channel_name>/summaries')
+def channel_summaries(channel_name):
+    """Display AI summaries for videos from a specific channel"""
+    try:
+        # Get all videos from this channel that have summaries
+        videos_with_summaries = database_storage.get_videos_with_summaries_by_channel(channel_name)
+        
+        if not videos_with_summaries:
+            return render_template('error.html', 
+                                 error_message=f"No AI summaries found for channel: {channel_name}"), 404
+        
+        return render_template('channel_summaries.html',
+                             channel_name=channel_name,
+                             videos_with_summaries=videos_with_summaries,
+                             total_videos=len(videos_with_summaries))
+        
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading summaries for channel {channel_name}: {str(e)}"), 500
+
+@app.route('/api/channels/with-summaries')
+def api_channels_with_summaries():
+    """API endpoint to get list of channels that have AI summaries"""
+    try:
+        channels = database_storage.get_channels_with_summaries()
+        return jsonify({
+            'success': True,
+            'channels': channels
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/channels')
+def channels_directory():
+    """Display directory of all channels with AI summaries"""
+    try:
+        channels_with_summaries = database_storage.get_channels_with_summaries()
+        
+        return render_template('channels_directory.html',
+                             channels=channels_with_summaries,
+                             total_channels=len(channels_with_summaries))
+        
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading channels directory: {str(e)}"), 500
+
 if __name__ == '__main__':
     # Initialize database storage on startup
     database_storage.clear_expired()

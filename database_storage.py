@@ -350,6 +350,83 @@ class DatabaseStorage:
         except Exception as e:
             print(f"Error deleting video {video_id}: {e}")
             return False
+    
+    def get_videos_with_summaries_by_channel(self, channel_name: str) -> List[Dict]:
+        """Get all videos with AI summaries from a specific channel"""
+        try:
+            # Get videos from specific channel that have summaries
+            response = self.supabase.table('youtube_videos')\
+                .select('*, summaries(summary_text, model_used, created_at)')\
+                .eq('uploader', channel_name)\
+                .not_.is_('summaries.summary_text', 'null')\
+                .order('created_at', desc=True)\
+                .execute()
+            
+            videos_with_summaries = []
+            
+            for video in response.data:
+                if video.get('summaries') and len(video['summaries']) > 0:
+                    summary_data = video['summaries'][0]
+                    
+                    # Calculate summary age
+                    summary_created_at = self._parse_datetime(summary_data['created_at'])
+                    summary_age_hours = (datetime.now(timezone.utc) - summary_created_at).total_seconds() / 3600
+                    
+                    videos_with_summaries.append({
+                        'video_id': video['video_id'],
+                        'title': video['title'] or 'Unknown Title',
+                        'uploader': video['uploader'],
+                        'duration': video['duration'],
+                        'thumbnail_url': video['thumbnail_url'],
+                        'created_at': video['created_at'],
+                        'summary_text': summary_data['summary_text'],
+                        'model_used': summary_data['model_used'],
+                        'summary_created_at': summary_data['created_at'],
+                        'summary_age_hours': round(summary_age_hours, 1)
+                    })
+            
+            return videos_with_summaries
+            
+        except Exception as e:
+            print(f"Error getting videos with summaries for channel {channel_name}: {e}")
+            return []
+    
+    def get_channels_with_summaries(self) -> List[Dict]:
+        """Get list of channels that have AI summaries"""
+        try:
+            # Get unique channels that have at least one summary
+            response = self.supabase.table('youtube_videos')\
+                .select('uploader, summaries(video_id)')\
+                .not_.is_('summaries.video_id', 'null')\
+                .execute()
+            
+            # Count summaries per channel
+            channel_summary_counts = {}
+            for video in response.data:
+                uploader = video['uploader']
+                if uploader and uploader != 'Unknown Channel':
+                    if uploader not in channel_summary_counts:
+                        channel_summary_counts[uploader] = 0
+                    if video.get('summaries') and len(video['summaries']) > 0:
+                        channel_summary_counts[uploader] += 1
+            
+            # Convert to list of channel objects
+            channels = []
+            for channel_name, summary_count in channel_summary_counts.items():
+                if summary_count > 0:  # Only include channels with summaries
+                    channels.append({
+                        'name': channel_name,
+                        'summary_count': summary_count
+                    })
+            
+            # Sort by summary count (descending)
+            channels.sort(key=lambda x: x['summary_count'], reverse=True)
+            
+            return channels
+            
+        except Exception as e:
+            print(f"Error getting channels with summaries: {e}")
+            return []
 
 
 # Global database storage instance
