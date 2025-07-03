@@ -382,6 +382,40 @@ def api_cache_cleanup():
             'error': str(e)
         }), 500
 
+@app.route('/api/video_summary/<video_id>')
+def api_video_summary(video_id):
+    """API endpoint to get a video's summary and basic info"""
+    try:
+        summary_text = database_storage.get_summary(video_id)
+        if not summary_text:
+            return jsonify({
+                'success': False,
+                'error': 'Summary not found for this video.'
+            }), 404
+
+        # Try to get video info for title and uploader
+        video_data = database_storage.get(video_id) # This gets from cache/DB
+        video_title = "Summary" # Default title
+        video_uploader = "Unknown" # Default uploader
+
+        if video_data and video_data.get('video_info'):
+            video_title = video_data['video_info'].get('title', video_title)
+            video_uploader = video_data['video_info'].get('uploader', video_uploader)
+
+        return jsonify({
+            'success': True,
+            'video_id': video_id,
+            'video_title': video_title,
+            'video_uploader': video_uploader,
+            'summary': summary_text
+        })
+    except Exception as e:
+        print(f"Error in /api/video_summary/{video_id}: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'An server error occurred: {str(e)}'
+        }), 500
+
 @app.route('/storage')
 def storage_page():
     """Display all saved videos"""
