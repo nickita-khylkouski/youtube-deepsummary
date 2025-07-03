@@ -376,12 +376,12 @@ class DatabaseStorage:
             # Let's assume 'summaries' has a 'video_id' FK to 'youtube_videos.video_id'.
             # And 'youtube_videos' has 'uploader'.
 
-            response = self.supabase.table('youtube_videos') \
-                .select('video_id, title, uploader, summaries(summary_text)') \
-                .not_.is_('summaries', 'null')  # Ensures we only get videos with at least one summary
-                .order('uploader', desc=False) \
-                .order('created_at', desc=True) \
-                .execute()
+            response = (self.supabase.table('youtube_videos')
+                        .select('video_id, title, uploader, summaries(summary_text)')
+                        .not_.is_('summaries', 'null')  # Ensures we only get videos with at least one summary
+                        .order('uploader', desc=False)
+                        .order('created_at', desc=True)
+                        .execute())
 
             if not response.data:
                 print("No videos with summaries found.")
