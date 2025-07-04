@@ -324,6 +324,22 @@ class DatabaseStorage:
             print(f"Error getting all cached videos: {e}")
             return []
     
+    def get_videos_by_channel(self, channel_name: str) -> List[Dict]:
+        """Get all videos from a specific channel"""
+        try:
+            # Query videos by uploader (channel name)
+            response = self.supabase.table('youtube_videos')\
+                .select('*')\
+                .eq('uploader', channel_name)\
+                .order('created_at', desc=True)\
+                .execute()
+            
+            return response.data if response.data else []
+            
+        except Exception as e:
+            print(f"Error getting videos for channel {channel_name}: {e}")
+            return []
+    
     def delete(self, video_id: str) -> bool:
         """Delete a video and all its associated data"""
         try:

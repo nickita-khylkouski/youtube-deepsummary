@@ -408,6 +408,44 @@ def api_delete_video(video_id):
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+@app.route('/channel/<channel_name>/summaries')
+def channel_summaries(channel_name):
+    """Display AI summaries for all videos from a specific channel"""
+    try:
+        # Get all videos for the channel
+        channel_videos = database_storage.get_videos_by_channel(channel_name)
+        
+        if not channel_videos:
+            return render_template('error.html', 
+                                 error_message=f"No videos found for channel: {channel_name}"), 404
+        
+        # Get summaries for each video
+        summaries = []
+        for video in channel_videos:
+            video_id = video['video_id']
+            summary = database_storage.get_summary(video_id)
+            
+            if summary:
+                summaries.append({
+                    'video_id': video_id,
+                    'title': video['title'],
+                    'uploader': video['uploader'],
+                    'duration': video['duration'],
+                    'thumbnail_url': f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
+                    'summary': summary,
+                    'created_at': video['created_at']
+                })
+        
+        return render_template('channel_summaries.html', 
+                             channel_name=channel_name,
+                             summaries=summaries,
+                             total_videos=len(channel_videos),
+                             summarized_videos=len(summaries))
+        
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading channel summaries: {str(e)}"), 500
+
 @app.route('/favicon.ico')
 def favicon():
     """Serve favicon from static directory"""
