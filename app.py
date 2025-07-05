@@ -9,6 +9,12 @@ import os
 from flask import Flask, request, render_template, jsonify
 from youtube_transcript_api import YouTubeTranscriptApi
 import re
+try:
+    import markdown
+    MARKDOWN_AVAILABLE = True
+except ImportError:
+    MARKDOWN_AVAILABLE = False
+    print("Warning: markdown library not available. Install with: pip install markdown")
 from transcript_summarizer import TranscriptSummarizer, format_transcript_for_readability, extract_video_chapters, extract_video_info
 from database_storage import database_storage
 from dotenv import load_dotenv
@@ -426,13 +432,23 @@ def channel_summaries(channel_name):
             summary = database_storage.get_summary(video_id)
             
             if summary:
+                # Convert markdown to HTML if markdown library is available
+                if MARKDOWN_AVAILABLE:
+                    # Pre-process bullet points to proper markdown lists
+                    processed_summary = summary.replace('• ', '* ')
+                    summary_html = markdown.markdown(processed_summary, extensions=['nl2br', 'tables'])
+                    print(f"Converted summary for {video_id}: markdown -> HTML conversion applied")
+                else:
+                    summary_html = summary.replace('\n', '<br>').replace('• ', '• ')
+                    print(f"Fallback for {video_id}: markdown library not available")
+                
                 summaries.append({
                     'video_id': video_id,
                     'title': video['title'],
                     'uploader': video['uploader'],
                     'duration': video['duration'],
                     'thumbnail_url': f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
-                    'summary': summary,
+                    'summary': summary_html,
                     'created_at': video['created_at']
                 })
         
