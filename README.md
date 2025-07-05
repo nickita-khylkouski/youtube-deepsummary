@@ -1,4 +1,4 @@
-# YouTube Deep Search
+# YouTube Deep Summary
 
 A comprehensive toolkit for downloading YouTube transcripts with multiple implementation approaches, AI-powered summarization, and intelligent caching capabilities.
 
