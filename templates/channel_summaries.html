@@ -139,9 +139,13 @@
         background: #f8f9fa;
         padding: 15px;
         border-radius: 5px;
-        max-height: 300px;
+        max-height: 600px;
         overflow-y: auto;
         transition: max-height 0.3s ease, opacity 0.3s ease;
+        margin: 0 -20px;
+        width: calc(100% + 40px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border: 1px solid #e0e0e0;
     }
     
     .summary-text.collapsed {
@@ -149,12 +153,17 @@
         padding: 0 15px;
         opacity: 0;
         overflow: hidden;
+        margin: 0;
+        width: 100%;
+        box-shadow: none;
+        border: none;
     }
     
     .markdown-content {
-        font-size: 14px;
-        line-height: 1.6;
+        font-size: 15px;
+        line-height: 1.7;
         color: #333;
+        max-width: none;
     }
     
     .markdown-content h1,
@@ -275,6 +284,11 @@
         
         .title-row {
             text-align: center;
+        }
+        
+        .summary-text {
+            margin: 0 -15px !important;
+            width: calc(100% + 30px) !important;
         }
         
     }
