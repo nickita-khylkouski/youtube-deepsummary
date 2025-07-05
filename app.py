@@ -18,6 +18,8 @@ except ImportError:
 from transcript_summarizer import TranscriptSummarizer, format_transcript_for_readability, extract_video_chapters, extract_video_info
 from database_storage import database_storage
 from dotenv import load_dotenv
+import time
+import sys
 
 # Load environment variables from .env file
 load_dotenv()
@@ -466,6 +468,72 @@ def channel_summaries(channel_name):
 def favicon():
     """Serve favicon from static directory"""
     return app.send_static_file('favicon.ico')
+
+@app.route('/health')
+def health_check():
+    """Health check endpoint for monitoring and deployment"""
+    health_status = {
+        'status': 'healthy',
+        'timestamp': time.time(),
+        'version': '1.0.0',
+        'services': {}
+    }
+    
+    overall_status = 'healthy'
+    
+    # Check database connectivity
+    try:
+        cache_info = database_storage.get_cache_info()
+        health_status['services']['database'] = {
+            'status': 'healthy',
+            'videos_count': cache_info.get('videos_count', 0),
+            'response_time_ms': None  # Could add timing here
+        }
+    except Exception as e:
+        health_status['services']['database'] = {
+            'status': 'unhealthy',
+            'error': str(e)
+        }
+        overall_status = 'unhealthy'
+    
+    # Check OpenAI API configuration
+    if summarizer and summarizer.is_configured():
+        health_status['services']['openai'] = {
+            'status': 'configured',
+            'model': summarizer.model
+        }
+    else:
+        health_status['services']['openai'] = {
+            'status': 'not_configured',
+            'error': 'OpenAI API key not set'
+        }
+    
+    # Check YouTube API (youtube-transcript-api)
+    try:
+        # This is a lightweight check - we're not actually calling the API
+        health_status['services']['youtube_transcript'] = {
+            'status': 'available',
+            'proxy_configured': bool(os.getenv('YOUTUBE_PROXY'))
+        }
+    except Exception as e:
+        health_status['services']['youtube_transcript'] = {
+            'status': 'unavailable',
+            'error': str(e)
+        }
+    
+    # Add system information
+    health_status['system'] = {
+        'python_version': sys.version,
+        'flask_host': os.getenv('FLASK_HOST', '0.0.0.0'),
+        'flask_port': int(os.getenv('FLASK_PORT', 33079)),
+        'flask_debug': os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
+    }
+    
+    health_status['status'] = overall_status
+    
+    # Return appropriate HTTP status code
+    status_code = 200 if overall_status == 'healthy' else 503
+    return jsonify(health_status), status_code
 
 if __name__ == '__main__':
     # Initialize database storage on startup
