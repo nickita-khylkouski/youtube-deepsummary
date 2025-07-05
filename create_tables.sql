@@ -1,4 +1,4 @@
--- Create tables for YouTube Deep Search application
+-- Create tables for YouTube Deep Summary application
 
 -- Table for storing YouTube video metadata
 CREATE TABLE IF NOT EXISTS youtube_videos (
