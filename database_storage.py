@@ -367,14 +367,7 @@ class DatabaseStorage:
             print(f"Error deleting video {video_id}: {e}")
             return False
 
-    def get_videos_by_channel(self, channel_name):
-        """Get all videos for a specific channel (uploader)"""
-        try:
-            result = self.supabase.table('videos').select('*').eq('uploader', channel_name).order('created_at', desc=True).execute()
-            return result.data
-        except Exception as e:
-            print(f"Error getting videos by channel: {e}")
-            return []
+    
 
     def get_all_channels(self):
         """Get all channels with video counts and summary counts"""
@@ -384,7 +377,7 @@ class DatabaseStorage:
 
             if not result.data:
                 # Fallback: get channels manually if RPC doesn't exist
-                videos_result = self.supabase.table('videos').select('uploader').execute()
+                videos_result = self.supabase.table('youtube_videos').select('uploader').execute()
                 summaries_result = self.supabase.table('summaries').select('video_id').execute()
 
                 # Count videos by channel
