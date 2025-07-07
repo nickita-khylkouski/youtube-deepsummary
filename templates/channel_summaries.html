@@ -390,7 +390,9 @@ function closeSummaryPopup() {
 // Close modal when clicking outside the content
 window.onclick = function(event) {
     const modal = document.getElementById('summaryModal');
-    if (event.target === modal) {
+    const modalContent = document.querySelector('.summary-modal-content');
+    
+    if (event.target === modal || !modalContent.contains(event.target)) {
         closeSummaryPopup();
     }
 }
