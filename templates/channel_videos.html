@@ -1,0 +1,56 @@
+
+{% extends "base.html" %}
+
+{% block title %}{{ channel_name }} Videos - YouTube Deep Search{% endblock %}
+
+{% block content %}
+    <div style="margin-bottom: 30px;">
+        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+            <a href="/channels" style="color: #666; text-decoration: none; font-size: 14px;">← Back to Channels</a>
+        </div>
+        <h2>📺 {{ channel_name }}</h2>
+        <p style="color: #666;">{{ total_videos }} video{{ 's' if total_videos != 1 else '' }} saved</p>
+    </div>
+
+    {% if videos %}
+        <div style="display: grid; gap: 20px;">
+            {% for video in videos %}
+                <div style="background: white; border: 1px solid #ddd; border-radius: 10px; padding: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                    <div style="display: flex; gap: 15px; align-items: flex-start;">
+                        <img src="{{ video.thumbnail_url }}" 
+                             alt="Video thumbnail" 
+                             style="width: 120px; height: 90px; object-fit: cover; border-radius: 8px; flex-shrink: 0;">
+                        
+                        <div style="flex-grow: 1;">
+                            <h3 style="margin: 0 0 8px 0; font-size: 16px;">
+                                <a href="/watch?v={{ video.video_id }}" style="color: #333; text-decoration: none;">{{ video.title }}</a>
+                            </h3>
+                            <p style="color: #666; font-size: 14px; margin: 0 0 8px 0;">
+                                Duration: {{ "%.0f"|format(video.duration // 60) }}:{{ "%02.0f"|format(video.duration % 60) }} minutes
+                                • Saved: {{ video.created_at.strftime('%Y-%m-%d') }}
+                            </p>
+                            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                <a href="/watch?v={{ video.video_id }}" 
+                                   style="background: #f8f9fa; color: #333; text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; border: 1px solid #ddd;">
+                                    📝 View Transcript
+                                </a>
+                                {% if video.has_summary %}
+                                    <a href="/channel/{{ channel_name|urlencode }}/summaries#{{ video.video_id }}" 
+                                       style="background: #2196f3; color: white; text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 12px;">
+                                        🤖 View Summary
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 60px 20px; color: #666;">
+            <div style="font-size: 48px; margin-bottom: 20px;">📭</div>
+            <h3>No videos found</h3>
+            <p>This channel doesn't have any saved videos yet.</p>
+        </div>
+    {% endif %}
+{% endblock %}

@@ -414,6 +414,41 @@ def api_delete_video(video_id):
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+@app.route('/channels')
+def channels_page():
+    """Display all channels with video counts"""
+    try:
+        channels = database_storage.get_all_channels()
+        return render_template('channels.html', channels=channels)
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading channels: {str(e)}"), 500
+
+@app.route('/channel/<channel_name>/videos')
+def channel_videos(channel_name):
+    """Display all videos from a specific channel"""
+    try:
+        # Get all videos for the channel
+        channel_videos_list = database_storage.get_videos_by_channel(channel_name)
+        
+        if not channel_videos_list:
+            return render_template('error.html', 
+                                 error_message=f"No videos found for channel: {channel_name}"), 404
+        
+        # Check which videos have summaries
+        for video in channel_videos_list:
+            video['has_summary'] = database_storage.get_summary(video['video_id']) is not None
+            video['thumbnail_url'] = f"https://img.youtube.com/vi/{video['video_id']}/maxresdefault.jpg"
+        
+        return render_template('channel_videos.html', 
+                             channel_name=channel_name,
+                             videos=channel_videos_list,
+                             total_videos=len(channel_videos_list))
+        
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading channel videos: {str(e)}"), 500
+
 @app.route('/channel/<channel_name>/summaries')
 def channel_summaries(channel_name):
     """Display AI summaries for all videos from a specific channel"""

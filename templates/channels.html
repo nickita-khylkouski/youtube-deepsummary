@@ -1,0 +1,77 @@
+
+{% extends "base.html" %}
+
+{% block title %}Channels - YouTube Deep Search{% endblock %}
+
+{% block content %}
+    <div style="text-align: center; margin-bottom: 30px;">
+        <h2>📺 Channels</h2>
+        <p style="color: #666;">Browse all channels with saved videos</p>
+    </div>
+
+    {% if channels %}
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+            {% for channel in channels %}
+                <div style="background: white; border: 1px solid #ddd; border-radius: 10px; padding: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: box-shadow 0.3s;">
+                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                        <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #ff6b6b, #4ecdc4); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px;">
+                            {{ channel.name[0].upper() }}
+                        </div>
+                        <div style="flex-grow: 1;">
+                            <h3 style="margin: 0; font-size: 18px; color: #333;">{{ channel.name }}</h3>
+                            <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">
+                                {{ channel.video_count }} video{{ 's' if channel.video_count != 1 else '' }}
+                                {% if channel.summary_count > 0 %}
+                                    • {{ channel.summary_count }} summarized
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px;">
+                        <a href="/channel/{{ channel.name|urlencode }}/videos" 
+                           style="flex: 1; background: #f8f9fa; color: #333; text-decoration: none; padding: 8px 12px; border-radius: 5px; text-align: center; font-size: 14px; border: 1px solid #ddd; transition: background-color 0.3s;">
+                            📝 Videos
+                        </a>
+                        {% if channel.summary_count > 0 %}
+                            <a href="/channel/{{ channel.name|urlencode }}/summaries" 
+                               style="flex: 1; background: #2196f3; color: white; text-decoration: none; padding: 8px 12px; border-radius: 5px; text-align: center; font-size: 14px; transition: background-color 0.3s;">
+                                🤖 Summaries
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div style="text-align: center; padding: 60px 20px; color: #666;">
+            <div style="font-size: 48px; margin-bottom: 20px;">📺</div>
+            <h3>No channels found</h3>
+            <p>Start by saving some videos to see channels here.</p>
+            <a href="/" style="display: inline-block; background: #ff0000; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px;">
+                Get Started
+            </a>
+        </div>
+    {% endif %}
+
+    <style>
+        .channel-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+        }
+        
+        .channel-card a:hover {
+            background-color: #e9ecef !important;
+        }
+        
+        .channel-card a.summary-link:hover {
+            background-color: #1976d2 !important;
+        }
+        
+        @media (max-width: 768px) {
+            .channels-grid {
+                grid-template-columns: 1fr !important;
+                gap: 15px !important;
+            }
+        }
+    </style>
+{% endblock %}
