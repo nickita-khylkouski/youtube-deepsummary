@@ -372,40 +372,54 @@ class DatabaseStorage:
     def get_all_channels(self):
         """Get all channels with video counts and summary counts"""
         try:
-            # Get video counts by channel
-            result = self.supabase.rpc('get_channel_stats').execute()
+            # Try RPC first (will fail if function doesn't exist)
+            try:
+                result = self.supabase.rpc('get_channel_stats').execute()
+                if result.data:
+                    return result.data
+            except Exception as rpc_error:
+                print(f"RPC get_channel_stats not available: {rpc_error}")
+            
+            # Fallback: get channels manually
+            print("Using fallback method to get channels...")
+            videos_result = self.supabase.table('youtube_videos').select('video_id, uploader').execute()
+            summaries_result = self.supabase.table('summaries').select('video_id').execute()
 
-            if not result.data:
-                # Fallback: get channels manually if RPC doesn't exist
-                videos_result = self.supabase.table('youtube_videos').select('uploader').execute()
-                summaries_result = self.supabase.table('summaries').select('video_id').execute()
+            print(f"Found {len(videos_result.data)} videos total")
+            
+            # Count videos by channel
+            channel_counts = {}
+            for video in videos_result.data:
+                uploader = video.get('uploader')
+                if uploader and uploader.strip():  # Check for non-empty uploader
+                    channel_counts[uploader] = channel_counts.get(uploader, 0) + 1
 
-                # Count videos by channel
-                channel_counts = {}
-                for video in videos_result.data:
-                    uploader = video.get('uploader')
-                    if uploader:
-                        channel_counts[uploader] = channel_counts.get(uploader, 0) + 1
+            print(f"Found {len(channel_counts)} unique channels")
+            
+            if not channel_counts:
+                print("No channels found - videos may have empty/null uploader field")
+                return []
 
-                # Get video IDs that have summaries
-                summarized_video_ids = {s['video_id'] for s in summaries_result.data}
+            # Get video IDs that have summaries
+            summarized_video_ids = {s['video_id'] for s in summaries_result.data if s.get('video_id')}
+            print(f"Found {len(summarized_video_ids)} videos with summaries")
 
-                # Count summaries by channel
-                channels = []
-                for channel_name, video_count in channel_counts.items():
-                    # Get videos for this channel to count summaries
-                    channel_videos = self.get_videos_by_channel(channel_name)
-                    summary_count = sum(1 for v in channel_videos if v['video_id'] in summarized_video_ids)
+            # Count summaries by channel
+            channels = []
+            for channel_name, video_count in channel_counts.items():
+                # Get videos for this channel to count summaries
+                channel_videos = self.get_videos_by_channel(channel_name)
+                summary_count = sum(1 for v in channel_videos if v.get('video_id') in summarized_video_ids)
 
-                    channels.append({
-                        'name': channel_name,
-                        'video_count': video_count,
-                        'summary_count': summary_count
-                    })
+                channels.append({
+                    'name': channel_name,
+                    'video_count': video_count,
+                    'summary_count': summary_count
+                })
+                print(f"Channel '{channel_name}': {video_count} videos, {summary_count} summaries")
 
-                return sorted(channels, key=lambda x: x['video_count'], reverse=True)
+            return sorted(channels, key=lambda x: x['video_count'], reverse=True)
 
-            return result.data
         except Exception as e:
             print(f"Error getting all channels: {e}")
             return []
