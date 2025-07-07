@@ -26,16 +26,9 @@
                                 <span class="date">• {{ summary.created_at[:10] }}</span>
                             {% endif %}
                         </p>
-                        <button class="summary-toggle-btn" onclick="toggleSummary('{{ summary.video_id }}')">
-                            🤖 AI Summary 
-                            <span class="toggle-indicator" id="toggle-{{ summary.video_id }}">▼</span>
+                        <button class="summary-popup-btn" onclick="openSummaryPopup('{{ summary.video_id }}', '{{ summary.title|replace("'", "\\'") }}')">
+                            🤖 View AI Summary
                         </button>
-                    </div>
-                </div>
-                
-                <div class="summary-content">
-                    <div class="summary-text collapsed" id="summary-{{ summary.video_id }}">
-                        <div class="markdown-content">{{ summary.summary|safe }}</div>
                     </div>
                 </div>
                 
@@ -86,7 +79,7 @@
         color: #ff0000;
     }
     
-    .summary-toggle-btn {
+    .summary-popup-btn {
         background: #2196f3;
         color: white;
         border: none;
@@ -94,19 +87,15 @@
         border-radius: 4px;
         font-size: 12px;
         cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 4px;
         transition: background-color 0.2s;
         flex-shrink: 0;
         white-space: nowrap;
         margin-top: 8px;
     }
     
-    .summary-toggle-btn:hover {
+    .summary-popup-btn:hover {
         background: #1976d2;
     }
-    
     
     .video-details {
         color: #666;
@@ -114,49 +103,89 @@
         margin: 0;
     }
     
-    .summary-content {
-        background: transparent !important;
-        border: none !important;
-        border-left: none !important;
-        padding: 0 !important;
-        margin: 0;
-    }
-    
-    .summary-content.expanded {
-        margin-bottom: 15px;
-    }
-    
-    .toggle-indicator {
-        font-size: 10px;
-        transition: transform 0.2s;
-    }
-    
-    .toggle-indicator.expanded {
-        transform: rotate(180deg);
-    }
-    
-    .summary-text {
-        background: #f8f9fa;
-        padding: 15px;
-        border-radius: 5px;
-        max-height: 600px;
-        overflow-y: auto;
-        transition: max-height 0.3s ease, opacity 0.3s ease;
-        margin: 0 -20px;
-        width: calc(100% + 40px);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        border: 1px solid #e0e0e0;
-    }
-    
-    .summary-text.collapsed {
-        max-height: 0;
-        padding: 0 15px;
-        opacity: 0;
-        overflow: hidden;
-        margin: 0;
+    /* Popup Modal Styles */
+    .summary-modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
         width: 100%;
-        box-shadow: none;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        backdrop-filter: blur(2px);
+    }
+    
+    .summary-modal-content {
+        background-color: #fff;
+        margin: 3% auto;
+        padding: 0;
+        border-radius: 10px;
+        width: 90%;
+        max-width: 800px;
+        max-height: 85vh;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        display: flex;
+        flex-direction: column;
+        animation: modalSlideIn 0.3s ease-out;
+    }
+    
+    @keyframes modalSlideIn {
+        from {
+            transform: translateY(-30px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+    
+    .summary-modal-header {
+        padding: 20px 25px 15px 25px;
+        border-bottom: 1px solid #e0e0e0;
+        background: #f8f9fa;
+        border-radius: 10px 10px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .summary-modal-title {
+        margin: 0;
+        font-size: 18px;
+        color: #333;
+        line-height: 1.4;
+        flex: 1;
+    }
+    
+    .summary-modal-close {
+        background: none;
         border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #666;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: background-color 0.2s, color 0.2s;
+        flex-shrink: 0;
+    }
+    
+    .summary-modal-close:hover {
+        background-color: #e0e0e0;
+        color: #333;
+    }
+    
+    .summary-modal-body {
+        padding: 25px;
+        overflow-y: auto;
+        flex: 1;
     }
     
     .markdown-content {
@@ -286,31 +315,91 @@
             text-align: center;
         }
         
-        .summary-text {
-            margin: 0 -15px !important;
-            width: calc(100% + 30px) !important;
+        .summary-modal-content {
+            width: 95%;
+            margin: 5% auto;
+            max-height: 90vh;
         }
         
+        .summary-modal-header {
+            padding: 15px 20px 10px 20px;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .summary-modal-title {
+            font-size: 16px;
+        }
+        
+        .summary-modal-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+        }
+        
+        .summary-modal-body {
+            padding: 20px;
+        }
     }
 </style>
 
+<!-- Summary Popup Modal -->
+<div id="summaryModal" class="summary-modal">
+    <div class="summary-modal-content">
+        <div class="summary-modal-header">
+            <h3 class="summary-modal-title" id="modalTitle">AI Summary</h3>
+            <button class="summary-modal-close" onclick="closeSummaryPopup()">&times;</button>
+        </div>
+        <div class="summary-modal-body">
+            <div class="markdown-content" id="modalSummaryContent">
+                <!-- Summary content will be inserted here -->
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-function toggleSummary(videoId) {
-    const summaryElement = document.getElementById('summary-' + videoId);
-    const toggleIndicator = document.getElementById('toggle-' + videoId);
-    const summaryContent = summaryElement.parentElement;
+// Store summaries data for popup access
+const summariesData = {
+    {% for summary in summaries %}
+    '{{ summary.video_id }}': `{{ summary.summary|safe }}`,
+    {% endfor %}
+};
+
+function openSummaryPopup(videoId, title) {
+    const modal = document.getElementById('summaryModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalContent = document.getElementById('modalSummaryContent');
     
-    if (summaryElement.classList.contains('collapsed')) {
-        summaryElement.classList.remove('collapsed');
-        summaryContent.classList.add('expanded');
-        toggleIndicator.classList.add('expanded');
-        toggleIndicator.textContent = '▲';
-    } else {
-        summaryElement.classList.add('collapsed');
-        summaryContent.classList.remove('expanded');
-        toggleIndicator.classList.remove('expanded');
-        toggleIndicator.textContent = '▼';
+    // Set title and content
+    modalTitle.textContent = title;
+    modalContent.innerHTML = summariesData[videoId] || 'Summary not available';
+    
+    // Show modal
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden'; // Prevent background scrolling
+}
+
+function closeSummaryPopup() {
+    const modal = document.getElementById('summaryModal');
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto'; // Restore scrolling
+}
+
+// Close modal when clicking outside the content
+window.onclick = function(event) {
+    const modal = document.getElementById('summaryModal');
+    if (event.target === modal) {
+        closeSummaryPopup();
     }
 }
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeSummaryPopup();
+    }
+});
 </script>
 {% endblock %}
