@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Video Summaries - YouTube Deep Search{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 20px;">
+    <h2 style="margin: 0;">📄 Video Summaries</h2>
+    <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">Browse summaries organized by channel.</p>
+</div>
+
+<div id="summariesContainer">
+    {% if error_message %}
+        <div class="error" style="margin-top: 20px;">
+            <p><strong>Error:</strong> {{ error_message }}</p>
+            <p>Please try again later or contact support if the issue persists.</p>
+        </div>
+    {% elif channels_with_summaries %}
+        {% for channel_name, videos in channels_with_summaries.items()|sort %}
+            <div class="channel-group" style="margin-bottom: 30px; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                <h3 class="channel-title" style="padding: 12px 18px; background: #f0f2f5; border-bottom: 1px solid #e0e0e0; cursor: pointer; margin:0; display: flex; justify-content: space-between; align-items: center;">
+                    <span>📺 {{ channel_name }}</span>
+                    <span style="font-size: 0.8em; color: #555; background-color: #e0e0e0; padding: 3px 8px; border-radius: 10px;">
+                        {{ videos|length }} video{{ 's' if videos|length > 1 else '' }}
+                    </span>
+                </h3>
+                <div class="videos-in-channel" style="display: none; padding: 15px 20px 5px 20px; background-color: #f9f9f9;">
+                    {% for video in videos %}
+                        <div class="video-summary-item" style="margin-bottom: 20px; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                            <h4 style="margin-top: 0; margin-bottom: 10px; font-size: 1.1em;">
+                                <a href="{{ url_for('watch', v=video.video_id) }}" style="color: #0056b3; text-decoration: none;">{{ video.title }}</a>
+                            </h4>
+                            {# Basic markdown to HTML for summary - could be more robust #}
+                            {% set summary_html = video.summary_text.replace('\n\n', '<br><br>').replace('\n', '<br>') %}
+                            {% set summary_html = summary_html.replace('## ', '<h6>').replace('Key Takeaways', '</h6><strong>Key Takeaways</strong>') %}
+                            <div class="summary-content" style="white-space: normal; max-height: 250px; overflow-y: auto; font-size: 0.9em; background: #fdfdfd; padding: 12px; border: 1px solid #eee; border-radius: 4px; line-height: 1.5;">
+                                {{ summary_html|safe }}
+                            </div>
+                             <div style="font-size: 0.85em; color: #666; margin-top: 12px; display: flex; gap: 15px;">
+                                <a href="https://www.youtube.com/watch?v={{ video.video_id }}" target="_blank" style="color: #c4302b; text-decoration: none;">▶️ Watch on YouTube</a>
+                                <a href="{{ url_for('watch', v=video.video_id) }}" style="color: #007bff; text-decoration: none;">📄 View Transcript</a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div style="text-align: center; padding: 60px 20px; color: #666; background-color: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-size: 48px; margin-bottom: 20px;">📭</div>
+            <h3>No Summaries Found</h3>
+            <p>There are currently no video summaries available in the database.</p>
+            <p>Summaries can be generated on the transcript page by clicking the 'Summarize' button (requires OpenAI API key configuration).</p>
+            <a href="{{ url_for('index') }}" class="summary-button" style="margin-top: 20px; background-color: #007bff;">Search for Videos</a>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const summaryContainer = document.getElementById('summariesContainer');
+
+    summaryContainer.addEventListener('click', function(event) {
+        const target = event.target;
+        // Check if the clicked element is a channel title or its child
+        const channelTitle = target.closest('.channel-title');
+
+        if (channelTitle) {
+            const videosDiv = channelTitle.nextElementSibling;
+            if (videosDiv && videosDiv.classList.contains('videos-in-channel')) {
+                if (videosDiv.style.display === 'none' || videosDiv.style.display === '') {
+                    videosDiv.style.display = 'block';
+                    channelTitle.style.borderLeftColor = '#007bff'; // Active color
+                } else {
+                    videosDiv.style.display = 'none';
+                    channelTitle.style.borderLeftColor = '#17a2b8'; // Original color
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

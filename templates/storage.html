@@ -7,7 +7,7 @@
         <h2 style="margin: 0;">💾 Storage</h2>
         <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">{{ cache_stats.videos_count }} videos stored</p>
     </div>
-    
+
     {% if cached_videos %}
         <!-- Storage Actions -->
         <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
@@ -16,7 +16,7 @@
             </div>
             <span style="color: #666; font-size: 14px;">{{ cached_videos|length }} videos shown</span>
         </div>
-        
+
         <!-- Videos Grid -->
         <div id="videosContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 20px;">
             {% for video in cached_videos %}
@@ -24,8 +24,8 @@
                     <!-- Video Thumbnail and Info -->
                     <div style="display: flex; padding: 15px;">
                         <div style="flex-shrink: 0; margin-right: 15px;">
-                            <img src="https://img.youtube.com/vi/{{ video.video_id }}/maxresdefault.jpg" 
-                                 alt="Thumbnail" 
+                            <img src="https://img.youtube.com/vi/{{ video.video_id }}/maxresdefault.jpg"
+                                 alt="Thumbnail"
                                  style="width: 120px; height: 68px; object-fit: cover; border-radius: 4px;"
                                  onerror="this.src='https://img.youtube.com/vi/{{ video.video_id }}/default.jpg'">
                         </div>
@@ -49,7 +49,7 @@
                             </div>
                             <div style="color: #888; font-size: 12px;">
                                 {% if video.duration %}
-                                    ⏱️ {{ "%.0f"|format(video.duration // 60) }}:{{ "%02.0f"|format(video.duration % 60) }} • 
+                                    ⏱️ {{ "%.0f"|format(video.duration // 60) }}:{{ "%02.0f"|format(video.duration % 60) }} •
                                 {% endif %}
                                 📝 {{ video.transcript_entries }} entries
                                 {% if video.chapters_count > 0 %}
@@ -58,7 +58,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Cache Info -->
                     <div style="background: #f8f9fa; padding: 12px 15px; border-top: 1px solid #eee;">
                         <div style="display: flex; justify-content: flex-end; align-items: center;">
@@ -70,7 +70,7 @@
                                 <button onclick="deleteVideo('{{ video.video_id }}', '{{ video.title|e }}')" style="background: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 3px; font-size: 11px; cursor: pointer;">🗑️ Delete</button>
                             </div>
                         </div>
-                        
+
                         {% if video.error %}
                             <div style="color: #dc3545; font-size: 11px; margin-top: 8px; padding: 6px; background: #f8d7da; border-radius: 3px;">
                                 Error: {{ video.error }}

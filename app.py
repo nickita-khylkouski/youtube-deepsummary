@@ -402,6 +402,34 @@ def storage_page():
         return render_template('error.html', 
                              error_message=f"Error loading storage page: {str(e)}"), 500
 
+@app.route('/summaries')
+def summaries_page():
+    """Display all video summaries organized by channel"""
+    try:
+        # This method will need to be created in database_storage.py
+        # It should return data in a structure like:
+        # {
+        #   'Channel Name 1': [
+        #     {'video_id': 'id1', 'title': 'Title 1', 'summary_text': 'Summary 1...'},
+        #     {'video_id': 'id2', 'title': 'Title 2', 'summary_text': 'Summary 2...'}
+        #   ],
+        #   'Channel Name 2': [
+        #     {'video_id': 'id3', 'title': 'Title 3', 'summary_text': 'Summary 3...'}
+        #   ]
+        # }
+        # Or an empty dict if no summaries are found.
+        channels_with_summaries = database_storage.get_all_videos_with_summaries_grouped_by_channel()
+
+        return render_template('summaries.html',
+                             channels_with_summaries=channels_with_summaries)
+    except Exception as e:
+        print(f"Error loading summaries page: {str(e)}") # Log the error
+        # Optionally, pass an error message to the template or render a generic error page
+        return render_template('summaries.html',
+                             channels_with_summaries={},
+                             error_message=f"Error loading summaries: {str(e)}")
+
+
 @app.route('/api/delete/<video_id>', methods=['DELETE'])
 def api_delete_video(video_id):
     """API endpoint to delete a video from storage"""
