@@ -1,6 +1,6 @@
 # YouTube Deep Search
 
-A comprehensive toolkit for downloading YouTube transcripts with multiple implementation approaches, AI-powered summarization, and intelligent caching capabilities.
+A comprehensive toolkit for downloading YouTube transcripts with multiple implementation approaches, AI-powered summarization, and persistent database storage capabilities.
 
 ## Features
 
@@ -12,13 +12,14 @@ A comprehensive toolkit for downloading YouTube transcripts with multiple implem
 ### Web Application
 - **Clean Web Interface**: Responsive UI for viewing transcripts with mobile optimization
 - **AI-Powered Summarization**: OpenAI GPT-4.1 integration for intelligent video summaries
+- **Channel Management**: Browse videos and summaries organized by YouTube channels
 - **RESTful API**: JSON endpoints for programmatic access
 - **Real-time Processing**: AJAX-based summarization without page reloads
 - **Chapter Organization**: Automatic video chapter detection and structured display
 - **Dual View Modes**: Toggle between readable paragraphs and detailed timestamps
 
 ### Advanced Features
-- **Intelligent Caching**: Local file-based caching with 24-hour TTL for improved performance
+- **Persistent Database Storage**: Supabase integration with tables for videos, transcripts, chapters, and summaries
 - **Video Metadata**: Automatic extraction of titles, thumbnails, duration, and uploader info
 - **Chapter Support**: Organized transcript display by video chapters when available
 - **Mobile Responsive**: Optimized interface for mobile devices with reduced padding
@@ -34,16 +35,15 @@ A comprehensive toolkit for downloading YouTube transcripts with multiple implem
 
 ### Dependencies
 
-1. **Core transcript downloading**:
+Install all dependencies using the requirements file:
+
 ```bash
-pip install youtube-transcript-api
-# OR for yt-dlp approach
-pip install yt-dlp
+pip install -r requirements.txt
 ```
 
-2. **Web application and AI summarization**:
+Or install individual packages:
 ```bash
-pip install flask openai python-dotenv
+pip install flask youtube-transcript-api openai python-dotenv yt-dlp supabase markdown
 ```
 
 ### Environment Configuration
@@ -53,6 +53,10 @@ Create a `.env` file or set environment variables:
 ```bash
 # Required for AI summarization
 OPENAI_API_KEY=your_openai_api_key
+
+# Required for database storage
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_anon_key
 
 # Optional OpenAI configuration
 OPENAI_MODEL=gpt-4.1
@@ -67,6 +71,12 @@ FLASK_HOST=0.0.0.0
 FLASK_PORT=33079
 FLASK_DEBUG=True
 ```
+
+### Database Setup
+
+1. Create a Supabase project at [supabase.com](https://supabase.com)
+2. Copy your project URL and anon key to the `.env` file
+3. Run the SQL commands from `create_tables.sql` in your Supabase SQL editor to create the required tables
 
 ### Starting the Application
 
@@ -97,14 +107,16 @@ python3 download_transcript_manual.py "https://www.youtube.com/watch?v=VIDEO_ID"
 
 - **Home**: `http://localhost:33079/`
 - **Transcript**: `http://localhost:33079/watch?v=VIDEO_ID`
-- **With AI Summary**: `http://localhost:33079/watch?v=VIDEO_ID&summarize=true`
+- **Channels**: `http://localhost:33079/channels`
+- **Channel Videos**: `http://localhost:33079/channel/<channel_name>/videos`
+- **Channel Summaries**: `http://localhost:33079/channel/<channel_name>/summaries`
+- **Storage Stats**: `http://localhost:33079/storage`
 
 ### API Endpoints
 
 - **Transcript JSON**: `http://localhost:33079/api/transcript/VIDEO_ID`
 - **Summary with Data**: `POST http://localhost:33079/api/summary` (with transcript data in body)
-- **Cache Info**: `http://localhost:33079/api/cache/info`
-- **Cache Cleanup**: `POST http://localhost:33079/api/cache/cleanup`
+- **Storage Stats**: `http://localhost:33079/api/storage/stats`
 
 ### Examples
 
@@ -117,7 +129,7 @@ http://localhost:33079/watch?v=FjHtZnjNEBU
 
 # API endpoints
 curl http://localhost:33079/api/transcript/FjHtZnjNEBU
-curl http://localhost:33079/api/cache/info
+curl http://localhost:33079/api/storage/stats
 
 # AJAX summary request (made automatically by web interface)
 curl -X POST http://localhost:33079/api/summary \
@@ -141,13 +153,14 @@ curl -X POST http://localhost:33079/api/summary \
 ### Web Application
 - **`app.py`** - Flask web application with transcript viewing and AI summarization
 - **`transcript_summarizer.py`** - OpenAI-powered summarization module
+- **`database_storage.py`** - Supabase database integration module
 - **`templates/`** - HTML templates for web interface
 
-### Configuration & Caching
+### Configuration & Storage
 - **`.env`** - Environment variables (create from examples above)
+- **`create_tables.sql`** - Database schema for Supabase setup
 - **`CLAUDE.md`** - Development guidelines and project documentation
-- **`cache/`** - Local transcript cache directory (auto-created, 24h TTL)
-- **`transcript_cache.py`** - Caching module with file-based storage
+- **`transcript_cache.py`** - Legacy caching module (deprecated)
 
 ## AI Summarization Structure
 
@@ -161,22 +174,62 @@ The AI summarization feature provides structured summaries with the following se
 - **Warnings & Common Mistakes** - Pitfalls and errors to avoid
 - **Resources & Next Steps** - Tools, links, and recommended follow-up actions
 
-## Performance & Caching
+## Performance & Storage
 
-### Intelligent Caching System
-- **24-hour TTL**: Transcripts cached locally for 1 day
-- **File-based storage**: JSON cache files in `cache/` directory
-- **Automatic cleanup**: Expired files removed on startup
-- **Cache statistics**: Monitor cache performance via API endpoints
+### Database Storage System
+- **Persistent Storage**: Supabase database with four main tables
+- **Automatic Relationships**: Foreign keys linking videos, transcripts, chapters, and summaries
+- **Performance Indexes**: Optimized queries for video_id and timestamps
+- **Storage Statistics**: Monitor database performance via API endpoints
 
 ### Network Considerations
 - **Cloud provider IPs** are commonly blocked by YouTube
 - **Proxy support** available for restricted environments via `YOUTUBE_PROXY` env var
 - **Multiple fallback methods** for different network conditions
-- **Reduced API calls** through intelligent caching system
+- **Reduced API calls** through database storage and caching
 
 ### Performance Optimizations
 - **AJAX summarization**: No page reloads for AI summary generation
 - **Efficient transcript processing**: Uses formatted text for summarization
+- **Database caching**: Persistent storage eliminates redundant API calls
 - **Mobile-optimized UI**: Reduced padding and responsive design
 - **Chapter organization**: Structured content display for better readability
+
+## Deployment
+
+### Docker Deployment
+
+Build and run using Docker:
+
+```bash
+# Build Docker image
+docker build -t youtube-deep-search .
+
+# Run with environment variables
+docker run -p 33079:33079 \
+  -e OPENAI_API_KEY=your_openai_key \
+  -e SUPABASE_URL=your_supabase_url \
+  -e SUPABASE_KEY=your_supabase_key \
+  youtube-deep-search
+```
+
+### Manual Deployment
+
+```bash
+# Clone repository
+git clone <repository-url>
+cd youtube-deep-search
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your API keys
+
+# Initialize database
+# Run create_tables.sql in your Supabase SQL editor
+
+# Start application
+python3 app.py
+```
