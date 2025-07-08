@@ -70,7 +70,47 @@ class TranscriptSummarizer:
     
     def create_summary_prompt(self, transcript_content: str, chapters: Optional[List[Dict]] = None) -> str:
         """Create a detailed prompt for summarization"""
-        prompt = f"""Please provide a comprehensive summary of this YouTube video transcript. Structure your response with the following sections:
+        if chapters and len(chapters) > 1:
+            # Enhanced prompt for videos with chapters
+            chapter_info = "\n".join([f"- {ch.get('title', 'Chapter')} (starts at {self._format_timestamp(ch.get('time', 0))})" for ch in chapters])
+            prompt = f"""Please provide a comprehensive summary of this YouTube video transcript. This video has {len(chapters)} chapters, so please structure your response to reflect the chapter organization.
+
+## Overview
+Provide a brief 2-3 sentence overview of what this video is about.
+
+## Chapter-by-Chapter Summary
+For each chapter, provide a focused summary of the key points covered:
+
+{chapter_info}
+
+## Main Topics Covered
+List the primary topics or themes discussed across all chapters.
+
+## Key Takeaways & Insights
+Highlight the most important points, insights, or conclusions from the video, organized by relevance.
+
+## Actionable Strategies
+If applicable, list any practical advice, strategies, or steps mentioned, noting which chapter they come from when relevant.
+
+## Specific Details & Examples
+Include important specific details, examples, statistics, or case studies mentioned, with chapter context when helpful.
+
+## Warnings & Common Mistakes
+If the video mentions any warnings, pitfalls, or common mistakes to avoid.
+
+## Resources & Next Steps
+Any resources, tools, or next steps mentioned in the video.
+
+Here is the transcript to summarize:
+
+{transcript_content}
+
+Chapter structure for reference:
+{chapter_info}
+"""
+        else:
+            # Standard prompt for videos without chapters or with only one chapter
+            prompt = f"""Please provide a comprehensive summary of this YouTube video transcript. Structure your response with the following sections:
 
 ## Overview
 Provide a brief 2-3 sentence overview of what this video is about.
@@ -97,10 +137,10 @@ Here is the transcript to summarize:
 
 {transcript_content}
 """
-        
-        if chapters:
-            chapter_info = "\n".join([f"- {ch.get('title', 'Chapter')} ({ch.get('time', 'Unknown time')})" for ch in chapters])
-            prompt += f"\n\nChapter structure:\n{chapter_info}\n"
+            
+            if chapters:
+                chapter_info = "\n".join([f"- {ch.get('title', 'Chapter')} (starts at {self._format_timestamp(ch.get('time', 0))})" for ch in chapters])
+                prompt += f"\n\nChapter structure:\n{chapter_info}\n"
         
         return prompt
     
@@ -202,6 +242,17 @@ Here is the transcript to summarize:
         
         return chapters_html
     
+    def _format_timestamp(self, seconds: float) -> str:
+        """Format timestamp in MM:SS or HH:MM:SS format"""
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        seconds = int(seconds % 60)
+        
+        if hours > 0:
+            return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        else:
+            return f"{minutes:02d}:{seconds:02d}"
+
     def _create_video_info_section(self, video_info: Dict, video_id: str) -> str:
         """Create a video info section with clickable channel link"""
         info_html = ""
