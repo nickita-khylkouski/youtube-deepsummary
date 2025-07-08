@@ -69,37 +69,52 @@ class TranscriptSummarizer:
         return '\n'.join(formatted_lines)
     
     def create_summary_prompt(self, transcript_content: str, chapters: Optional[List[Dict]] = None) -> str:
-        """Create a detailed prompt for summarization"""
+        """Create a detailed prompt for summarization with enhanced chapter integration"""
         if chapters and len(chapters) > 1:
-            # Enhanced prompt for videos with chapters
+            # Enhanced prompt for videos with chapters - deeply integrate chapter structure
             chapter_info = "\n".join([f"- {ch.get('title', 'Chapter')} (starts at {self._format_timestamp(ch.get('time', 0))})" for ch in chapters])
-            prompt = f"""Please provide a comprehensive summary of this YouTube video transcript. This video has {len(chapters)} chapters, so please structure your response to reflect the chapter organization.
+            
+            # Create chapter-specific content extraction
+            chapter_content_prompts = []
+            for i, chapter in enumerate(chapters):
+                chapter_title = chapter.get('title', f'Chapter {i+1}')
+                chapter_time = self._format_timestamp(chapter.get('time', 0))
+                chapter_content_prompts.append(f"### {chapter_title} ({chapter_time})\nSummarize the key points, insights, and actionable advice from this chapter specifically.")
+            
+            chapter_summaries_section = "\n\n".join(chapter_content_prompts)
+            
+            prompt = f"""Please provide a comprehensive summary of this YouTube video transcript. This video has {len(chapters)} chapters with distinct topics. Please structure your response to deeply utilize the chapter organization.
 
 ## Overview
-Provide a brief 2-3 sentence overview of what this video is about.
+Provide a brief 2-3 sentence overview of what this video covers and how the chapters connect to tell a complete story.
 
-## Chapter-by-Chapter Summary
-For each chapter, provide a focused summary of the key points covered:
+## Chapter-by-Chapter Deep Dive
+For each chapter below, provide a detailed summary focusing on:
+- Core concepts and main points
+- Key insights and takeaways specific to that chapter
+- Actionable strategies or advice mentioned
+- Important examples, statistics, or case studies
+- How this chapter connects to the overall video theme
 
-{chapter_info}
+{chapter_summaries_section}
 
-## Main Topics Covered
-List the primary topics or themes discussed across all chapters.
+## Cross-Chapter Synthesis
+Identify themes, concepts, or strategies that appear across multiple chapters and how they build upon each other.
+
+## Progressive Learning Path
+Based on the chapter structure, outline how the video guides viewers through a learning journey from start to finish.
 
 ## Key Takeaways & Insights
-Highlight the most important points, insights, or conclusions from the video, organized by relevance.
+Highlight the most important points from across all chapters, noting which chapters they come from.
 
-## Actionable Strategies
-If applicable, list any practical advice, strategies, or steps mentioned, noting which chapter they come from when relevant.
-
-## Specific Details & Examples
-Include important specific details, examples, statistics, or case studies mentioned, with chapter context when helpful.
+## Actionable Strategies by Chapter
+Organize practical advice and strategies by their respective chapters for easy reference.
 
 ## Warnings & Common Mistakes
-If the video mentions any warnings, pitfalls, or common mistakes to avoid.
+List any warnings or pitfalls mentioned, noting which chapters discuss them.
 
 ## Resources & Next Steps
-Any resources, tools, or next steps mentioned in the video.
+Any resources, tools, or next steps mentioned, organized by chapter when relevant.
 
 Here is the transcript to summarize:
 
@@ -107,6 +122,8 @@ Here is the transcript to summarize:
 
 Chapter structure for reference:
 {chapter_info}
+
+IMPORTANT: Use the chapter timestamps to understand the flow and organization of content. When mentioning insights or advice, reference the specific chapter it comes from to help readers navigate back to the source material.
 """
         else:
             # Standard prompt for videos without chapters or with only one chapter
@@ -167,22 +184,31 @@ Here is the transcript to summarize:
         return self.summarize_with_openai(transcript_text)
     
     def summarize_with_openai(self, transcript_content: str, chapters: Optional[List[Dict]] = None, video_id: str = None, video_info: Optional[Dict] = None) -> str:
-        """Generate summary using OpenAI's chat completion API"""
+        """Generate summary using OpenAI's chat completion API with enhanced chapter integration"""
         # Ensure client is initialized
         if not self.client:
             self._initialize_client()
         
         if not self.client:
             raise Exception("OpenAI API key not configured or client initialization failed")
-            
-        prompt = self.create_summary_prompt(transcript_content, chapters)
+        
+        # Enhanced processing for chapter-based content
+        if chapters and len(chapters) > 1:
+            # Parse transcript content and organize by chapters
+            chapter_organized_content = self._organize_transcript_by_chapters_for_ai(transcript_content, chapters)
+            prompt = self.create_summary_prompt(chapter_organized_content, chapters)
+        else:
+            prompt = self.create_summary_prompt(transcript_content, chapters)
         
         try:
+            # Enhanced system prompt for chapter-aware summarization
+            system_prompt = "You are a helpful assistant that creates clear, comprehensive summaries of educational video transcripts. When chapters are present, you excel at analyzing how content flows between chapters and identifying progressive learning patterns. Focus on extracting key insights, actionable advice, and important details while maintaining readability and respecting the chapter structure."
+            
             # Prepare API call parameters
             api_params = {
                 "model": self.model,
                 "messages": [
-                    {"role": "system", "content": "You are a helpful assistant that creates clear, comprehensive summaries of educational video transcripts. Focus on extracting key insights, actionable advice, and important details while maintaining readability."},
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
                 ],
                 "temperature": self.temperature
@@ -252,6 +278,73 @@ Here is the transcript to summarize:
             return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
         else:
             return f"{minutes:02d}:{seconds:02d}"
+    
+    def _organize_transcript_by_chapters_for_ai(self, transcript_content: str, chapters: List[Dict]) -> str:
+        """Organize transcript content by chapters for AI processing"""
+        if not chapters:
+            return transcript_content
+        
+        # Parse transcript lines to extract timestamps and content
+        lines = transcript_content.split('\n')
+        transcript_entries = []
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Extract timestamp and text using regex
+            import re
+            timestamp_match = re.match(r'\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*(.*)', line)
+            if timestamp_match:
+                timestamp_str = timestamp_match.group(1)
+                text = timestamp_match.group(2)
+                
+                # Convert timestamp to seconds
+                time_parts = timestamp_str.split(':')
+                if len(time_parts) == 2:  # MM:SS
+                    seconds = int(time_parts[0]) * 60 + int(time_parts[1])
+                elif len(time_parts) == 3:  # HH:MM:SS
+                    seconds = int(time_parts[0]) * 3600 + int(time_parts[1]) * 60 + int(time_parts[2])
+                else:
+                    seconds = 0
+                
+                transcript_entries.append({
+                    'time': seconds,
+                    'text': text
+                })
+        
+        # If no entries found, return original content
+        if not transcript_entries:
+            return transcript_content
+        
+        # Organize entries by chapters
+        organized_content = ""
+        
+        for i, chapter in enumerate(chapters):
+            chapter_start = chapter.get('time', 0)
+            chapter_end = chapters[i + 1].get('time', float('inf')) if i + 1 < len(chapters) else float('inf')
+            
+            # Filter entries for this chapter
+            chapter_entries = [
+                entry for entry in transcript_entries
+                if chapter_start <= entry['time'] < chapter_end
+            ]
+            
+            if chapter_entries:
+                chapter_title = chapter.get('title', f'Chapter {i + 1}')
+                chapter_time = self._format_timestamp(chapter_start)
+                
+                organized_content += f"\n=== {chapter_title} (starts at {chapter_time}) ===\n"
+                
+                # Add chapter content
+                for entry in chapter_entries:
+                    formatted_time = self._format_timestamp(entry['time'])
+                    organized_content += f"[{formatted_time}] {entry['text']}\n"
+                
+                organized_content += "\n"
+        
+        return organized_content if organized_content.strip() else transcript_content
 
     def _create_video_info_section(self, video_info: Dict, video_id: str) -> str:
         """Create a video info section with clickable channel link"""
