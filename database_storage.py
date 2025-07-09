@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Database storage module using Supabase for YouTube Deep Search
+Database storage module using Supabase for YouTube Deep Summary
 Replaces the file-based transcript_cache.py
 """
 

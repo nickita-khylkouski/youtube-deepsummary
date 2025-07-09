@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-YouTube Deep Search is a comprehensive toolkit for downloading YouTube transcripts with multiple implementation approaches, AI-powered summarization using GPT-4.1, and a responsive web interface with Supabase database integration. The project handles various network restrictions and provides both command-line tools and a web application with persistent storage for transcripts, summaries, and channel management.
+YouTube Deep Summary is a comprehensive toolkit for downloading YouTube transcripts with multiple implementation approaches, AI-powered summarization using GPT-4.1, and a responsive web interface with Supabase database integration. The project handles various network restrictions and provides both command-line tools and a web application with persistent storage for transcripts, summaries, and channel management.
 
 ## Core Scripts
 
