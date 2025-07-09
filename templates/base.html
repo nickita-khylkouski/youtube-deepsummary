@@ -225,6 +225,21 @@
         .header nav a:hover {
             background-color: #f0f0f0 !important;
             color: #333 !important;
+            border-color: #ccc !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        /* Input focus effects */
+        input:focus {
+            border-color: #667eea !important;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+        }
+        
+        /* Button hover effects */
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255,107,107,0.4) !important;
         }
         
         /* Mobile responsive adjustments */
@@ -259,12 +274,12 @@
         <div class="header">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <h1 style="margin: 0;"><a href="/" style="color: #ff0000; text-decoration: none;">🔍 YouTube Deep Summary</a></h1>
-                    <p style="margin: 5px 0 0 0; color: #666; font-size: 14px; font-style: italic;">⭐ Extract content that makes a tangible impact on your life</p>
+                    <h1 style="margin: 0; font-size: 28px; font-weight: 700;"><a href="/" style="color: #1a1a1a; text-decoration: none; display: flex; align-items: center; gap: 12px;"><span style="background: linear-gradient(135deg, #ff6b6b, #ff8e8e); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 24px;">🎯</span>YouTube Deep Summary</a></h1>
+                    <p style="margin: 6px 0 0 0; color: #666; font-size: 15px; font-weight: 500; letter-spacing: 0.3px;">⭐ Extract content that makes a tangible impact on your life</p>
                 </div>
-                <nav style="display: flex; gap: 15px; font-size: 14px;">
-                    <a href="/channels" style="color: #666; text-decoration: none; padding: 8px 12px; border-radius: 4px; transition: background-color 0.3s;">📺 Channels</a>
-                    <a href="/storage" style="color: #666; text-decoration: none; padding: 8px 12px; border-radius: 4px; transition: background-color 0.3s;">💾 Storage</a>
+                <nav style="display: flex; gap: 20px; font-size: 14px;">
+                    <a href="/channels" style="color: #555; text-decoration: none; padding: 10px 16px; border-radius: 8px; transition: all 0.3s; font-weight: 500; border: 1px solid #e0e0e0;">📺 Channels</a>
+                    <a href="/storage" style="color: #555; text-decoration: none; padding: 10px 16px; border-radius: 8px; transition: all 0.3s; font-weight: 500; border: 1px solid #e0e0e0;">💾 Storage</a>
                 </nav>
             </div>
         </div>
