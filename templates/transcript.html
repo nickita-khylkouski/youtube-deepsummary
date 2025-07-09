@@ -62,7 +62,12 @@
     <div id="summary-section" style="{% if not summary and not summary_error %}display: none;{% endif %}">
         {% if summary %}
             <div class="summary-section">
-                <h3>🤖 AI-Generated Summary:</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0;">🤖 AI-Generated Summary:</h3>
+                    {% if summarize_enabled %}
+                        <button id="regenerateSummaryBtn" onclick="regenerateSummary('{{ video_id }}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
+                    {% endif %}
+                </div>
                 <div class="summary-content">
                     <pre>{{ summary }}</pre>
                 </div>
@@ -226,7 +231,10 @@
                         summarySection.style.display = 'block';
                         summarySection.innerHTML = `
                             <div class="summary-section">
-                                <h3>🤖 AI-Generated Summary:</h3>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                    <h3 style="margin: 0;">🤖 AI-Generated Summary:</h3>
+                                    <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
+                                </div>
                                 <div class="summary-content">
                                     <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit;">${summaryHtml}</pre>
                                 </div>
@@ -268,6 +276,81 @@
                     btn.textContent = '🤖 Generate AI Summary';
                     btn.disabled = false;
                     btn.style.background = '#2196f3';
+                });
+        }
+        
+        function regenerateSummary(videoId) {
+            const btn = document.getElementById('regenerateSummaryBtn');
+            const summarySection = document.getElementById('summary-section');
+            
+            // Get formatted transcript text (readable version, not detailed timestamps)
+            const formattedTranscript = {{ formatted_transcript|tojson }};
+            
+            // Update button to show loading state
+            btn.textContent = '⏳ Regenerating...';
+            btn.disabled = true;
+            btn.style.background = '#666';
+            
+            // Make AJAX request to generate summary with formatted transcript
+            fetch('/api/summary', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    video_id: videoId,
+                    formatted_transcript: formattedTranscript
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Convert markdown links and formatting to HTML
+                        let summaryHtml = data.summary;
+                        // Convert [text](url) to <a href="url" target="_blank">text</a>
+                        summaryHtml = summaryHtml.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #0066cc; text-decoration: underline;">$1</a>');
+                        // Convert **text** to <strong>text</strong>
+                        summaryHtml = summaryHtml.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+                        
+                        // Update summary section with new content
+                        summarySection.innerHTML = `
+                            <div class="summary-section">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                    <h3 style="margin: 0;">🤖 AI-Generated Summary:</h3>
+                                    <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
+                                </div>
+                                <div class="summary-content">
+                                    <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit;">${summaryHtml}</pre>
+                                </div>
+                            </div>
+                            <hr style="margin: 30px 0; border: 1px solid #ddd;">
+                        `;
+                    } else {
+                        // Show error but keep the regenerate button
+                        summarySection.innerHTML = `
+                            <div class="summary-error">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                    <h3 style="margin: 0;">❌ Summary Error:</h3>
+                                    <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
+                                </div>
+                                <p style="color: #d32f2f;">${data.error}</p>
+                            </div>
+                            <hr style="margin: 30px 0; border: 1px solid #ddd;">
+                        `;
+                    }
+                })
+                .catch(error => {
+                    // Show error but keep the regenerate button
+                    summarySection.innerHTML = `
+                        <div class="summary-error">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <h3 style="margin: 0;">❌ Summary Error:</h3>
+                                <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
+                            </div>
+                            <p style="color: #d32f2f;">Failed to generate summary: ${error.message}</p>
+                        </div>
+                        <hr style="margin: 30px 0; border: 1px solid #ddd;">
+                    `;
                 });
         }
     </script>
