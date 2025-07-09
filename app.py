@@ -195,8 +195,20 @@ def watch():
         
         proxy_used = os.getenv('YOUTUBE_PROXY', 'None')
         
-        # Remove automatic summary generation - now handled via AJAX
-        summary = None
+        # Check for existing summary
+        existing_summary = database_storage.get_summary(video_id)
+        if existing_summary:
+            # Convert markdown to HTML if markdown library is available
+            if MARKDOWN_AVAILABLE:
+                # Pre-process bullet points to proper markdown lists
+                processed_summary = existing_summary.replace('• ', '* ')
+                summary = markdown.markdown(processed_summary, extensions=['nl2br', 'tables'])
+                print(f"Converted existing summary for {video_id}: markdown -> HTML conversion applied")
+            else:
+                summary = existing_summary.replace('\n', '<br>').replace('• ', '• ')
+                print(f"Fallback for {video_id}: markdown library not available")
+        else:
+            summary = None
         summary_error = None
         
         # Generate thumbnail URL

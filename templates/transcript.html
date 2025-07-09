@@ -25,7 +25,7 @@
                 <p style="margin-top: 10px;">
                     <a href="https://www.youtube.com/watch?v={{ video_id }}" target="_blank" style="background: #ff0000; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; display: inline-block; margin-right: 10px;">▶️ Watch on YouTube</a>
                     {% if summarize_enabled %}
-                        <button id="generateSummaryBtn" onclick="generateSummary('{{ video_id }}')" style="background: #2196f3; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; display: {% if summary %}none{% else %}inline-block{% endif %};">🤖 Generate AI Summary</button>
+                        <button id="generateSummaryBtn" onclick="generateSummary('{{ video_id }}')" style="background: #2196f3; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; display: inline-block;">🤖 {% if summary %}Regenerate AI Summary{% else %}Generate AI Summary{% endif %}</button>
                     {% endif %}
                 </p>
             </div>
@@ -69,7 +69,7 @@
                     {% endif %}
                 </div>
                 <div class="summary-content">
-                    <pre>{{ summary }}</pre>
+                    <div class="markdown-content">{{ summary|safe }}</div>
                 </div>
             </div>
             <hr style="margin: 30px 0; border: 1px solid #ddd;">
@@ -194,6 +194,44 @@
             }
         }
         
+        function convertMarkdownToHtml(markdown) {
+            let html = markdown;
+            
+            // Convert headers (## Header -> <h2>Header</h2>)
+            html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+            html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+            html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+            
+            // Convert **bold** to <strong>bold</strong>
+            html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            
+            // Convert *italic* to <em>italic</em>
+            html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+            
+            // Convert [text](url) to <a href="url" target="_blank">text</a>
+            html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+            
+            // Convert bullet lists (- item or * item)
+            html = html.replace(/^[-*] (.+)$/gm, '<li>$1</li>');
+            html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+            
+            // Convert numbered lists (1. item)
+            html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+            
+            // Convert line breaks to paragraphs
+            html = html.replace(/\n\n/g, '</p><p>');
+            html = '<p>' + html + '</p>';
+            
+            // Clean up empty paragraphs
+            html = html.replace(/<p><\/p>/g, '');
+            html = html.replace(/<p>(<h[1-6]>)/g, '$1');
+            html = html.replace(/(<\/h[1-6]>)<\/p>/g, '$1');
+            html = html.replace(/<p>(<ul>)/g, '$1');
+            html = html.replace(/(<\/ul>)<\/p>/g, '$1');
+            
+            return html;
+        }
+        
         function generateSummary(videoId) {
             const btn = document.getElementById('generateSummaryBtn');
             const summarySection = document.getElementById('summary-section');
@@ -220,12 +258,8 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Convert markdown links and formatting to HTML
-                        let summaryHtml = data.summary;
-                        // Convert [text](url) to <a href="url" target="_blank">text</a>
-                        summaryHtml = summaryHtml.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #0066cc; text-decoration: underline;">$1</a>');
-                        // Convert **text** to <strong>text</strong>
-                        summaryHtml = summaryHtml.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+                        // Convert markdown to HTML
+                        const summaryHtml = convertMarkdownToHtml(data.summary);
                         
                         // Show summary section
                         summarySection.style.display = 'block';
@@ -236,14 +270,16 @@
                                     <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
                                 </div>
                                 <div class="summary-content">
-                                    <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit;">${summaryHtml}</pre>
+                                    <div class="markdown-content">${summaryHtml}</div>
                                 </div>
                             </div>
                             <hr style="margin: 30px 0; border: 1px solid #ddd;">
                         `;
                         
-                        // Hide the generate button
-                        btn.style.display = 'none';
+                        // Update the button text to indicate it can regenerate
+                        btn.textContent = '🤖 Regenerate AI Summary';
+                        btn.disabled = false;
+                        btn.style.background = '#2196f3';
                     } else {
                         // Show error
                         summarySection.style.display = 'block';
@@ -305,12 +341,8 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Convert markdown links and formatting to HTML
-                        let summaryHtml = data.summary;
-                        // Convert [text](url) to <a href="url" target="_blank">text</a>
-                        summaryHtml = summaryHtml.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #0066cc; text-decoration: underline;">$1</a>');
-                        // Convert **text** to <strong>text</strong>
-                        summaryHtml = summaryHtml.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+                        // Convert markdown to HTML
+                        const summaryHtml = convertMarkdownToHtml(data.summary);
                         
                         // Update summary section with new content
                         summarySection.innerHTML = `
@@ -320,11 +352,19 @@
                                     <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
                                 </div>
                                 <div class="summary-content">
-                                    <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit;">${summaryHtml}</pre>
+                                    <div class="markdown-content">${summaryHtml}</div>
                                 </div>
                             </div>
                             <hr style="margin: 30px 0; border: 1px solid #ddd;">
                         `;
+                        
+                        // Update the main generate button
+                        const mainBtn = document.getElementById('generateSummaryBtn');
+                        if (mainBtn) {
+                            mainBtn.textContent = '🤖 Regenerate AI Summary';
+                            mainBtn.disabled = false;
+                            mainBtn.style.background = '#2196f3';
+                        }
                     } else {
                         // Show error but keep the regenerate button
                         summarySection.innerHTML = `
