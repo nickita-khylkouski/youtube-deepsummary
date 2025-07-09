@@ -245,10 +245,37 @@
         /* Mobile responsive adjustments */
         @media (max-width: 768px) {
             body {
-                padding: 10px;
+                padding: 5px;
             }
             .container {
-                padding: 15px;
+                padding: 10px;
+            }
+            .header {
+                padding-bottom: 15px;
+                margin-bottom: 20px;
+            }
+            .header h1 {
+                font-size: 22px !important;
+            }
+            .header p {
+                font-size: 13px !important;
+            }
+            .header > div {
+                flex-direction: column !important;
+                align-items: center !important;
+                text-align: center;
+            }
+            .header nav {
+                flex-direction: row !important;
+                justify-content: center;
+                gap: 15px !important;
+                margin-top: 15px;
+                width: 100%;
+            }
+            .header nav a {
+                padding: 8px 12px !important;
+                text-align: center;
+                font-size: 13px !important;
             }
             .transcript-container {
                 padding: 0;
@@ -265,6 +292,132 @@
                 width: 100% !important;
                 max-width: 320px;
                 height: auto !important;
+            }
+        }
+        
+        /* Enhanced mobile responsiveness for new design elements */
+        @media (max-width: 768px) {
+            /* Hero section mobile adjustments */
+            .hero-section {
+                padding: 40px 15px !important;
+                margin-bottom: 30px !important;
+            }
+            .hero-title {
+                font-size: 28px !important;
+                line-height: 1.3 !important;
+            }
+            .hero-subtitle {
+                font-size: 16px !important;
+                margin: 0 auto 25px !important;
+            }
+            .hero-form {
+                padding: 20px !important;
+                margin: 0 10px !important;
+            }
+            .hero-form form {
+                flex-direction: column !important;
+                gap: 15px !important;
+            }
+            .hero-form input {
+                padding: 14px 16px !important;
+                font-size: 16px !important;
+            }
+            .hero-form button {
+                padding: 14px 24px !important;
+                font-size: 16px !important;
+                width: 100%;
+            }
+            
+            /* Stats section mobile */
+            .stats-grid {
+                grid-template-columns: 1fr !important;
+                gap: 20px !important;
+                margin-bottom: 40px !important;
+            }
+            .stat-card {
+                padding: 20px !important;
+            }
+            .stat-number {
+                font-size: 28px !important;
+            }
+            
+            /* Testimonials mobile */
+            .testimonials-section {
+                padding: 30px 15px !important;
+            }
+            .testimonials-title {
+                font-size: 24px !important;
+                margin-bottom: 30px !important;
+            }
+            .testimonials-grid {
+                grid-template-columns: 1fr !important;
+                gap: 20px !important;
+            }
+            .testimonial-card {
+                padding: 20px !important;
+                margin: 0 !important;
+            }
+            .testimonial-text {
+                font-size: 14px !important;
+                line-height: 1.6 !important;
+            }
+            .testimonial-avatar {
+                width: 44px !important;
+                height: 44px !important;
+                font-size: 14px !important;
+            }
+            .testimonial-name {
+                font-size: 14px !important;
+            }
+            .testimonial-title {
+                font-size: 12px !important;
+            }
+            
+            /* How-to section mobile */
+            .howto-details {
+                border-radius: 15px !important;
+                margin-top: 40px !important;
+            }
+            .howto-summary {
+                padding: 15px 20px !important;
+                font-size: 16px !important;
+            }
+            .howto-content {
+                padding: 25px 15px !important;
+            }
+            .howto-grid {
+                grid-template-columns: 1fr !important;
+                gap: 20px !important;
+            }
+            .howto-card {
+                padding: 25px 20px !important;
+                border-radius: 15px !important;
+            }
+            .howto-card h4 {
+                font-size: 18px !important;
+            }
+            .howto-card ul,
+            .howto-card ol {
+                font-size: 14px !important;
+            }
+        }
+        
+        /* Touch-friendly adjustments */
+        @media (max-width: 480px) {
+            .hero-title {
+                font-size: 24px !important;
+            }
+            .hero-subtitle {
+                font-size: 15px !important;
+            }
+            .hero-form {
+                padding: 15px !important;
+            }
+            .testimonials-title {
+                font-size: 20px !important;
+            }
+            .howto-summary {
+                font-size: 15px !important;
             }
         }
     </style>
