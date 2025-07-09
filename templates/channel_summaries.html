@@ -26,9 +26,14 @@
                                 <span class="date">• {{ summary.created_at[:10] }}</span>
                             {% endif %}
                         </p>
-                        <button class="summary-popup-btn" onclick="openSummaryPopup('{{ summary.video_id }}', '{{ summary.title|replace("'", "\\'") }}')">
-                            🤖 View AI Summary
-                        </button>
+                        <div style="display: flex; gap: 8px; margin-top: 8px;">
+                            <button class="summary-popup-btn" onclick="openSummaryPopup('{{ summary.video_id }}', '{{ summary.title|replace("'", "\\'") }}')">
+                                🤖 View AI Summary
+                            </button>
+                            <button class="regenerate-btn" onclick="regenerateChannelSummary('{{ summary.video_id }}', '{{ summary.title|replace("'", "\\'") }}')">
+                                🔄 Regenerate
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
@@ -90,11 +95,40 @@
         transition: background-color 0.2s;
         flex-shrink: 0;
         white-space: nowrap;
-        margin-top: 8px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     
     .summary-popup-btn:hover {
         background: #1976d2;
+    }
+    
+    .regenerate-btn {
+        background: #ff9800;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        flex-shrink: 0;
+        white-space: nowrap;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .regenerate-btn:hover {
+        background: #f57c00;
+    }
+    
+    .regenerate-btn:disabled {
+        background: #666;
+        cursor: not-allowed;
     }
     
     .video-details {
@@ -349,7 +383,12 @@
     <div class="summary-modal-content">
         <div class="summary-modal-header">
             <h3 class="summary-modal-title" id="modalTitle">AI Summary</h3>
-            <button class="summary-modal-close" onclick="closeSummaryPopup()">&times;</button>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button id="modalRegenerateBtn" class="regenerate-btn" onclick="regenerateCurrentSummary()" style="font-size: 12px; padding: 4px 8px;">
+                    🔄 Regenerate
+                </button>
+                <button class="summary-modal-close" onclick="closeSummaryPopup()">&times;</button>
+            </div>
         </div>
         <div class="summary-modal-body">
             <div class="markdown-content" id="modalSummaryContent">
@@ -367,10 +406,18 @@ const summariesData = {
     {% endfor %}
 };
 
+// Store current modal video ID for regeneration
+let currentVideoId = null;
+let currentVideoTitle = null;
+
 function openSummaryPopup(videoId, title) {
     const modal = document.getElementById('summaryModal');
     const modalTitle = document.getElementById('modalTitle');
     const modalContent = document.getElementById('modalSummaryContent');
+    
+    // Store current video info for regeneration
+    currentVideoId = videoId;
+    currentVideoTitle = title;
     
     // Set title and content
     modalTitle.textContent = title;
@@ -401,5 +448,124 @@ document.addEventListener('keydown', function(event) {
         closeSummaryPopup();
     }
 });
+
+function regenerateChannelSummary(videoId, title) {
+    // Find the regenerate button for this video
+    const regenerateBtn = event.target;
+    
+    // Update button to show loading state
+    regenerateBtn.textContent = '⏳ Regenerating...';
+    regenerateBtn.disabled = true;
+    
+    // Make AJAX request to regenerate summary
+    fetch(`/api/transcript/${videoId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.formatted_transcript) {
+                // Make request to generate new summary
+                return fetch('/api/summary', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        video_id: videoId,
+                        formatted_transcript: data.formatted_transcript
+                    })
+                });
+            } else {
+                throw new Error('Failed to get transcript');
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update the summaries data
+                summariesData[videoId] = data.summary;
+                
+                // Update modal if it's currently showing this video
+                if (currentVideoId === videoId) {
+                    const modalContent = document.getElementById('modalSummaryContent');
+                    modalContent.innerHTML = data.summary;
+                }
+                
+                // Reset button
+                regenerateBtn.textContent = '🔄 Regenerate';
+                regenerateBtn.disabled = false;
+                
+                // Show success message (optional)
+                alert('Summary regenerated successfully!');
+            } else {
+                throw new Error(data.error || 'Failed to regenerate summary');
+            }
+        })
+        .catch(error => {
+            // Reset button
+            regenerateBtn.textContent = '🔄 Regenerate';
+            regenerateBtn.disabled = false;
+            
+            // Show error message
+            alert('Failed to regenerate summary: ' + error.message);
+        });
+}
+
+function regenerateCurrentSummary() {
+    if (!currentVideoId) {
+        alert('No video selected for regeneration');
+        return;
+    }
+    
+    const modalBtn = document.getElementById('modalRegenerateBtn');
+    
+    // Update button to show loading state
+    modalBtn.textContent = '⏳ Regenerating...';
+    modalBtn.disabled = true;
+    
+    // Make AJAX request to regenerate summary
+    fetch(`/api/transcript/${currentVideoId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.formatted_transcript) {
+                // Make request to generate new summary
+                return fetch('/api/summary', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        video_id: currentVideoId,
+                        formatted_transcript: data.formatted_transcript
+                    })
+                });
+            } else {
+                throw new Error('Failed to get transcript');
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update the summaries data
+                summariesData[currentVideoId] = data.summary;
+                
+                // Update modal content
+                const modalContent = document.getElementById('modalSummaryContent');
+                modalContent.innerHTML = data.summary;
+                
+                // Reset button
+                modalBtn.textContent = '🔄 Regenerate';
+                modalBtn.disabled = false;
+            } else {
+                throw new Error(data.error || 'Failed to regenerate summary');
+            }
+        })
+        .catch(error => {
+            // Reset button
+            modalBtn.textContent = '🔄 Regenerate';
+            modalBtn.disabled = false;
+            
+            // Show error message
+            alert('Failed to regenerate summary: ' + error.message);
+        });
+}
 </script>
 {% endblock %}
