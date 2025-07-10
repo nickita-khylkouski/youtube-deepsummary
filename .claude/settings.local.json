@@ -7,7 +7,9 @@
       "Bash(pip3 install:*)",
       "Bash(kill:*)",
       "Bash(grep:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(mv:*)",
+      "Bash(rg:*)"
     ],
     "deny": []
   }

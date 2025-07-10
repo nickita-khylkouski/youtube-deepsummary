@@ -426,10 +426,10 @@ def api_delete_video(video_id):
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
-# Memory Snippets API endpoints
-@app.route('/api/memory-snippets', methods=['POST'])
-def api_save_memory_snippet():
-    """API endpoint to save a memory snippet"""
+# Snippets API endpoints
+@app.route('/api/snippets', methods=['POST'])
+def api_save_snippet():
+    """API endpoint to save a snippet"""
     try:
         data = request.get_json()
         if not data:
@@ -453,16 +453,16 @@ def api_save_memory_snippet():
         )
 
         if success:
-            return jsonify({'success': True, 'message': 'Memory snippet saved successfully'})
+            return jsonify({'success': True, 'message': 'Snippet saved successfully'})
         else:
-            return jsonify({'success': False, 'message': 'Failed to save memory snippet'}), 500
+            return jsonify({'success': False, 'message': 'Failed to save snippet'}), 500
 
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
-@app.route('/api/memory-snippets')
-def api_get_memory_snippets():
-    """API endpoint to get memory snippets"""
+@app.route('/api/snippets')
+def api_get_snippets():
+    """API endpoint to get snippets"""
     try:
         video_id = request.args.get('video_id')
         limit = int(request.args.get('limit', 100))
@@ -473,22 +473,22 @@ def api_get_memory_snippets():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
-@app.route('/api/memory-snippets/<snippet_id>', methods=['DELETE'])
-def api_delete_memory_snippet(snippet_id):
-    """API endpoint to delete a memory snippet"""
+@app.route('/api/snippets/<snippet_id>', methods=['DELETE'])
+def api_delete_snippet(snippet_id):
+    """API endpoint to delete a snippet"""
     try:
         success = database_storage.delete_memory_snippet(snippet_id)
         if success:
-            return jsonify({'success': True, 'message': 'Memory snippet deleted successfully'})
+            return jsonify({'success': True, 'message': 'Snippet deleted successfully'})
         else:
-            return jsonify({'success': False, 'message': 'Failed to delete memory snippet'}), 404
+            return jsonify({'success': False, 'message': 'Failed to delete snippet'}), 404
 
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
-@app.route('/api/memory-snippets/<snippet_id>/tags', methods=['PUT'])
-def api_update_memory_snippet_tags(snippet_id):
-    """API endpoint to update memory snippet tags"""
+@app.route('/api/snippets/<snippet_id>/tags', methods=['PUT'])
+def api_update_snippet_tags(snippet_id):
+    """API endpoint to update snippet tags"""
     try:
         data = request.get_json()
         if not data:
@@ -498,9 +498,9 @@ def api_update_memory_snippet_tags(snippet_id):
 
         success = database_storage.update_memory_snippet_tags(snippet_id, tags)
         if success:
-            return jsonify({'success': True, 'message': 'Memory snippet tags updated successfully'})
+            return jsonify({'success': True, 'message': 'Snippet tags updated successfully'})
         else:
-            return jsonify({'success': False, 'message': 'Failed to update memory snippet tags'}), 404
+            return jsonify({'success': False, 'message': 'Failed to update snippet tags'}), 404
 
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -588,9 +588,9 @@ def channel_summaries(channel_name):
         return render_template('error.html', 
                              error_message=f"Error loading channel summaries: {str(e)}"), 500
 
-@app.route('/memory-snippets')
-def memory_snippets_page():
-    """Display channels that have memory snippets"""
+@app.route('/snippets')
+def snippets_page():
+    """Display channels that have snippets"""
     try:
         snippets = database_storage.get_memory_snippets(limit=1000)
         stats = database_storage.get_memory_snippets_stats()
@@ -634,17 +634,17 @@ def memory_snippets_page():
         # Sort channels by latest snippet date (newest first)
         channels.sort(key=lambda x: x['latest_date'], reverse=True)
         
-        return render_template('memory_channels.html', 
+        return render_template('snippet_channels.html', 
                              channels=channels,
                              stats=stats)
         
     except Exception as e:
         return render_template('error.html', 
-                             error_message=f"Error loading memory snippets: {str(e)}"), 500
+                             error_message=f"Error loading snippets: {str(e)}"), 500
 
-@app.route('/memory-snippets/channel/<channel_name>')
-def memory_snippets_channel_page(channel_name):
-    """Display memory snippets for a specific channel"""
+@app.route('/snippets/channel/<channel_name>')
+def snippets_channel_page(channel_name):
+    """Display snippets for a specific channel"""
     try:
         snippets = database_storage.get_memory_snippets(limit=1000)
         
@@ -680,7 +680,7 @@ def memory_snippets_channel_page(channel_name):
         # Sort groups by latest snippet date (newest first)
         video_groups.sort(key=lambda x: x['latest_date'], reverse=True)
         
-        return render_template('memory_snippets.html', 
+        return render_template('snippets.html', 
                              video_groups=video_groups,
                              channel_name=channel_name,
                              stats={'total_snippets': len(channel_snippets)})
