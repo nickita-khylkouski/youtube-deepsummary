@@ -6,12 +6,20 @@
 <div class="header">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
         <div>
-            <h2 style="margin: 0;">💾 Memory Snippets</h2>
-            <p style="margin: 5px 0 0 0; color: #666;">Your saved insights from AI summaries</p>
+            {% if channel_name %}
+                <h2 style="margin: 0;">💾 Memory Snippets - {{ channel_name }}</h2>
+                <p style="margin: 5px 0 0 0; color: #666;">
+                    <a href="/memory-snippets" style="color: #0066cc; text-decoration: none;">← Back to all channels</a>
+                    • Saved insights from this channel
+                </p>
+            {% else %}
+                <h2 style="margin: 0;">💾 Memory Snippets</h2>
+                <p style="margin: 5px 0 0 0; color: #666;">Your saved insights from AI summaries</p>
+            {% endif %}
         </div>
         <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
             <div style="font-size: 18px; font-weight: bold; color: #333;">{{ stats.total_snippets }}</div>
-            <div style="font-size: 12px; color: #666;">Total Snippets</div>
+            <div style="font-size: 12px; color: #666;">{% if channel_name %}Channel {% endif %}Snippets</div>
         </div>
     </div>
 </div>

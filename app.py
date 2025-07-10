@@ -590,14 +590,75 @@ def channel_summaries(channel_name):
 
 @app.route('/memory-snippets')
 def memory_snippets_page():
-    """Display all memory snippets grouped by video"""
+    """Display channels that have memory snippets"""
     try:
-        snippets = database_storage.get_memory_snippets(limit=200)
+        snippets = database_storage.get_memory_snippets(limit=1000)
         stats = database_storage.get_memory_snippets_stats()
+        
+        # Group snippets by channel (uploader)
+        channel_groups = {}
+        for snippet in snippets:
+            video_info = snippet.get('youtube_videos', [{}])[0] if snippet.get('youtube_videos') else {}
+            uploader = video_info.get('uploader', 'Unknown Channel')
+            
+            if uploader not in channel_groups:
+                channel_groups[uploader] = {
+                    'channel_name': uploader,
+                    'videos': {},
+                    'total_snippets': 0,
+                    'latest_date': ''
+                }
+            
+            video_id = snippet['video_id']
+            if video_id not in channel_groups[uploader]['videos']:
+                channel_groups[uploader]['videos'][video_id] = {
+                    'video_info': video_info,
+                    'video_id': video_id,
+                    'snippet_count': 0
+                }
+            
+            channel_groups[uploader]['videos'][video_id]['snippet_count'] += 1
+            channel_groups[uploader]['total_snippets'] += 1
+            
+            # Track latest snippet date for channel
+            snippet_date = snippet.get('created_at', '')
+            if snippet_date > channel_groups[uploader]['latest_date']:
+                channel_groups[uploader]['latest_date'] = snippet_date
+        
+        # Convert to list and sort by most recent snippet
+        channels = []
+        for channel_name, group in channel_groups.items():
+            group['video_count'] = len(group['videos'])
+            channels.append(group)
+        
+        # Sort channels by latest snippet date (newest first)
+        channels.sort(key=lambda x: x['latest_date'], reverse=True)
+        
+        return render_template('memory_channels.html', 
+                             channels=channels,
+                             stats=stats)
+        
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading memory snippets: {str(e)}"), 500
+
+@app.route('/memory-snippets/channel/<channel_name>')
+def memory_snippets_channel_page(channel_name):
+    """Display memory snippets for a specific channel"""
+    try:
+        snippets = database_storage.get_memory_snippets(limit=1000)
+        
+        # Filter snippets by channel
+        channel_snippets = []
+        for snippet in snippets:
+            video_info = snippet.get('youtube_videos', [{}])[0] if snippet.get('youtube_videos') else {}
+            uploader = video_info.get('uploader', 'Unknown Channel')
+            if uploader == channel_name:
+                channel_snippets.append(snippet)
         
         # Group snippets by video_id
         grouped_snippets = {}
-        for snippet in snippets:
+        for snippet in channel_snippets:
             video_id = snippet['video_id']
             if video_id not in grouped_snippets:
                 grouped_snippets[video_id] = {
@@ -621,11 +682,12 @@ def memory_snippets_page():
         
         return render_template('memory_snippets.html', 
                              video_groups=video_groups,
-                             stats=stats)
+                             channel_name=channel_name,
+                             stats={'total_snippets': len(channel_snippets)})
         
     except Exception as e:
         return render_template('error.html', 
-                             error_message=f"Error loading memory snippets: {str(e)}"), 500
+                             error_message=f"Error loading channel snippets: {str(e)}"), 500
 
 @app.route('/favicon.ico')
 def favicon():
