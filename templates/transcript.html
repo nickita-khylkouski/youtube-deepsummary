@@ -501,7 +501,7 @@
                 e.preventDefault();
                 e.stopPropagation();
                 
-                openSaveSnippetModal();
+                saveMemorySnippetDirect();
                 
                 hideSaveSnippetButton();
                 window.getSelection().removeAllRanges();
@@ -619,6 +619,55 @@
             .then(data => {
                 if (data.success) {
                     closeSaveSnippetModal();
+                    // Show a brief success indicator
+                    const successMsg = document.createElement('div');
+                    successMsg.textContent = '✓ Memory snippet saved';
+                    successMsg.style.cssText = `
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        background: #4CAF50;
+                        color: white;
+                        padding: 10px 20px;
+                        border-radius: 5px;
+                        z-index: 10000;
+                        font-size: 14px;
+                    `;
+                    document.body.appendChild(successMsg);
+                    setTimeout(() => successMsg.remove(), 3000);
+                }
+            })
+            .catch(error => {
+                // Silent error handling
+            });
+        }
+        
+        function saveMemorySnippetDirect() {
+            // Prevent duplicate saves within 2 seconds
+            const now = Date.now();
+            if (now - lastSaveTime < 2000) {
+                return;
+            }
+            lastSaveTime = now;
+            
+            const data = {
+                video_id: '{{ video_id }}',
+                snippet_text: selectedText, // selectedText now contains HTML formatting when from summary
+                context_before: contextBefore,
+                context_after: contextAfter,
+                tags: [] // No tags when saving directly
+            };
+            
+            fetch('/api/memory-snippets', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
                     // Show a brief success indicator
                     const successMsg = document.createElement('div');
                     successMsg.textContent = '✓ Memory snippet saved';
