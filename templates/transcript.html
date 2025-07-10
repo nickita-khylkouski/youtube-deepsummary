@@ -276,6 +276,9 @@
                             <hr style="margin: 30px 0; border: 1px solid #ddd;">
                         `;
                         
+                        // Add H2 snippet icons to the new summary
+                        setTimeout(addH2SnippetIcons, 100);
+                        
                         // Update the button text to indicate it can regenerate
                         btn.textContent = '🤖 Regenerate AI Summary';
                         btn.disabled = false;
@@ -357,6 +360,9 @@
                             </div>
                             <hr style="margin: 30px 0; border: 1px solid #ddd;">
                         `;
+                        
+                        // Add H2 snippet icons to the regenerated summary
+                        setTimeout(addH2SnippetIcons, 100);
                         
                         // Update the main generate button
                         const mainBtn = document.getElementById('generateSummaryBtn');
@@ -692,8 +698,182 @@
         }
         
         
+        // H2 Section Snippet Functionality
+        function addH2SnippetIcons() {
+            // Find all H2 elements in markdown content
+            const h2Elements = document.querySelectorAll('.markdown-content h2');
+            
+            h2Elements.forEach((h2, index) => {
+                // Skip if icon already exists
+                if (h2.querySelector('.h2-snippet-icon')) {
+                    return;
+                }
+                
+                // Create snippet icon
+                const icon = document.createElement('span');
+                icon.className = 'h2-snippet-icon';
+                icon.innerHTML = '💾';
+                icon.title = 'Save this section as snippet';
+                icon.setAttribute('data-h2-index', index);
+                
+                // Add click handler
+                icon.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    saveH2Section(h2, index);
+                });
+                
+                // Append icon to H2
+                h2.appendChild(icon);
+            });
+        }
+
+        function saveH2Section(h2Element, sectionIndex) {
+            // Get the H2 section content (everything until the next H2 or end of content)
+            const sectionContent = getH2SectionContent(h2Element);
+            
+            if (!sectionContent.trim()) {
+                // Show error message
+                const errorMsg = document.createElement('div');
+                errorMsg.textContent = '⚠️ No content found in this section';
+                errorMsg.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #ff4444;
+                    color: white;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    z-index: 10000;
+                    font-size: 14px;
+                `;
+                document.body.appendChild(errorMsg);
+                setTimeout(() => errorMsg.remove(), 3000);
+                return;
+            }
+            
+            // Prevent duplicate saves within 2 seconds
+            const now = Date.now();
+            if (now - lastSaveTime < 2000) {
+                return;
+            }
+            lastSaveTime = now;
+            
+            // Get section title for context
+            const sectionTitle = h2Element.textContent.replace('💾', '').trim();
+            
+            const data = {
+                video_id: '{{ video_id }}',
+                snippet_text: sectionContent,
+                context_before: '',
+                context_after: '',
+                tags: []
+            };
+            
+            // Show loading state
+            const originalIcon = h2Element.querySelector('.h2-snippet-icon');
+            const originalContent = originalIcon.innerHTML;
+            originalIcon.innerHTML = '⏳';
+            originalIcon.style.background = '#666';
+            
+            fetch('/api/snippets', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success indicator
+                    const successMsg = document.createElement('div');
+                    successMsg.textContent = `✓ Section "${sectionTitle}" saved as snippet`;
+                    successMsg.style.cssText = `
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        background: #4CAF50;
+                        color: white;
+                        padding: 10px 20px;
+                        border-radius: 5px;
+                        z-index: 10000;
+                        font-size: 14px;
+                        max-width: 300px;
+                    `;
+                    document.body.appendChild(successMsg);
+                    setTimeout(() => successMsg.remove(), 3000);
+                    
+                    // Animate icon to show success
+                    originalIcon.innerHTML = '✓';
+                    originalIcon.style.background = '#4CAF50';
+                    originalIcon.style.color = 'white';
+                    setTimeout(() => {
+                        originalIcon.innerHTML = originalContent;
+                        originalIcon.style.background = '';
+                        originalIcon.style.color = '';
+                    }, 2000);
+                } else {
+                    throw new Error(data.message || 'Failed to save snippet');
+                }
+            })
+            .catch(error => {
+                // Show error message
+                const errorMsg = document.createElement('div');
+                errorMsg.textContent = `❌ Failed to save section: ${error.message}`;
+                errorMsg.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #ff4444;
+                    color: white;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    z-index: 10000;
+                    font-size: 14px;
+                `;
+                document.body.appendChild(errorMsg);
+                setTimeout(() => errorMsg.remove(), 3000);
+                
+                // Reset icon
+                originalIcon.innerHTML = originalContent;
+                originalIcon.style.background = '';
+                originalIcon.style.color = '';
+            });
+        }
+
+        function getH2SectionContent(h2Element) {
+            let content = '';
+            let currentElement = h2Element.nextElementSibling;
+            
+            // Include the H2 title itself, but remove the snippet icon
+            const h2Clone = h2Element.cloneNode(true);
+            const iconElement = h2Clone.querySelector('.h2-snippet-icon');
+            if (iconElement) {
+                iconElement.remove();
+            }
+            content += h2Clone.outerHTML;
+            
+            // Traverse siblings until we hit another H2 or end of content
+            while (currentElement) {
+                // Stop if we encounter another H2
+                if (currentElement.tagName === 'H2') {
+                    break;
+                }
+                
+                // Add the element's HTML content
+                content += currentElement.outerHTML;
+                currentElement = currentElement.nextElementSibling;
+            }
+            
+            return content;
+        }
+        
         // Initialize snippets functionality when page loads
-        document.addEventListener('DOMContentLoaded', initializeSnippets);
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeSnippets();
+            addH2SnippetIcons();
+        });
     </script>
     
 {% endblock %}
