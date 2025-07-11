@@ -24,6 +24,41 @@ load_dotenv()
 
 app = Flask(__name__)
 
+# Add custom markdown filter for templates
+@app.template_filter('markdown')
+def markdown_filter(text):
+    """Convert markdown text to HTML"""
+    if MARKDOWN_AVAILABLE:
+        # Pre-process bullet points to proper markdown lists
+        processed_text = text.replace('• ', '* ')
+        return markdown.markdown(processed_text, extensions=['nl2br', 'tables'])
+    else:
+        # Fallback: convert bullet points to HTML list
+        lines = text.split('\n')
+        html_lines = []
+        in_list = False
+        
+        for line in lines:
+            line = line.strip()
+            if line.startswith('• '):
+                if not in_list:
+                    html_lines.append('<ul>')
+                    in_list = True
+                html_lines.append(f'<li>{line[2:]}</li>')
+            else:
+                if in_list:
+                    html_lines.append('</ul>')
+                    in_list = False
+                if line:
+                    html_lines.append(f'<p>{line}</p>')
+                else:
+                    html_lines.append('<br>')
+        
+        if in_list:
+            html_lines.append('</ul>')
+        
+        return ''.join(html_lines)
+
 # Initialize summarizer with error handling
 try:
     summarizer = TranscriptSummarizer()
@@ -508,6 +543,156 @@ def channel_summaries(channel_name):
     except Exception as e:
         return render_template('error.html', 
                              error_message=f"Error loading channel summaries: {str(e)}"), 500
+
+@app.route('/memories')
+def memories_page():
+    """Display user's saved memories grouped by channel"""
+    try:
+        # Always group by channel for the new simplified design
+        memories_data = database_storage.get_memories(group_by_channel=True)
+        
+        # Get memory statistics
+        memory_stats = database_storage.get_memory_stats()
+        
+        return render_template('memories.html', 
+                             memories=memories_data,
+                             memory_stats=memory_stats)
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading memories: {str(e)}"), 500
+
+@app.route('/memories/channel/<path:channel_name>')
+def channel_memories(channel_name):
+    """Display individual memories for a specific channel grouped by video"""
+    try:
+        # Get all memories for this channel
+        all_memories = database_storage.get_memories()
+        channel_memories_list = [m for m in all_memories if m.get('video_uploader') == channel_name]
+        
+        if not channel_memories_list:
+            return render_template('error.html', 
+                                 error_message=f"No memories found for channel: {channel_name}"), 404
+        
+        # Group memories by video
+        videos_with_memories = {}
+        for memory in channel_memories_list:
+            video_id = memory['video_id']
+            if video_id not in videos_with_memories:
+                videos_with_memories[video_id] = {
+                    'video_info': {
+                        'video_id': video_id,
+                        'title': memory['video_title'],
+                        'uploader': memory['video_uploader'],
+                        'thumbnail_url': memory['thumbnail_url']
+                    },
+                    'memories': []
+                }
+            videos_with_memories[video_id]['memories'].append(memory)
+        
+        # Convert to list and sort by video title
+        grouped_videos = list(videos_with_memories.values())
+        grouped_videos.sort(key=lambda x: x['video_info']['title'] or '')
+        
+        # Get stats
+        unique_videos = len(grouped_videos)
+        total_memories = len(channel_memories_list)
+        
+        return render_template('channel_memories.html', 
+                             channel_name=channel_name,
+                             grouped_videos=grouped_videos,
+                             total_memories=total_memories,
+                             unique_videos=unique_videos)
+        
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading channel memories: {str(e)}"), 500
+
+@app.route('/api/memories', methods=['POST'])
+def api_save_memory():
+    """API endpoint to save a new memory"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No JSON data provided'
+            }), 400
+        
+        video_id = data.get('video_id')
+        selected_text = data.get('selected_text')
+        source_type = data.get('source_type', 'transcript')
+        context_text = data.get('context_text')
+        timestamp_seconds = data.get('timestamp_seconds')
+        note = data.get('note')
+        
+        if not video_id or not selected_text:
+            return jsonify({
+                'success': False,
+                'error': 'video_id and selected_text are required'
+            }), 400
+        
+        # Save memory to database
+        success = database_storage.save_memory(
+            video_id=video_id,
+            selected_text=selected_text,
+            source_type=source_type,
+            context_text=context_text,
+            timestamp_seconds=timestamp_seconds,
+            note=note
+        )
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Memory saved successfully'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Memory already exists or failed to save'
+            }), 400
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/memories/<memory_id>', methods=['DELETE'])
+def api_delete_memory(memory_id):
+    """API endpoint to delete a memory"""
+    try:
+        success = database_storage.delete_memory(memory_id)
+        if success:
+            return jsonify({
+                'success': True,
+                'message': f'Memory {memory_id} deleted successfully'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to delete memory'
+            }), 500
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/memories/<video_id>')
+def api_get_video_memories(video_id):
+    """API endpoint to get memories for a specific video"""
+    try:
+        memories = database_storage.get_memories(video_id=video_id)
+        return jsonify({
+            'success': True,
+            'memories': memories
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/favicon.ico')
 def favicon():

@@ -15,7 +15,7 @@ def test_environment():
     except ImportError as e:
         print(f"❌ yt-dlp import failed: {e}")
         return False
-    
+
     # Test basic yt-dlp functionality
     try:
         import os

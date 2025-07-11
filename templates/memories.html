@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+
+{% block title %}My Memories - YouTube Deep Summary{% endblock %}
+
+{% block content %}
+    <style>
+        /* Exact replica of the screenshot design */
+        body {
+            background-color: #f8f9fa;
+        }
+        
+        .memories-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        }
+        
+        .memories-header {
+            margin-bottom: 40px;
+        }
+        
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 28px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0;
+        }
+        
+        .header-icon {
+            font-size: 32px;
+            color: #6b7280;
+        }
+        
+        .total-count {
+            text-align: right;
+        }
+        
+        .total-number {
+            font-size: 28px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0;
+            line-height: 1;
+        }
+        
+        .total-label {
+            font-size: 14px;
+            color: #6b7280;
+            margin: 2px 0 0 0;
+        }
+        
+        .header-subtitle {
+            font-size: 16px;
+            color: #6b7280;
+            margin: 0;
+            font-weight: 400;
+        }
+        
+        .divider {
+            height: 1px;
+            background-color: #e5e7eb;
+            margin: 40px 0;
+        }
+        
+        /* Channel Cards */
+        .channels-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+        
+        .channel-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 32px;
+            margin-bottom: 24px;
+            position: relative;
+        }
+        
+        .channel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 24px;
+        }
+        
+        .channel-info {
+            flex: 1;
+        }
+        
+        .channel-name {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0 0 12px 0;
+            line-height: 1.2;
+        }
+        
+        .channel-stats {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+        }
+        
+        .stat-item {
+            font-size: 14px;
+            color: #059669;
+            font-weight: 500;
+        }
+        
+        .stat-videos {
+            color: #2563eb;
+        }
+        
+        .view-button {
+            background: #f9fafb;
+            border: 1px solid #d1d5db;
+            color: #374151;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+        
+        .view-button:hover {
+            background: #f3f4f6;
+            border-color: #9ca3af;
+        }
+        
+        .videos-section {
+            margin-top: 8px;
+        }
+        
+        .videos-title {
+            font-size: 14px;
+            color: #6b7280;
+            margin: 0 0 20px 0;
+            font-weight: 500;
+        }
+        
+        .video-item {
+            display: flex;
+            gap: 16px;
+            padding: 12px 0;
+            border-bottom: 1px solid #f3f4f6;
+            text-decoration: none;
+            color: inherit;
+            transition: background-color 0.15s ease;
+        }
+        
+        .video-item:last-child {
+            border-bottom: none;
+        }
+        
+        .video-item:hover {
+            background-color: #f9fafb;
+            margin: 12px -16px;
+            padding: 12px 16px;
+            border-radius: 6px;
+        }
+        
+        .video-thumbnail {
+            width: 80px;
+            height: 45px;
+            border-radius: 4px;
+            object-fit: cover;
+            flex-shrink: 0;
+            background-color: #f3f4f6;
+        }
+        
+        .video-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .video-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: #1f2937;
+            margin: 0 0 6px 0;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        .video-memory-count {
+            font-size: 14px;
+            color: #059669;
+            font-weight: 500;
+        }
+        
+        .more-videos {
+            font-size: 14px;
+            color: #6b7280;
+            font-style: italic;
+            margin-top: 16px;
+            padding-left: 0;
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+        }
+        
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        .empty-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0 0 8px 0;
+        }
+        
+        .empty-subtitle {
+            font-size: 16px;
+            color: #6b7280;
+            margin: 0 0 24px 0;
+            line-height: 1.5;
+        }
+        
+        .cta-button {
+            background: #2563eb;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-block;
+            transition: background-color 0.15s ease;
+        }
+        
+        .cta-button:hover {
+            background: #1d4ed8;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .memories-container {
+                padding: 20px 16px;
+            }
+            
+            .header-top {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+            
+            .total-count {
+                text-align: left;
+            }
+            
+            .channel-card {
+                padding: 24px 20px;
+            }
+            
+            .channel-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+            }
+            
+            .channel-stats {
+                flex-wrap: wrap;
+                gap: 16px;
+            }
+            
+            .video-item {
+                flex-direction: column;
+                gap: 12px;
+            }
+            
+            .video-thumbnail {
+                width: 100%;
+                height: auto;
+                max-width: 200px;
+            }
+        }
+    </style>
+
+    <div class="memories-container">
+        <!-- Header Section -->
+        <div class="memories-header">
+            <div class="header-top">
+                <h1 class="header-title">
+                    <span class="header-icon">💭</span>
+                    Memories by Channel
+                </h1>
+                {% if memory_stats %}
+                <div class="total-count">
+                    <div class="total-number">{{ memory_stats.total_memories }}</div>
+                    <div class="total-label">Total Memories</div>
+                </div>
+                {% endif %}
+            </div>
+            <p class="header-subtitle">Channels with saved insights from AI summaries and transcripts</p>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Content -->
+        {% if memories %}
+            <div class="channels-list">
+                {% for channel_group in memories %}
+                <div class="channel-card">
+                    <div class="channel-header">
+                        <div class="channel-info">
+                            <h2 class="channel-name">{{ channel_group.channel_name }}</h2>
+                            <div class="channel-stats">
+                                <span class="stat-item">{{ channel_group.memory_count }} memories</span>
+                                <span class="stat-item stat-videos">{{ (channel_group.memories | map(attribute="video_id") | unique | list) | length }} videos</span>
+                            </div>
+                        </div>
+                        <a href="/memories/channel/{{ channel_group.channel_name | urlencode }}" class="view-button">View Memories →</a>
+                    </div>
+                    
+                    <div class="videos-section">
+                        <h3 class="videos-title">Recent Videos with Memories:</h3>
+                        
+                        {% set unique_videos = {} %}
+                        {% for memory in channel_group.memories %}
+                            {% if memory.video_id not in unique_videos %}
+                                {% set _ = unique_videos.update({memory.video_id: memory}) %}
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% for video_id, video in unique_videos.items() %}
+                            {% if loop.index <= 3 %}
+                            <a href="/watch?v={{ video.video_id }}" class="video-item">
+                                <img src="{{ video.thumbnail_url }}" alt="Video thumbnail" class="video-thumbnail" onerror="this.style.display='none'">
+                                <div class="video-info">
+                                    <h4 class="video-title">{{ video.video_title or video.video_id }}</h4>
+                                    <div class="video-memory-count">
+                                        {{ (channel_group.memories | selectattr("video_id", "equalto", video.video_id) | list) | length }} memories
+                                    </div>
+                                </div>
+                            </a>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if unique_videos | length > 3 %}
+                        <div class="more-videos">... and {{ unique_videos | length - 3 }} more video{{ 's' if unique_videos | length - 3 != 1 else '' }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <!-- Empty State -->
+            <div class="empty-state">
+                <div class="empty-icon">💭</div>
+                <h2 class="empty-title">No memories saved yet</h2>
+                <p class="empty-subtitle">Start saving your favorite quotes and insights by selecting text in video transcripts or summaries!</p>
+                <a href="/" class="cta-button">Browse Videos</a>
+            </div>
+        {% endif %}
+    </div>
+
+{% endblock %}

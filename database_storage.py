@@ -424,6 +424,172 @@ class DatabaseStorage:
             print(f"Error getting all channels: {e}")
             return []
 
+    def save_memory(self, video_id: str, selected_text: str, source_type: str = 'transcript', 
+                   context_text: str = None, timestamp_seconds: int = None, note: str = None) -> bool:
+        """
+        Save a user memory (selected text snippet)
+        
+        Args:
+            video_id: YouTube video ID
+            selected_text: The text selected by the user
+            source_type: 'transcript' or 'summary'
+            context_text: Additional context around the selection
+            timestamp_seconds: For transcript memories, the timestamp
+            note: User's optional note
+            
+        Returns:
+            bool: True if successful
+        """
+        try:
+            # Check for duplicate memories (same video_id and selected_text)
+            existing_check = self.supabase.table('memories')\
+                .select('id')\
+                .eq('video_id', video_id)\
+                .eq('selected_text', selected_text)\
+                .execute()
+            
+            if existing_check.data and len(existing_check.data) > 0:
+                print(f"Duplicate memory detected for video {video_id}, skipping save")
+                return False
+            
+            memory_data = {
+                'video_id': video_id,
+                'selected_text': selected_text,
+                'context_text': context_text,
+                'source_type': source_type,
+                'timestamp_seconds': timestamp_seconds,
+                'note': note,
+                'created_at': datetime.now(timezone.utc).isoformat()
+            }
+            
+            self.supabase.table('memories').insert(memory_data).execute()
+            print(f"Memory saved for video {video_id}: {selected_text[:50]}...")
+            return True
+            
+        except Exception as e:
+            print(f"Error saving memory for {video_id}: {e}")
+            return False
+
+    def get_memories(self, video_id: str = None, group_by_channel: bool = False) -> List[Dict]:
+        """
+        Get memories, optionally filtered by video ID and/or grouped by channel
+        
+        Args:
+            video_id: Optional video ID filter
+            group_by_channel: If True, returns memories grouped by channel
+            
+        Returns:
+            List of memory dictionaries or grouped channel dictionaries
+        """
+        try:
+            query = self.supabase.table('memories')\
+                .select('*, youtube_videos(title, uploader, thumbnail_url)')\
+                .order('created_at', desc=True)
+                
+            if video_id:
+                query = query.eq('video_id', video_id)
+                
+            response = query.execute()
+            
+            memories = []
+            for memory in response.data:
+                video_info = memory.get('youtube_videos')
+                memories.append({
+                    'id': memory['id'],
+                    'video_id': memory['video_id'],
+                    'selected_text': memory['selected_text'],
+                    'context_text': memory['context_text'],
+                    'source_type': memory['source_type'],
+                    'timestamp_seconds': memory['timestamp_seconds'],
+                    'note': memory['note'],
+                    'created_at': memory['created_at'],
+                    'video_title': video_info.get('title') if video_info else None,
+                    'video_uploader': video_info.get('uploader') if video_info else None,
+                    'thumbnail_url': video_info.get('thumbnail_url') if video_info else f"https://img.youtube.com/vi/{memory['video_id']}/maxresdefault.jpg"
+                })
+            
+            if group_by_channel:
+                return self._group_memories_by_channel(memories)
+            else:
+                return memories
+            
+        except Exception as e:
+            print(f"Error getting memories: {e}")
+            return []
+
+    def _group_memories_by_channel(self, memories: List[Dict]) -> List[Dict]:
+        """
+        Group memories by channel
+        
+        Args:
+            memories: List of memory dictionaries
+            
+        Returns:
+            List of channel dictionaries with grouped memories
+        """
+        channels = {}
+        
+        for memory in memories:
+            uploader = memory.get('video_uploader') or 'Unknown Channel'
+            
+            if uploader not in channels:
+                channels[uploader] = {
+                    'channel_name': uploader,
+                    'memory_count': 0,
+                    'memories': []
+                }
+            
+            channels[uploader]['memories'].append(memory)
+            channels[uploader]['memory_count'] += 1
+        
+        # Sort channels by memory count (descending)
+        return sorted(channels.values(), key=lambda x: x['memory_count'], reverse=True)
+
+    def delete_memory(self, memory_id: str) -> bool:
+        """
+        Delete a specific memory
+        
+        Args:
+            memory_id: UUID of the memory to delete
+            
+        Returns:
+            bool: True if successful
+        """
+        try:
+            response = self.supabase.table('memories').delete().eq('id', memory_id).execute()
+            print(f"Memory deleted: {memory_id}")
+            return True
+            
+        except Exception as e:
+            print(f"Error deleting memory {memory_id}: {e}")
+            return False
+
+    def get_memory_stats(self) -> Dict:
+        """Get statistics about saved memories"""
+        try:
+            response = self.supabase.table('memories').select('id, source_type, video_id').execute()
+            
+            total_memories = len(response.data) if response.data else 0
+            transcript_memories = sum(1 for m in response.data if m.get('source_type') == 'transcript')
+            summary_memories = sum(1 for m in response.data if m.get('source_type') == 'summary')
+            unique_videos = len(set(m['video_id'] for m in response.data)) if response.data else 0
+            
+            return {
+                'total_memories': total_memories,
+                'transcript_memories': transcript_memories,
+                'summary_memories': summary_memories,
+                'unique_videos': unique_videos
+            }
+            
+        except Exception as e:
+            print(f"Error getting memory stats: {e}")
+            return {
+                'total_memories': 0,
+                'transcript_memories': 0,
+                'summary_memories': 0,
+                'unique_videos': 0
+            }
+
 
 # Global database storage instance
 database_storage = DatabaseStorage()

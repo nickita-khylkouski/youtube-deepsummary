@@ -69,7 +69,7 @@
                     {% endif %}
                 </div>
                 <div class="summary-content">
-                    <div class="markdown-content">{{ summary|safe }}</div>
+                    <div class="markdown-content" id="preloaded-summary">{{ summary|safe }}</div>
                 </div>
             </div>
             <hr style="margin: 30px 0; border: 1px solid #ddd;">
@@ -120,7 +120,230 @@
         {% endfor %}
     </div>
     
+    <!-- Memory popup overlay and modal -->
+    <div class="memory-popup-overlay" id="memoryOverlay" onclick="closeMemoryPopup()"></div>
+    <div class="memory-popup" id="memoryPopup">
+        <div class="memory-popup-header">
+            <h3 class="memory-popup-title">💭 Save to Memories</h3>
+            <button class="memory-popup-close" onclick="closeMemoryPopup()">×</button>
+        </div>
+        <div class="memory-popup-content">
+            <div class="memory-selected-text" id="memorySelectedText"></div>
+            <div class="memory-form-group">
+                <label class="memory-form-label" for="memoryNote">Add a note (optional):</label>
+                <textarea class="memory-form-input" id="memoryNote" rows="3" placeholder="Why is this important to you?"></textarea>
+            </div>
+            <div class="memory-form-actions">
+                <button class="memory-btn memory-btn-secondary" onclick="closeMemoryPopup()">Cancel</button>
+                <button class="memory-btn memory-btn-primary" id="saveMemoryBtn" onclick="saveMemory()">Save Memory</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Floating add to memories button -->
+    <button class="memory-add-button" id="memoryAddBtn" onclick="showMemoryPopup()">💭 Add to Memories</button>
+    
+    <style>
+        /* Memory popup styles */
+        .memory-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            z-index: 1000;
+            padding: 0;
+            min-width: 400px;
+            max-width: 90vw;
+            display: none;
+        }
+        
+        .memory-popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            display: none;
+        }
+        
+        .memory-popup-header {
+            background: #2196f3;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .memory-popup-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .memory-popup-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .memory-popup-content {
+            padding: 20px;
+        }
+        
+        .memory-selected-text {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #2196f3;
+            margin-bottom: 15px;
+            font-style: italic;
+            line-height: 1.6;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .memory-form-group {
+            margin-bottom: 15px;
+        }
+        
+        .memory-form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .memory-form-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            resize: vertical;
+        }
+        
+        .memory-form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        
+        .memory-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .memory-btn-primary {
+            background: #2196f3;
+            color: white;
+        }
+        
+        .memory-btn-secondary {
+            background: #f5f5f5;
+            color: #666;
+        }
+        
+        .memory-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        
+        .memory-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        /* Copy button for summary sections */
+        .copy-button {
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            color: #6b7280;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            margin-left: 8px;
+        }
+        
+        .copy-button:hover {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+        .copy-button.copied {
+            color: #059669;
+        }
+        
+        /* Text selection highlight */
+        .memory-selection-highlight {
+            background: rgba(33, 150, 243, 0.2);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        
+        /* Add to memories button that appears on text selection */
+        .memory-add-button {
+            position: absolute;
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 12px;
+            cursor: pointer;
+            z-index: 500;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            display: none;
+        }
+        
+        .memory-add-button:hover {
+            background: #1976d2;
+        }
+        
+        @media (max-width: 768px) {
+            .memory-popup {
+                min-width: 320px;
+                margin: 20px;
+            }
+            
+            .memory-form-actions {
+                flex-direction: column;
+            }
+            
+            .memory-btn {
+                width: 100%;
+            }
+        }
+    </style>
+
     <script>
+        let selectedText = '';
+        let selectedSource = '';
+        let selectedTimestamp = null;
+        
         function toggleTranscriptView() {
             const formattedDiv = document.getElementById('formatted-transcript');
             const detailedDiv = document.getElementById('detailed-transcript');
@@ -263,6 +486,7 @@
                         
                         // Show summary section
                         summarySection.style.display = 'block';
+                        const summaryWithCopyButtons = addCopyButtonsToSummary(summaryHtml);
                         summarySection.innerHTML = `
                             <div class="summary-section">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
@@ -270,7 +494,7 @@
                                     <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
                                 </div>
                                 <div class="summary-content">
-                                    <div class="markdown-content">${summaryHtml}</div>
+                                    <div class="markdown-content">${summaryWithCopyButtons}</div>
                                 </div>
                             </div>
                             <hr style="margin: 30px 0; border: 1px solid #ddd;">
@@ -345,6 +569,7 @@
                         const summaryHtml = convertMarkdownToHtml(data.summary);
                         
                         // Update summary section with new content
+                        const summaryWithCopyButtons = addCopyButtonsToSummary(summaryHtml);
                         summarySection.innerHTML = `
                             <div class="summary-section">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
@@ -352,7 +577,7 @@
                                     <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
                                 </div>
                                 <div class="summary-content">
-                                    <div class="markdown-content">${summaryHtml}</div>
+                                    <div class="markdown-content">${summaryWithCopyButtons}</div>
                                 </div>
                             </div>
                             <hr style="margin: 30px 0; border: 1px solid #ddd;">
@@ -393,6 +618,294 @@
                     `;
                 });
         }
+        
+        // Copy functionality for summary sections
+        function addCopyButtonsToSummary(summaryHtml) {
+            // Add copy buttons to h2 and h3 headings
+            let modifiedHtml = summaryHtml;
+            
+            // Add copy button to h2 headings
+            modifiedHtml = modifiedHtml.replace(
+                /<h2>([^<]+)<\/h2>/g, 
+                '<h2>$1<button class="copy-button" onclick="saveSectionToMemories(this)" title="Save to memories">📋</button></h2>'
+            );
+            
+            // Add copy button to h3 headings
+            modifiedHtml = modifiedHtml.replace(
+                /<h3>([^<]+)<\/h3>/g, 
+                '<h3>$1<button class="copy-button" onclick="saveSectionToMemories(this)" title="Save to memories">📋</button></h3>'
+            );
+            
+            return modifiedHtml;
+        }
+        
+        function saveSectionToMemories(button) {
+            // Find the section content to save
+            const heading = button.parentElement;
+            let contentToSave = heading.textContent.replace('📋', '').trim() + '\n\n';
+            
+            // Get all content until the next heading or end of content
+            let nextElement = heading.nextElementSibling;
+            while (nextElement && !['H2', 'H3'].includes(nextElement.tagName)) {
+                if (nextElement.tagName === 'P') {
+                    contentToSave += nextElement.textContent.trim() + '\n\n';
+                } else if (nextElement.tagName === 'UL') {
+                    // Convert HTML list items to markdown bullet points
+                    const listItems = nextElement.querySelectorAll('li');
+                    listItems.forEach(li => {
+                        contentToSave += '• ' + li.textContent.trim() + '\n';
+                    });
+                    contentToSave += '\n';
+                } else if (nextElement.tagName === 'OL') {
+                    // Convert HTML numbered list to markdown
+                    const listItems = nextElement.querySelectorAll('li');
+                    listItems.forEach((li, index) => {
+                        contentToSave += `${index + 1}. ` + li.textContent.trim() + '\n';
+                    });
+                    contentToSave += '\n';
+                }
+                nextElement = nextElement.nextElementSibling;
+            }
+            
+            // Save to memories via API
+            const memoryData = {
+                video_id: '{{ video_id }}',
+                selected_text: contentToSave.trim(),
+                source_type: 'summary',
+                note: null,
+                timestamp_seconds: null
+            };
+            
+            // Disable button and show loading
+            button.disabled = true;
+            const originalText = button.textContent;
+            button.textContent = '⏳';
+            
+            fetch('/api/memories', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(memoryData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success feedback
+                    button.textContent = '✓';
+                    button.classList.add('copied');
+                    
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.classList.remove('copied');
+                        button.disabled = false;
+                    }, 2000);
+                } else {
+                    // Check if it's a duplicate error
+                    if (data.error.includes('already exists')) {
+                        button.textContent = '⚠️';
+                        setTimeout(() => {
+                            button.textContent = originalText;
+                            button.disabled = false;
+                        }, 2000);
+                    } else {
+                        alert('Failed to save to memories: ' + data.error);
+                        button.textContent = originalText;
+                        button.disabled = false;
+                    }
+                }
+            })
+            .catch(error => {
+                alert('Error saving to memories: ' + error.message);
+                button.textContent = originalText;
+                button.disabled = false;
+            });
+        }
+        
+        // Memory management functions
+        function handleTextSelection() {
+            const selection = window.getSelection();
+            const text = selection.toString().trim();
+            
+            if (text.length > 0) {
+                selectedText = text;
+                
+                // Determine source type and timestamp
+                const range = selection.getRangeAt(0);
+                const container = range.commonAncestorContainer;
+                
+                // Check if selection is in summary
+                const summarySection = container.nodeType === Node.TEXT_NODE 
+                    ? container.parentElement.closest('.summary-content, .markdown-content')
+                    : container.closest('.summary-content, .markdown-content');
+                
+                if (summarySection) {
+                    selectedSource = 'summary';
+                    selectedTimestamp = null;
+                } else {
+                    // Check if selection is in transcript
+                    const transcriptEntry = container.nodeType === Node.TEXT_NODE 
+                        ? container.parentElement.closest('.transcript-entry')
+                        : container.closest('.transcript-entry');
+                    
+                    if (transcriptEntry) {
+                        selectedSource = 'transcript';
+                        selectedTimestamp = parseInt(transcriptEntry.getAttribute('data-time')) || null;
+                    } else {
+                        // Check if in formatted transcript
+                        const formattedTranscript = container.nodeType === Node.TEXT_NODE 
+                            ? container.parentElement.closest('.formatted-text')
+                            : container.closest('.formatted-text');
+                        
+                        if (formattedTranscript) {
+                            selectedSource = 'transcript';
+                            selectedTimestamp = null; // Could enhance this to find approximate timestamp
+                        }
+                    }
+                }
+                
+                // Show the add to memories button
+                showAddButton(selection);
+            } else {
+                hideAddButton();
+            }
+        }
+        
+        function showAddButton(selection) {
+            const addBtn = document.getElementById('memoryAddBtn');
+            const range = selection.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            
+            addBtn.style.display = 'block';
+            addBtn.style.left = (rect.left + rect.width / 2 - 75) + 'px'; // Center button on selection
+            addBtn.style.top = (rect.bottom + window.scrollY + 10) + 'px';
+        }
+        
+        function hideAddButton() {
+            const addBtn = document.getElementById('memoryAddBtn');
+            addBtn.style.display = 'none';
+        }
+        
+        function showMemoryPopup() {
+            if (!selectedText) return;
+            
+            document.getElementById('memorySelectedText').textContent = selectedText;
+            document.getElementById('memoryNote').value = '';
+            document.getElementById('memoryOverlay').style.display = 'block';
+            document.getElementById('memoryPopup').style.display = 'block';
+            
+            // Focus on note textarea
+            setTimeout(() => {
+                document.getElementById('memoryNote').focus();
+            }, 100);
+        }
+        
+        function closeMemoryPopup() {
+            document.getElementById('memoryOverlay').style.display = 'none';
+            document.getElementById('memoryPopup').style.display = 'none';
+            hideAddButton();
+            
+            // Clear selection
+            window.getSelection().removeAllRanges();
+        }
+        
+        function saveMemory() {
+            const saveBtn = document.getElementById('saveMemoryBtn');
+            const note = document.getElementById('memoryNote').value.trim();
+            
+            if (!selectedText) {
+                alert('No text selected');
+                return;
+            }
+            
+            // Disable save button
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+            
+            const memoryData = {
+                video_id: '{{ video_id }}',
+                selected_text: selectedText,
+                source_type: selectedSource || 'transcript',
+                note: note || null,
+                timestamp_seconds: selectedTimestamp
+            };
+            
+            fetch('/api/memories', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(memoryData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    saveBtn.textContent = 'Saved! ✓';
+                    saveBtn.style.background = '#4caf50';
+                    
+                    setTimeout(() => {
+                        closeMemoryPopup();
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = 'Save Memory';
+                        saveBtn.style.background = '#2196f3';
+                    }, 1500);
+                } else {
+                    // Check if it's a duplicate error
+                    if (data.error.includes('already exists')) {
+                        saveBtn.textContent = 'Already Saved ⚠️';
+                        saveBtn.style.background = '#ff9800';
+                        setTimeout(() => {
+                            closeMemoryPopup();
+                            saveBtn.disabled = false;
+                            saveBtn.textContent = 'Save Memory';
+                            saveBtn.style.background = '#2196f3';
+                        }, 2000);
+                    } else {
+                        alert('Failed to save memory: ' + data.error);
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = 'Save Memory';
+                    }
+                }
+            })
+            .catch(error => {
+                alert('Error saving memory: ' + error.message);
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save Memory';
+            });
+        }
+        
+        // Set up text selection listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add copy buttons to preloaded summary
+            const preloadedSummary = document.getElementById('preloaded-summary');
+            if (preloadedSummary) {
+                const summaryHtml = preloadedSummary.innerHTML;
+                const summaryWithCopyButtons = addCopyButtonsToSummary(summaryHtml);
+                preloadedSummary.innerHTML = summaryWithCopyButtons;
+            }
+            
+            // Listen for text selection on transcript and summary areas
+            document.addEventListener('mouseup', handleTextSelection);
+            document.addEventListener('keyup', handleTextSelection);
+            
+            // Hide add button when clicking elsewhere
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.memory-add-button') && !e.target.closest('.memory-popup')) {
+                    const selection = window.getSelection();
+                    if (selection.toString().trim() === '') {
+                        hideAddButton();
+                    }
+                }
+            });
+            
+            // Close popup with Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeMemoryPopup();
+                }
+            });
+        });
     </script>
     
 {% endblock %}

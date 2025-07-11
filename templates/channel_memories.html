@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+
+{% block title %}{{ channel_name }} - Memories - YouTube Deep Summary{% endblock %}
+
+{% block content %}
+    <style>
+        /* Channel memories page styling */
+        body {
+            background-color: #f8f9fa;
+        }
+        
+        .memories-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        }
+        
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #6b7280;
+            text-decoration: none;
+            font-size: 14px;
+            margin-bottom: 24px;
+            transition: color 0.15s ease;
+        }
+        
+        .back-link:hover {
+            color: #374151;
+        }
+        
+        .page-header {
+            margin-bottom: 40px;
+        }
+        
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        
+        .channel-title {
+            font-size: 28px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0;
+            line-height: 1.2;
+        }
+        
+        .stats-summary {
+            text-align: right;
+            font-size: 14px;
+            color: #6b7280;
+        }
+        
+        .stat-number {
+            font-size: 20px;
+            font-weight: 600;
+            color: #059669;
+            display: block;
+        }
+        
+        .divider {
+            height: 1px;
+            background-color: #e5e7eb;
+            margin: 40px 0;
+        }
+        
+        /* Video Groups */
+        .videos-list {
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+        
+        .video-group {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .video-header {
+            background: #f9fafb;
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .video-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0 0 8px 0;
+            line-height: 1.3;
+        }
+        
+        .video-title a {
+            color: inherit;
+            text-decoration: none;
+        }
+        
+        .video-title a:hover {
+            color: #2563eb;
+        }
+        
+        .video-meta {
+            font-size: 14px;
+            color: #6b7280;
+            line-height: 1.4;
+        }
+        
+        .memories-in-video {
+            padding: 0;
+        }
+        
+        .memory-item {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            border-bottom: 1px solid #f3f4f6;
+            transition: background-color 0.15s ease;
+        }
+        
+        .memory-item:last-child {
+            border-bottom: none;
+        }
+        
+        .memory-item:hover {
+            background-color: #f9fafb;
+        }
+        
+        .memory-text {
+            flex: 1;
+            font-size: 15px;
+            line-height: 1.5;
+            color: #374151;
+        }
+        
+        .memory-text .markdown-content {
+            font-style: normal;
+        }
+        
+        .memory-text .markdown-content ul {
+            margin: 8px 0;
+            padding-left: 20px;
+            list-style-type: disc;
+        }
+        
+        .memory-text .markdown-content li {
+            margin: 4px 0;
+            line-height: 1.6;
+            display: list-item;
+        }
+        
+        .memory-text .markdown-content p {
+            margin: 8px 0;
+        }
+        
+        .memory-text .markdown-content h2,
+        .memory-text .markdown-content h3 {
+            font-weight: 600;
+            margin: 12px 0 8px 0;
+            color: #1f2937;
+        }
+        
+        .delete-btn {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+        }
+        
+        .delete-btn:hover {
+            background: #b91c1c;
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+        }
+        
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        .empty-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0 0 8px 0;
+        }
+        
+        .empty-subtitle {
+            font-size: 16px;
+            color: #6b7280;
+            margin: 0 0 24px 0;
+            line-height: 1.5;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .memories-container {
+                padding: 20px 16px;
+            }
+            
+            .header-top {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+            
+            .stats-summary {
+                text-align: left;
+            }
+            
+            .video-header {
+                padding: 16px;
+            }
+            
+            .video-title {
+                font-size: 16px;
+            }
+            
+            .memory-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+                padding: 16px;
+            }
+            
+            .delete-btn {
+                align-self: flex-end;
+            }
+        }
+    </style>
+
+    <div class="memories-container">
+        <!-- Back Navigation -->
+        <a href="/memories" class="back-link">
+            ← Back to Memories by Channel
+        </a>
+
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="header-top">
+                <h1 class="channel-title">{{ channel_name }}</h1>
+                <div class="stats-summary">
+                    <span class="stat-number">{{ total_memories }}</span>
+                    <div>Total Memories</div>
+                    <div style="margin-top: 8px;">
+                        <span style="color: #2563eb; font-weight: 500;">{{ unique_videos }} videos</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Videos with Memories -->
+        {% if grouped_videos %}
+            <div class="videos-list">
+                {% for video_group in grouped_videos %}
+                <div class="video-group">
+                    <div class="video-header">
+                        <h3 class="video-title">
+                            <a href="/watch?v={{ video_group.video_info.video_id }}">
+                                {{ video_group.video_info.title or video_group.video_info.video_id }}
+                            </a>
+                        </h3>
+                        <div class="video-meta">
+                            👤 Channel: {{ video_group.video_info.uploader }}<br>
+                            🔗 <a href="https://www.youtube.com/watch?v={{ video_group.video_info.video_id }}" target="_blank" style="color: #2563eb; text-decoration: none;">Watch on YouTube</a>
+                        </div>
+                    </div>
+                    <div class="memories-in-video">
+                        {% for memory in video_group.memories %}
+                        <div class="memory-item">
+                            <div class="memory-text">
+                                <div class="markdown-content">{{ memory.selected_text | replace('• ', '* ') | markdown | safe }}</div>
+                            </div>
+                            <button onclick="deleteMemory('{{ memory.id }}')" class="delete-btn">Delete</button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <!-- Empty State -->
+            <div class="empty-state">
+                <div class="empty-icon">💭</div>
+                <h2 class="empty-title">No memories found</h2>
+                <p class="empty-subtitle">This channel doesn't have any saved memories yet.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        function deleteMemory(memoryId) {
+            if (confirm('Are you sure you want to delete this memory?')) {
+                fetch(`/api/memories/${memoryId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Failed to delete memory: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    alert('Error deleting memory: ' + error.message);
+                });
+            }
+        }
+    </script>
+{% endblock %}
