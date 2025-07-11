@@ -497,7 +497,8 @@ function regenerateChannelSummary(videoId, title) {
                     },
                     body: JSON.stringify({
                         video_id: videoId,
-                        formatted_transcript: data.formatted_transcript
+                        formatted_transcript: data.formatted_transcript,
+                        force_regenerate: true
                     })
                 });
             } else {
@@ -561,7 +562,8 @@ function regenerateCurrentSummary() {
                     },
                     body: JSON.stringify({
                         video_id: currentVideoId,
-                        formatted_transcript: data.formatted_transcript
+                        formatted_transcript: data.formatted_transcript,
+                        force_regenerate: true
                     })
                 });
             } else {

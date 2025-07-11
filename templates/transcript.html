@@ -252,7 +252,8 @@
                 },
                 body: JSON.stringify({
                     video_id: videoId,
-                    formatted_transcript: formattedTranscript
+                    formatted_transcript: formattedTranscript,
+                    force_regenerate: false
                 })
             })
                 .then(response => response.json())
@@ -338,7 +339,8 @@
                 },
                 body: JSON.stringify({
                     video_id: videoId,
-                    formatted_transcript: formattedTranscript
+                    formatted_transcript: formattedTranscript,
+                    force_regenerate: true
                 })
             })
                 .then(response => response.json())

@@ -319,6 +319,7 @@ def api_summary_with_data():
         
         video_id = data.get('video_id')
         formatted_transcript = data.get('formatted_transcript')
+        force_regenerate = data.get('force_regenerate', False)
         
         if not video_id or not formatted_transcript:
             return jsonify({
@@ -326,16 +327,19 @@ def api_summary_with_data():
                 'error': 'video_id and formatted_transcript are required'
             }), 400
         
-        # First check if summary already exists in database
-        existing_summary = database_storage.get_summary(video_id)
-        if existing_summary:
-            print(f"Using existing summary for video {video_id}")
-            return jsonify({
-                'success': True,
-                'video_id': video_id,
-                'summary': existing_summary,
-                'from_cache': True
-            })
+        # First check if summary already exists in database (unless force regeneration)
+        if not force_regenerate:
+            existing_summary = database_storage.get_summary(video_id)
+            if existing_summary:
+                print(f"Using existing summary for video {video_id}")
+                return jsonify({
+                    'success': True,
+                    'video_id': video_id,
+                    'summary': existing_summary,
+                    'from_cache': True
+                })
+        else:
+            print(f"Force regenerating summary for video {video_id}")
         
         # Get video info and chapters from database to include in summary
         cached_data = database_storage.get(video_id)
