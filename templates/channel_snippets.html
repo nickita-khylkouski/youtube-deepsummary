@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}{{ channel_name }} Snippets - YouTube Deep Summary{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 20px;">
+    <h2 style="color: #333; margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
+        <span>💾</span>
+        <span>{{ channel_name }}</span>
+        <span style="color: #666; font-size: 14px; font-weight: normal;">Snippets</span>
+    </h2>
+    <p style="color: #666; margin: 0;">
+        {{ total_snippets }} snippet{{ 's' if total_snippets != 1 else '' }} saved from {{ videos_snippets|length }} video{{ 's' if videos_snippets|length != 1 else '' }}
+    </p>
+</div>
+
+<div style="margin-bottom: 20px;">
+    <a href="/snippets" style="color: #2196f3; text-decoration: none; font-size: 14px; font-weight: 500;">
+        ← Back to All Snippets
+    </a>
+</div>
+
+{% if videos_snippets %}
+{% for video in videos_snippets %}
+<div style="background: white; border: 1px solid #e0e0e0; border-radius: 12px; margin-bottom: 20px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <!-- Video Header -->
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 20px;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <img src="{{ video.video_thumbnail }}" 
+                 alt="Video thumbnail" 
+                 style="width: 60px; height: 45px; border-radius: 4px; object-fit: cover;">
+            <div style="flex: 1;">
+                <h3 style="margin: 0 0 4px 0; font-size: 16px; font-weight: 600; line-height: 1.3;">
+                    {{ video.video_title }}
+                </h3>
+                <div style="font-size: 12px; opacity: 0.8;">
+                    {{ video.snippets|length }} snippet{{ 's' if video.snippets|length != 1 else '' }}
+                    {% if video.video_duration %}
+                    • {{ (video.video_duration // 60) }}:{{ '%02d' % (video.video_duration % 60) }}
+                    {% endif %}
+                </div>
+            </div>
+            <a href="/watch?v={{ video.video_id }}" 
+               style="color: white; text-decoration: none; padding: 6px 12px; background: rgba(255,255,255,0.2); border-radius: 4px; font-size: 12px; font-weight: 500; transition: background 0.3s;">
+                View Video
+            </a>
+        </div>
+    </div>
+    
+    <!-- Snippets List -->
+    <div style="padding: 0;">
+        {% for snippet in video.snippets %}
+        <div class="snippet-card" style="border-bottom: 1px solid #f0f0f0; padding: 20px; position: relative;" data-snippet-id="{{ snippet.id }}">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                <div style="flex: 1;">
+                    <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
+                        Saved on {{ snippet.created_at[:10] }}
+                    </div>
+                    <div class="snippet-text" style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #2196f3; margin-bottom: 12px; line-height: 1.6;">
+                        {{ snippet.snippet_text }}
+                    </div>
+                    
+                    {% if snippet.context_before or snippet.context_after %}
+                    <details style="margin-bottom: 12px;">
+                        <summary style="cursor: pointer; color: #2196f3; font-size: 12px; font-weight: 500; margin-bottom: 8px;">
+                            Show Context
+                        </summary>
+                        <div style="background: #f1f3f4; padding: 10px; border-radius: 4px; font-size: 13px; color: #666;">
+                            {% if snippet.context_before %}
+                            <div style="margin-bottom: 8px;">
+                                <strong>Before:</strong> ...{{ snippet.context_before }}...
+                            </div>
+                            {% endif %}
+                            {% if snippet.context_after %}
+                            <div>
+                                <strong>After:</strong> ...{{ snippet.context_after }}...
+                            </div>
+                            {% endif %}
+                        </div>
+                    </details>
+                    {% endif %}
+                    
+                    <!-- Tags -->
+                    <div class="snippet-tags" style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <span style="font-size: 12px; color: #666; font-weight: 500;">Tags:</span>
+                        <div class="tags-container" style="display: flex; gap: 4px; flex-wrap: wrap;">
+                            {% for tag in snippet.tags %}
+                            <span class="tag" style="background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 12px; font-size: 11px; font-weight: 500;">
+                                {{ tag }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                        <button class="edit-tags-btn" onclick="editTags('{{ snippet.id }}')" 
+                                style="background: none; border: none; color: #2196f3; cursor: pointer; font-size: 12px; padding: 2px 4px; border-radius: 3px; transition: background 0.3s;">
+                            ✏️ Edit
+                        </button>
+                    </div>
+                </div>
+                
+                <div style="margin-left: 15px;">
+                    <button class="delete-snippet-btn" onclick="deleteSnippet('{{ snippet.id }}')" 
+                            style="background: #ff4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; transition: background 0.3s;">
+                        🗑️ Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endfor %}
+
+{% else %}
+<div style="text-align: center; padding: 60px 20px; color: #666;">
+    <div style="font-size: 48px; margin-bottom: 20px; opacity: 0.3;">💾</div>
+    <h3 style="margin: 0 0 10px 0; font-size: 18px; color: #555;">No snippets found</h3>
+    <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.6;">
+        No snippets have been saved from this channel yet.<br>
+        Visit a video page and select text to save your first snippet.
+    </p>
+    <a href="/channel/{{ channel_name | urlencode }}/videos" 
+       style="display: inline-block; background: #2196f3; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; transition: background 0.3s;">
+        Browse {{ channel_name }} Videos
+    </a>
+</div>
+{% endif %}
+
+<!-- Toast notification -->
+<div id="toast" style="position: fixed; top: 20px; right: 20px; background: #4caf50; color: white; padding: 12px 20px; border-radius: 6px; font-size: 14px; font-weight: 500; transform: translateX(100%); transition: transform 0.3s; z-index: 1000;">
+    <span id="toast-message"></span>
+</div>
+
+<!-- Edit tags modal -->
+<div id="edit-tags-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1001; justify-content: center; align-items: center;">
+    <div style="background: white; padding: 20px; border-radius: 8px; max-width: 400px; width: 90%;">
+        <h3 style="margin: 0 0 15px 0; color: #333;">Edit Tags</h3>
+        <input type="text" id="tags-input" placeholder="Enter tags separated by commas" 
+               style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 15px; font-size: 14px;">
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button onclick="closeEditTagsModal()" 
+                    style="background: #f5f5f5; color: #666; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                Cancel
+            </button>
+            <button onclick="saveTags()" 
+                    style="background: #2196f3; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                Save
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentEditingSnippetId = null;
+
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    const toastMessage = document.getElementById('toast-message');
+    
+    toastMessage.textContent = message;
+    toast.style.background = type === 'success' ? '#4caf50' : '#ff4444';
+    toast.style.transform = 'translateX(0)';
+    
+    setTimeout(() => {
+        toast.style.transform = 'translateX(100%)';
+    }, 3000);
+}
+
+function editTags(snippetId) {
+    currentEditingSnippetId = snippetId;
+    const snippetCard = document.querySelector(`[data-snippet-id="${snippetId}"]`);
+    const tagElements = snippetCard.querySelectorAll('.tag');
+    const currentTags = Array.from(tagElements).map(tag => tag.textContent.trim());
+    
+    const tagsInput = document.getElementById('tags-input');
+    tagsInput.value = currentTags.join(', ');
+    
+    const modal = document.getElementById('edit-tags-modal');
+    modal.style.display = 'flex';
+}
+
+function closeEditTagsModal() {
+    const modal = document.getElementById('edit-tags-modal');
+    modal.style.display = 'none';
+    currentEditingSnippetId = null;
+}
+
+async function saveTags() {
+    if (!currentEditingSnippetId) return;
+    
+    const tagsInput = document.getElementById('tags-input');
+    const tagsText = tagsInput.value.trim();
+    const tags = tagsText ? tagsText.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : [];
+    
+    try {
+        const response = await fetch(`/api/snippets/${currentEditingSnippetId}/tags`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ tags: tags })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Update the tags in the UI
+            const snippetCard = document.querySelector(`[data-snippet-id="${currentEditingSnippetId}"]`);
+            const tagsContainer = snippetCard.querySelector('.tags-container');
+            
+            tagsContainer.innerHTML = '';
+            tags.forEach(tag => {
+                const tagElement = document.createElement('span');
+                tagElement.className = 'tag';
+                tagElement.style.cssText = 'background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 12px; font-size: 11px; font-weight: 500;';
+                tagElement.textContent = tag;
+                tagsContainer.appendChild(tagElement);
+            });
+            
+            closeEditTagsModal();
+            showToast('Tags updated successfully');
+        } else {
+            showToast(result.message || 'Failed to update tags', 'error');
+        }
+    } catch (error) {
+        console.error('Error updating tags:', error);
+        showToast('Error updating tags', 'error');
+    }
+}
+
+async function deleteSnippet(snippetId) {
+    if (!confirm('Are you sure you want to delete this snippet?')) return;
+    
+    try {
+        const response = await fetch(`/api/snippets/${snippetId}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Remove the snippet from the UI
+            const snippetCard = document.querySelector(`[data-snippet-id="${snippetId}"]`);
+            if (snippetCard) {
+                snippetCard.remove();
+                showToast('Snippet deleted successfully');
+                
+                // Check if this was the last snippet in the video
+                const videoContainer = snippetCard.closest('.video-container');
+                if (videoContainer && videoContainer.querySelectorAll('.snippet-card').length === 0) {
+                    // Reload the page to update counts
+                    location.reload();
+                }
+            }
+        } else {
+            showToast(result.message || 'Failed to delete snippet', 'error');
+        }
+    } catch (error) {
+        console.error('Error deleting snippet:', error);
+        showToast('Error deleting snippet', 'error');
+    }
+}
+
+// Close modal when clicking outside
+document.getElementById('edit-tags-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeEditTagsModal();
+    }
+});
+
+// Handle Enter key in tags input
+document.getElementById('tags-input').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        saveTags();
+    }
+});
+</script>
+{% endblock %}

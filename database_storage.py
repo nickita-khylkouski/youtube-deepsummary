@@ -424,6 +424,211 @@ class DatabaseStorage:
             print(f"Error getting all channels: {e}")
             return []
 
+    # Snippet-related methods
+    def save_snippet(self, video_id: str, snippet_text: str, context_before: Optional[str] = None, context_after: Optional[str] = None, tags: Optional[List[str]] = None) -> Dict:
+        """Save a snippet to the database"""
+        try:
+            # Validate input
+            if not video_id or not snippet_text:
+                return {'success': False, 'message': 'video_id and snippet_text are required'}
+            
+            # Check if video exists
+            video_response = self.supabase.table('youtube_videos').select('video_id').eq('video_id', video_id).execute()
+            if not video_response.data:
+                return {'success': False, 'message': 'Video not found'}
+            
+            # Prepare snippet data
+            snippet_data = {
+                'video_id': video_id,
+                'snippet_text': snippet_text.strip(),
+                'context_before': context_before.strip() if context_before else None,
+                'context_after': context_after.strip() if context_after else None,
+                'tags': tags or [],
+                'created_at': datetime.now(timezone.utc).isoformat(),
+                'updated_at': datetime.now(timezone.utc).isoformat()
+            }
+            
+            # Save snippet
+            response = self.supabase.table('snippets').insert(snippet_data).execute()
+            
+            if response.data:
+                snippet_id = response.data[0]['id']
+                print(f"Snippet saved successfully for video {video_id}, ID: {snippet_id}")
+                return {'success': True, 'message': 'Snippet saved successfully', 'snippet_id': snippet_id}
+            else:
+                return {'success': False, 'message': 'Failed to save snippet'}
+        
+        except Exception as e:
+            print(f"Error saving snippet: {e}")
+            return {'success': False, 'message': f'Error saving snippet: {str(e)}'}
+
+    def get_snippets(self, video_id: Optional[str] = None, limit: int = 100) -> Dict:
+        """Get snippets from the database"""
+        try:
+            query = self.supabase.table('snippets').select(
+                'id, video_id, snippet_text, context_before, context_after, tags, created_at, updated_at, '
+                'youtube_videos(title, uploader, duration, thumbnail_url)'
+            ).order('created_at', desc=True).limit(limit)
+            
+            if video_id:
+                query = query.eq('video_id', video_id)
+            
+            response = query.execute()
+            
+            if response.data:
+                snippets = []
+                for snippet in response.data:
+                    # Add video metadata
+                    video_data = snippet.get('youtube_videos', {})
+                    snippet_data = {
+                        'id': snippet['id'],
+                        'video_id': snippet['video_id'],
+                        'snippet_text': snippet['snippet_text'],
+                        'context_before': snippet.get('context_before'),
+                        'context_after': snippet.get('context_after'),
+                        'tags': snippet.get('tags', []),
+                        'created_at': snippet['created_at'],
+                        'updated_at': snippet['updated_at'],
+                        'video_title': video_data.get('title'),
+                        'video_uploader': video_data.get('uploader'),
+                        'video_duration': video_data.get('duration'),
+                        'video_thumbnail': video_data.get('thumbnail_url')
+                    }
+                    snippets.append(snippet_data)
+                
+                return {'success': True, 'snippets': snippets}
+            else:
+                return {'success': True, 'snippets': []}
+        
+        except Exception as e:
+            print(f"Error getting snippets: {e}")
+            return {'success': False, 'message': f'Error getting snippets: {str(e)}'}
+
+    def delete_snippet(self, snippet_id: str) -> Dict:
+        """Delete a snippet from the database"""
+        try:
+            response = self.supabase.table('snippets').delete().eq('id', snippet_id).execute()
+            
+            if response.data:
+                print(f"Snippet deleted successfully: {snippet_id}")
+                return {'success': True, 'message': 'Snippet deleted successfully'}
+            else:
+                return {'success': False, 'message': 'Snippet not found'}
+        
+        except Exception as e:
+            print(f"Error deleting snippet: {e}")
+            return {'success': False, 'message': f'Error deleting snippet: {str(e)}'}
+
+    def update_snippet_tags(self, snippet_id: str, tags: List[str]) -> Dict:
+        """Update tags for a snippet"""
+        try:
+            # Validate tags
+            if not isinstance(tags, list):
+                return {'success': False, 'message': 'Tags must be a list'}
+            
+            # Clean and validate tags
+            clean_tags = []
+            for tag in tags:
+                if isinstance(tag, str) and tag.strip():
+                    clean_tag = tag.strip()[:50]  # Limit tag length
+                    if not any(char in clean_tag for char in ['<', '>', '&', '"', "'"]):
+                        clean_tags.append(clean_tag)
+            
+            update_data = {
+                'tags': clean_tags,
+                'updated_at': datetime.now(timezone.utc).isoformat()
+            }
+            
+            response = self.supabase.table('snippets').update(update_data).eq('id', snippet_id).execute()
+            
+            if response.data:
+                print(f"Snippet tags updated successfully: {snippet_id}")
+                return {'success': True, 'message': 'Tags updated successfully'}
+            else:
+                return {'success': False, 'message': 'Snippet not found'}
+        
+        except Exception as e:
+            print(f"Error updating snippet tags: {e}")
+            return {'success': False, 'message': f'Error updating snippet tags: {str(e)}'}
+
+    def get_snippets_by_channel(self, channel_name: str) -> List[Dict]:
+        """Get all snippets from a specific channel"""
+        try:
+            response = self.supabase.table('snippets').select(
+                'id, video_id, snippet_text, context_before, context_after, tags, created_at, updated_at, '
+                'youtube_videos(title, uploader, duration, thumbnail_url)'
+            ).eq('youtube_videos.uploader', channel_name).order('created_at', desc=True).execute()
+            
+            if response.data:
+                snippets = []
+                for snippet in response.data:
+                    video_data = snippet.get('youtube_videos', {})
+                    snippet_data = {
+                        'id': snippet['id'],
+                        'video_id': snippet['video_id'],
+                        'snippet_text': snippet['snippet_text'],
+                        'context_before': snippet.get('context_before'),
+                        'context_after': snippet.get('context_after'),
+                        'tags': snippet.get('tags', []),
+                        'created_at': snippet['created_at'],
+                        'updated_at': snippet['updated_at'],
+                        'video_title': video_data.get('title'),
+                        'video_uploader': video_data.get('uploader'),
+                        'video_duration': video_data.get('duration'),
+                        'video_thumbnail': video_data.get('thumbnail_url')
+                    }
+                    snippets.append(snippet_data)
+                
+                return snippets
+            else:
+                return []
+        
+        except Exception as e:
+            print(f"Error getting snippets by channel: {e}")
+            return []
+
+    def get_channels_with_snippets(self) -> List[Dict]:
+        """Get all channels with snippet counts"""
+        try:
+            # Get all channels that have snippets
+            response = self.supabase.table('snippets').select(
+                'video_id, youtube_videos(uploader, title)'
+            ).execute()
+            
+            if not response.data:
+                return []
+            
+            # Count snippets by channel
+            channel_counts = {}
+            channel_videos = {}
+            
+            for snippet in response.data:
+                video_data = snippet.get('youtube_videos', {})
+                uploader = video_data.get('uploader')
+                
+                if uploader and uploader.strip():
+                    channel_counts[uploader] = channel_counts.get(uploader, 0) + 1
+                    
+                    # Track unique videos per channel
+                    if uploader not in channel_videos:
+                        channel_videos[uploader] = set()
+                    channel_videos[uploader].add(snippet['video_id'])
+            
+            # Build result
+            channels = []
+            for channel_name, snippet_count in channel_counts.items():
+                channels.append({
+                    'name': channel_name,
+                    'snippet_count': snippet_count,
+                    'videos_with_snippets': len(channel_videos.get(channel_name, set()))
+                })
+            
+            return sorted(channels, key=lambda x: x['snippet_count'], reverse=True)
+        
+        except Exception as e:
+            print(f"Error getting channels with snippets: {e}")
+            return []
+
 
 # Global database storage instance
 database_storage = DatabaseStorage()

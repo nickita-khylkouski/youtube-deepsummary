@@ -509,6 +509,149 @@ def channel_summaries(channel_name):
         return render_template('error.html', 
                              error_message=f"Error loading channel summaries: {str(e)}"), 500
 
+# Snippet page routes
+@app.route('/snippets')
+def snippets_page():
+    """Display all channels with snippet counts"""
+    try:
+        channels = database_storage.get_channels_with_snippets()
+        return render_template('snippets.html', channels=channels)
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading snippets: {str(e)}"), 500
+
+@app.route('/snippets/channel/<channel_name>')
+def channel_snippets(channel_name):
+    """Display all snippets from a specific channel"""
+    try:
+        snippets = database_storage.get_snippets_by_channel(channel_name)
+        
+        if not snippets:
+            return render_template('error.html', 
+                                 error_message=f"No snippets found for channel: {channel_name}"), 404
+        
+        # Group snippets by video
+        videos_snippets = {}
+        for snippet in snippets:
+            video_id = snippet['video_id']
+            if video_id not in videos_snippets:
+                videos_snippets[video_id] = {
+                    'video_id': video_id,
+                    'video_title': snippet['video_title'],
+                    'video_uploader': snippet['video_uploader'],
+                    'video_duration': snippet['video_duration'],
+                    'video_thumbnail': snippet['video_thumbnail'],
+                    'snippets': []
+                }
+            videos_snippets[video_id]['snippets'].append(snippet)
+        
+        # Sort videos by latest snippet
+        sorted_videos = sorted(videos_snippets.values(), 
+                             key=lambda v: max(s['created_at'] for s in v['snippets']), 
+                             reverse=True)
+        
+        return render_template('channel_snippets.html', 
+                             channel_name=channel_name,
+                             videos_snippets=sorted_videos,
+                             total_snippets=len(snippets))
+        
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading channel snippets: {str(e)}"), 500
+
+# Snippet API endpoints
+@app.route('/api/snippets', methods=['POST'])
+def api_create_snippet():
+    """Create a new snippet"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'No JSON data provided'}), 400
+        
+        video_id = data.get('video_id')
+        snippet_text = data.get('snippet_text')
+        context_before = data.get('context_before')
+        context_after = data.get('context_after')
+        tags = data.get('tags', [])
+        
+        if not video_id or not snippet_text:
+            return jsonify({'success': False, 'message': 'video_id and snippet_text are required'}), 400
+        
+        # Validate snippet text length
+        if len(snippet_text.strip()) < 10:
+            return jsonify({'success': False, 'message': 'Snippet text must be at least 10 characters long'}), 400
+        
+        if len(snippet_text) > 5000:
+            return jsonify({'success': False, 'message': 'Snippet text must be less than 5000 characters'}), 400
+        
+        result = database_storage.save_snippet(video_id, snippet_text, context_before, context_after, tags)
+        
+        if result['success']:
+            return jsonify(result), 201
+        else:
+            return jsonify(result), 400
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
+
+@app.route('/api/snippets')
+def api_get_snippets():
+    """Get snippets"""
+    try:
+        video_id = request.args.get('video_id')
+        limit = request.args.get('limit', 100, type=int)
+        
+        # Validate limit
+        if limit > 500:
+            limit = 500
+        
+        result = database_storage.get_snippets(video_id, limit)
+        
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
+
+@app.route('/api/snippets/<snippet_id>', methods=['DELETE'])
+def api_delete_snippet(snippet_id):
+    """Delete a snippet"""
+    try:
+        result = database_storage.delete_snippet(snippet_id)
+        
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify(result), 404
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
+
+@app.route('/api/snippets/<snippet_id>/tags', methods=['PUT'])
+def api_update_snippet_tags(snippet_id):
+    """Update snippet tags"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'No JSON data provided'}), 400
+        
+        tags = data.get('tags', [])
+        
+        if not isinstance(tags, list):
+            return jsonify({'success': False, 'message': 'Tags must be a list'}), 400
+        
+        result = database_storage.update_snippet_tags(snippet_id, tags)
+        
+        if result['success']:
+            return jsonify(result)
+        else:
+            return jsonify(result), 404
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
+
 @app.route('/favicon.ico')
 def favicon():
     """Serve favicon from static directory"""
