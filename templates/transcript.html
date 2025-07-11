@@ -69,7 +69,7 @@
                     {% endif %}
                 </div>
                 <div class="summary-content">
-                    <div class="markdown-content">{{ summary|safe }}</div>
+                    <div class="markdown-content" id="preloaded-summary">{{ summary|safe }}</div>
                 </div>
             </div>
             <hr style="margin: 30px 0; border: 1px solid #ddd;">
@@ -275,6 +275,28 @@
             box-shadow: none;
         }
         
+        /* Copy button for summary sections */
+        .copy-button {
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            color: #6b7280;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            margin-left: 8px;
+        }
+        
+        .copy-button:hover {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+        .copy-button.copied {
+            color: #059669;
+        }
+        
         /* Text selection highlight */
         .memory-selection-highlight {
             background: rgba(33, 150, 243, 0.2);
@@ -464,6 +486,7 @@
                         
                         // Show summary section
                         summarySection.style.display = 'block';
+                        const summaryWithCopyButtons = addCopyButtonsToSummary(summaryHtml);
                         summarySection.innerHTML = `
                             <div class="summary-section">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
@@ -471,7 +494,7 @@
                                     <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
                                 </div>
                                 <div class="summary-content">
-                                    <div class="markdown-content">${summaryHtml}</div>
+                                    <div class="markdown-content">${summaryWithCopyButtons}</div>
                                 </div>
                             </div>
                             <hr style="margin: 30px 0; border: 1px solid #ddd;">
@@ -546,6 +569,7 @@
                         const summaryHtml = convertMarkdownToHtml(data.summary);
                         
                         // Update summary section with new content
+                        const summaryWithCopyButtons = addCopyButtonsToSummary(summaryHtml);
                         summarySection.innerHTML = `
                             <div class="summary-section">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
@@ -553,7 +577,7 @@
                                     <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
                                 </div>
                                 <div class="summary-content">
-                                    <div class="markdown-content">${summaryHtml}</div>
+                                    <div class="markdown-content">${summaryWithCopyButtons}</div>
                                 </div>
                             </div>
                             <hr style="margin: 30px 0; border: 1px solid #ddd;">
@@ -593,6 +617,86 @@
                         <hr style="margin: 30px 0; border: 1px solid #ddd;">
                     `;
                 });
+        }
+        
+        // Copy functionality for summary sections
+        function addCopyButtonsToSummary(summaryHtml) {
+            // Add copy buttons to h2 and h3 headings
+            let modifiedHtml = summaryHtml;
+            
+            // Add copy button to h2 headings
+            modifiedHtml = modifiedHtml.replace(
+                /<h2>([^<]+)<\/h2>/g, 
+                '<h2>$1<button class="copy-button" onclick="saveSectionToMemories(this)" title="Save to memories">📋</button></h2>'
+            );
+            
+            // Add copy button to h3 headings
+            modifiedHtml = modifiedHtml.replace(
+                /<h3>([^<]+)<\/h3>/g, 
+                '<h3>$1<button class="copy-button" onclick="saveSectionToMemories(this)" title="Save to memories">📋</button></h3>'
+            );
+            
+            return modifiedHtml;
+        }
+        
+        function saveSectionToMemories(button) {
+            // Find the section content to save
+            const heading = button.parentElement;
+            let contentToSave = heading.textContent.replace('📋', '').trim() + '\n\n';
+            
+            // Get all content until the next heading or end of content
+            let nextElement = heading.nextElementSibling;
+            while (nextElement && !['H2', 'H3'].includes(nextElement.tagName)) {
+                if (nextElement.tagName === 'P' || nextElement.tagName === 'UL' || nextElement.tagName === 'OL') {
+                    contentToSave += nextElement.textContent.trim() + '\n\n';
+                }
+                nextElement = nextElement.nextElementSibling;
+            }
+            
+            // Save to memories via API
+            const memoryData = {
+                video_id: '{{ video_id }}',
+                selected_text: contentToSave.trim(),
+                source_type: 'summary',
+                note: null,
+                timestamp_seconds: null
+            };
+            
+            // Disable button and show loading
+            button.disabled = true;
+            const originalText = button.textContent;
+            button.textContent = '⏳';
+            
+            fetch('/api/memories', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(memoryData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success feedback
+                    button.textContent = '✓';
+                    button.classList.add('copied');
+                    
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.classList.remove('copied');
+                        button.disabled = false;
+                    }, 2000);
+                } else {
+                    alert('Failed to save to memories: ' + data.error);
+                    button.textContent = originalText;
+                    button.disabled = false;
+                }
+            })
+            .catch(error => {
+                alert('Error saving to memories: ' + error.message);
+                button.textContent = originalText;
+                button.disabled = false;
+            });
         }
         
         // Memory management functions
@@ -738,6 +842,14 @@
         
         // Set up text selection listeners
         document.addEventListener('DOMContentLoaded', function() {
+            // Add copy buttons to preloaded summary
+            const preloadedSummary = document.getElementById('preloaded-summary');
+            if (preloadedSummary) {
+                const summaryHtml = preloadedSummary.innerHTML;
+                const summaryWithCopyButtons = addCopyButtonsToSummary(summaryHtml);
+                preloadedSummary.innerHTML = summaryWithCopyButtons;
+            }
+            
             // Listen for text selection on transcript and summary areas
             document.addEventListener('mouseup', handleTextSelection);
             document.addEventListener('keyup', handleTextSelection);
