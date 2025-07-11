@@ -441,6 +441,17 @@ class DatabaseStorage:
             bool: True if successful
         """
         try:
+            # Check for duplicate memories (same video_id and selected_text)
+            existing_check = self.supabase.table('memories')\
+                .select('id')\
+                .eq('video_id', video_id)\
+                .eq('selected_text', selected_text)\
+                .execute()
+            
+            if existing_check.data and len(existing_check.data) > 0:
+                print(f"Duplicate memory detected for video {video_id}, skipping save")
+                return False
+            
             memory_data = {
                 'video_id': video_id,
                 'selected_text': selected_text,

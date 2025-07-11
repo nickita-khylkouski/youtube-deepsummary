@@ -24,6 +24,41 @@ load_dotenv()
 
 app = Flask(__name__)
 
+# Add custom markdown filter for templates
+@app.template_filter('markdown')
+def markdown_filter(text):
+    """Convert markdown text to HTML"""
+    if MARKDOWN_AVAILABLE:
+        # Pre-process bullet points to proper markdown lists
+        processed_text = text.replace('• ', '* ')
+        return markdown.markdown(processed_text, extensions=['nl2br', 'tables'])
+    else:
+        # Fallback: convert bullet points to HTML list
+        lines = text.split('\n')
+        html_lines = []
+        in_list = False
+        
+        for line in lines:
+            line = line.strip()
+            if line.startswith('• '):
+                if not in_list:
+                    html_lines.append('<ul>')
+                    in_list = True
+                html_lines.append(f'<li>{line[2:]}</li>')
+            else:
+                if in_list:
+                    html_lines.append('</ul>')
+                    in_list = False
+                if line:
+                    html_lines.append(f'<p>{line}</p>')
+                else:
+                    html_lines.append('<br>')
+        
+        if in_list:
+            html_lines.append('</ul>')
+        
+        return ''.join(html_lines)
+
 # Initialize summarizer with error handling
 try:
     summarizer = TranscriptSummarizer()
@@ -614,8 +649,8 @@ def api_save_memory():
         else:
             return jsonify({
                 'success': False,
-                'error': 'Failed to save memory'
-            }), 500
+                'error': 'Memory already exists or failed to save'
+            }), 400
         
     except Exception as e:
         return jsonify({

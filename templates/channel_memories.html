@@ -139,7 +139,33 @@
             font-size: 15px;
             line-height: 1.5;
             color: #374151;
-            font-style: italic;
+        }
+        
+        .memory-text .markdown-content {
+            font-style: normal;
+        }
+        
+        .memory-text .markdown-content ul {
+            margin: 8px 0;
+            padding-left: 20px;
+            list-style-type: disc;
+        }
+        
+        .memory-text .markdown-content li {
+            margin: 4px 0;
+            line-height: 1.6;
+            display: list-item;
+        }
+        
+        .memory-text .markdown-content p {
+            margin: 8px 0;
+        }
+        
+        .memory-text .markdown-content h2,
+        .memory-text .markdown-content h3 {
+            font-weight: 600;
+            margin: 12px 0 8px 0;
+            color: #1f2937;
         }
         
         .delete-btn {
@@ -267,7 +293,7 @@
                         {% for memory in video_group.memories %}
                         <div class="memory-item">
                             <div class="memory-text">
-                                "{{ memory.selected_text }}"
+                                <div class="markdown-content">{{ memory.selected_text | replace('• ', '* ') | markdown | safe }}</div>
                             </div>
                             <button onclick="deleteMemory('{{ memory.id }}')" class="delete-btn">Delete</button>
                         </div>

@@ -647,8 +647,22 @@
             // Get all content until the next heading or end of content
             let nextElement = heading.nextElementSibling;
             while (nextElement && !['H2', 'H3'].includes(nextElement.tagName)) {
-                if (nextElement.tagName === 'P' || nextElement.tagName === 'UL' || nextElement.tagName === 'OL') {
+                if (nextElement.tagName === 'P') {
                     contentToSave += nextElement.textContent.trim() + '\n\n';
+                } else if (nextElement.tagName === 'UL') {
+                    // Convert HTML list items to markdown bullet points
+                    const listItems = nextElement.querySelectorAll('li');
+                    listItems.forEach(li => {
+                        contentToSave += '• ' + li.textContent.trim() + '\n';
+                    });
+                    contentToSave += '\n';
+                } else if (nextElement.tagName === 'OL') {
+                    // Convert HTML numbered list to markdown
+                    const listItems = nextElement.querySelectorAll('li');
+                    listItems.forEach((li, index) => {
+                        contentToSave += `${index + 1}. ` + li.textContent.trim() + '\n';
+                    });
+                    contentToSave += '\n';
                 }
                 nextElement = nextElement.nextElementSibling;
             }
@@ -687,9 +701,18 @@
                         button.disabled = false;
                     }, 2000);
                 } else {
-                    alert('Failed to save to memories: ' + data.error);
-                    button.textContent = originalText;
-                    button.disabled = false;
+                    // Check if it's a duplicate error
+                    if (data.error.includes('already exists')) {
+                        button.textContent = '⚠️';
+                        setTimeout(() => {
+                            button.textContent = originalText;
+                            button.disabled = false;
+                        }, 2000);
+                    } else {
+                        alert('Failed to save to memories: ' + data.error);
+                        button.textContent = originalText;
+                        button.disabled = false;
+                    }
                 }
             })
             .catch(error => {
@@ -828,9 +851,21 @@
                         saveBtn.style.background = '#2196f3';
                     }, 1500);
                 } else {
-                    alert('Failed to save memory: ' + data.error);
-                    saveBtn.disabled = false;
-                    saveBtn.textContent = 'Save Memory';
+                    // Check if it's a duplicate error
+                    if (data.error.includes('already exists')) {
+                        saveBtn.textContent = 'Already Saved ⚠️';
+                        saveBtn.style.background = '#ff9800';
+                        setTimeout(() => {
+                            closeMemoryPopup();
+                            saveBtn.disabled = false;
+                            saveBtn.textContent = 'Save Memory';
+                            saveBtn.style.background = '#2196f3';
+                        }, 2000);
+                    } else {
+                        alert('Failed to save memory: ' + data.error);
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = 'Save Memory';
+                    }
                 }
             })
             .catch(error => {
