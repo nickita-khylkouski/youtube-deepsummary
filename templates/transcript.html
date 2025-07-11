@@ -280,6 +280,9 @@
                         btn.textContent = '🤖 Regenerate AI Summary';
                         btn.disabled = false;
                         btn.style.background = '#2196f3';
+                        
+                        // Re-add H2 quick save buttons after summary is loaded
+                        setTimeout(addH2QuickSaveButtons, 100);
                     } else {
                         // Show error
                         summarySection.style.display = 'block';
@@ -365,6 +368,9 @@
                             mainBtn.disabled = false;
                             mainBtn.style.background = '#2196f3';
                         }
+                        
+                        // Re-add H2 quick save buttons after summary is regenerated
+                        setTimeout(addH2QuickSaveButtons, 100);
                     } else {
                         // Show error but keep the regenerate button
                         summarySection.innerHTML = `
@@ -508,26 +514,42 @@
             const range = selection.getRangeAt(0);
             const selectedText = selection.toString().trim();
             
+            // Check minimum text length
+            
+            if (selectedText.length < 10) {
+                hideSnippetSaveButton();
+                return;
+            }
+            
             // Check if selection is within transcript or summary content
             const transcriptContainer = document.querySelector('.transcript-container');
             const summaryContent = document.querySelector('.summary-content');
+            const markdownContent = document.querySelector('.markdown-content');
             
             let isValidSelection = false;
             let parentContainer = null;
             
-            // Check if selection is within transcript
-            if (transcriptContainer && transcriptContainer.contains(range.commonAncestorContainer)) {
-                isValidSelection = true;
-                parentContainer = transcriptContainer;
+            // Function to check if element is within a valid container
+            function isWithinValidContainer(element) {
+                let currentElement = element;
+                while (currentElement && currentElement !== document.body) {
+                    if (currentElement === transcriptContainer || 
+                        currentElement === summaryContent || 
+                        currentElement === markdownContent) {
+                        return currentElement;
+                    }
+                    currentElement = currentElement.parentElement;
+                }
+                return null;
             }
             
-            // Check if selection is within summary
-            if (summaryContent && summaryContent.contains(range.commonAncestorContainer)) {
-                isValidSelection = true;
-                parentContainer = summaryContent;
-            }
+            // Check if selection is within valid containers
+            const validContainer = isWithinValidContainer(range.commonAncestorContainer);
             
-            if (!isValidSelection || selectedText.length < 10) {
+            if (validContainer) {
+                isValidSelection = true;
+                parentContainer = validContainer;
+            } else {
                 hideSnippetSaveButton();
                 return;
             }
@@ -544,6 +566,9 @@
                 const context = extractContext(containerText, selectedText, selectionStart);
                 window.contextBefore = context.before;
                 window.contextAfter = context.after;
+            } else {
+                window.contextBefore = '';
+                window.contextAfter = '';
             }
             
             // Get selection position
@@ -755,21 +780,7 @@
             setTimeout(addH2QuickSaveButtons, 500);
         });
         
-        // Re-add quick save buttons when summary is regenerated
-        const originalRegenerateSummary = window.regenerateSummary;
-        window.regenerateSummary = function(videoId) {
-            return originalRegenerateSummary.call(this, videoId).then(() => {
-                setTimeout(addH2QuickSaveButtons, 500);
-            });
-        };
-        
-        // Re-add quick save buttons when summary is generated
-        const originalGenerateSummary = window.generateSummary;
-        window.generateSummary = function(videoId) {
-            return originalGenerateSummary.call(this, videoId).then(() => {
-                setTimeout(addH2QuickSaveButtons, 500);
-            });
-        };
+        // Note: H2 quick save buttons are now added automatically after summary generation/regeneration
     </script>
     
 {% endblock %}
