@@ -4,74 +4,153 @@
 {% block title %}Channels - YouTube Deep Summary{% endblock %}
 
 {% block content %}
-    <div style="text-align: center; margin-bottom: 30px;">
-        <h2>📺 Channels</h2>
-        <p style="color: #666;">Browse all channels with saved videos</p>
+<div class="header">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+            <h2 style="margin: 0;">📺 Channels</h2>
+            <p style="margin: 5px 0 0 0; color: #666;">Browse all channels with saved videos</p>
+        </div>
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 18px; font-weight: bold; color: #333;">{{ channels|length }}</div>
+            <div style="font-size: 12px; color: #666;">Channels</div>
+        </div>
     </div>
+</div>
 
-    {% if channels %}
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
-            {% for channel in channels %}
-                <div style="background: white; border: 1px solid #ddd; border-radius: 10px; padding: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: box-shadow 0.3s;">
-                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
-                        <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #ff6b6b, #4ecdc4); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px;">
-                            {{ channel.name[0].upper() }}
-                        </div>
-                        <div style="flex-grow: 1;">
-                            <h3 style="margin: 0; font-size: 18px; color: #333;">{{ channel.name }}</h3>
-                            <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">
+{% if channels %}
+    <div class="channels-grid" style="display: grid; gap: 20px;">
+        {% for channel in channels %}
+            <div class="channel-card" style="background: white; border: 1px solid #e0e0e0; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                    <div style="flex: 1;">
+                        <h3 style="margin: 0 0 8px 0; font-size: 18px; line-height: 1.3;">
+                            <a href="/channel/{{ channel.name|urlencode }}/videos" style="color: #333; text-decoration: none;">{{ channel.name }}</a>
+                        </h3>
+                        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                            <span style="background: #e3f2fd; color: #1976d2; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500;">
                                 {{ channel.video_count }} video{{ 's' if channel.video_count != 1 else '' }}
-                                {% if channel.summary_count > 0 %}
-                                    • {{ channel.summary_count }} summarized
-                                {% endif %}
-                            </p>
+                            </span>
+                            {% if channel.summary_count > 0 %}
+                                <span style="background: #e8f5e8; color: #2e7d32; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500;">
+                                    {{ channel.summary_count }} summarized
+                                </span>
+                            {% endif %}
                         </div>
                     </div>
-                    
-                    <div style="display: flex; gap: 10px;">
+                    <a href="/channel/{{ channel.name|urlencode }}/videos" 
+                       style="background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px; padding: 6px 12px; text-decoration: none; color: #666; font-size: 12px;">
+                        View Videos →
+                    </a>
+                </div>
+                
+                <!-- Recent videos from this channel -->
+                {% if channel.recent_videos %}
+                <div style="border-top: 1px solid #f0f0f0; padding-top: 15px;">
+                    <h4 style="margin: 0 0 10px 0; font-size: 14px; color: #666;">Recent Videos:</h4>
+                    <div style="display: grid; gap: 8px;">
+                        {% for video_id, video in channel.recent_videos.items() %}
+                            {% if loop.index <= 3 %}
+                                <div style="display: flex; align-items: center; gap: 10px; padding: 6px 0;">
+                                    {% if video.video_info.thumbnail_url %}
+                                        <img src="{{ video.video_info.thumbnail_url }}" 
+                                             alt="Video thumbnail" 
+                                             style="width: 60px; height: 45px; object-fit: cover; border-radius: 4px; flex-shrink: 0;">
+                                    {% endif %}
+                                    <div style="flex: 1; min-width: 0;">
+                                        <div style="font-size: 13px; font-weight: 500; line-height: 1.2; margin-bottom: 2px;">
+                                            <a href="/watch?v={{ video.video_id }}" style="color: #333; text-decoration: none;">
+                                                {% if video.video_info.title %}
+                                                    {{ video.video_info.title[:60] }}{% if video.video_info.title|length > 60 %}...{% endif %}
+                                                {% else %}
+                                                    Video {{ video.video_id }}
+                                                {% endif %}
+                                            </a>
+                                        </div>
+                                        <div style="font-size: 11px; color: #666;">
+                                            {% if video.has_summary %}
+                                                <span style="background: #e8f5e8; color: #2e7d32; padding: 2px 6px; border-radius: 8px; margin-right: 6px;">📝 Summary</span>
+                                            {% endif %}
+                                            {% if video.video_info.duration %}
+                                                {{ "%.0f"|format(video.video_info.duration // 60) }}:{{ "%02.0f"|format(video.video_info.duration % 60) }}
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                        {% if channel.video_count > 3 %}
+                            <div style="font-size: 12px; color: #666; font-style: italic; padding: 4px 0;">
+                                ... and {{ channel.video_count - 3 }} more video{{ 's' if (channel.video_count - 3) != 1 else '' }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Actions -->
+                <div style="border-top: 1px solid #f0f0f0; padding-top: 15px; margin-top: 15px;">
+                    <h4 style="margin: 0 0 10px 0; font-size: 14px; color: #666;">Actions:</h4>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                         <a href="/channel/{{ channel.name|urlencode }}/videos" 
-                           style="flex: 1; background: #f8f9fa; color: #333; text-decoration: none; padding: 8px 12px; border-radius: 5px; text-align: center; font-size: 14px; border: 1px solid #ddd; transition: background-color 0.3s;">
-                            📝 Videos
+                           style="background: #f8f9fa; color: #333; text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; border: 1px solid #ddd; transition: all 0.2s;">
+                            📝 View Videos
                         </a>
                         {% if channel.summary_count > 0 %}
                             <a href="/channel/{{ channel.name|urlencode }}/summaries" 
-                               style="flex: 1; background: #2196f3; color: white; text-decoration: none; padding: 8px 12px; border-radius: 5px; text-align: center; font-size: 14px; transition: background-color 0.3s;">
-                                🤖 Summaries
+                               style="background: #2196f3; color: white; text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; transition: all 0.2s;">
+                                🤖 View Summaries
                             </a>
                         {% endif %}
                     </div>
                 </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <div style="text-align: center; padding: 60px 20px; color: #666;">
-            <div style="font-size: 48px; margin-bottom: 20px;">📺</div>
-            <h3>No channels found</h3>
-            <p>Start by saving some videos to see channels here.</p>
-            <a href="/" style="display: inline-block; background: #ff0000; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px;">
-                Get Started
-            </a>
-        </div>
-    {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+    
+{% else %}
+    <div class="no-channels" style="text-align: center; padding: 60px 20px; background: #f8f9fa; border-radius: 10px;">
+        <div style="font-size: 48px; margin-bottom: 20px;">📺</div>
+        <h3 style="color: #333; margin-bottom: 15px;">No Channels Yet</h3>
+        <p style="color: #666; margin-bottom: 20px;">Start saving videos to see channels here.</p>
+        <a href="/" style="background: #2196f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Explore Videos</a>
+    </div>
+{% endif %}
 
-    <style>
-        .channel-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+<style>
+    .channel-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .channel-card a:hover {
+        background: #e8f5e8 !important;
+        color: #2e7d32 !important;
+    }
+    
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+        .header > div {
+            flex-direction: column !important;
+            text-align: center;
         }
         
-        .channel-card a:hover {
-            background-color: #e9ecef !important;
+        .header > div > div {
+            margin-top: 15px;
         }
         
-        .channel-card a.summary-link:hover {
-            background-color: #1976d2 !important;
+        .channel-card {
+            padding: 15px !important;
         }
         
-        @media (max-width: 768px) {
-            .channels-grid {
-                grid-template-columns: 1fr !important;
-                gap: 15px !important;
-            }
+        .channel-card > div {
+            flex-direction: column !important;
+            align-items: flex-start !important;
         }
-    </style>
+        
+        .channel-card > div > a {
+            margin-top: 10px;
+            align-self: center;
+        }
+    }
+</style>
 {% endblock %}

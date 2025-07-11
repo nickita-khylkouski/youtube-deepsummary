@@ -404,17 +404,33 @@ class DatabaseStorage:
             summarized_video_ids = {s['video_id'] for s in summaries_result.data if s.get('video_id')}
             print(f"Found {len(summarized_video_ids)} videos with summaries")
 
-            # Count summaries by channel
+            # Count summaries by channel and get recent videos
             channels = []
             for channel_name, video_count in channel_counts.items():
                 # Get videos for this channel to count summaries
                 channel_videos = self.get_videos_by_channel(channel_name)
                 summary_count = sum(1 for v in channel_videos if v.get('video_id') in summarized_video_ids)
+                
+                # Get recent videos (limit to 3 most recent)
+                recent_videos = {}
+                for video in channel_videos[:3]:  # get_videos_by_channel already sorts by created_at desc
+                    video_id = video['video_id']
+                    recent_videos[video_id] = {
+                        'video_info': {
+                            'title': video.get('title'),
+                            'thumbnail_url': f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
+                            'duration': video.get('duration'),
+                            'uploader': video.get('uploader')
+                        },
+                        'video_id': video_id,
+                        'has_summary': video_id in summarized_video_ids
+                    }
 
                 channels.append({
                     'name': channel_name,
                     'video_count': video_count,
-                    'summary_count': summary_count
+                    'summary_count': summary_count,
+                    'recent_videos': recent_videos
                 })
                 print(f"Channel '{channel_name}': {video_count} videos, {summary_count} summaries")
 
