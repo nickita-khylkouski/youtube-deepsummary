@@ -5,7 +5,11 @@
       "Bash(python3:*)",
       "Bash(pip install:*)",
       "Bash(pip3 install:*)",
-      "Bash(kill:*)"
+      "Bash(kill:*)",
+      "Bash(grep:*)",
+      "Bash(cat:*)",
+      "Bash(mv:*)",
+      "Bash(rg:*)"
     ],
     "deny": []
   }

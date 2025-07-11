@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-YouTube Deep Summary is a comprehensive toolkit for downloading YouTube transcripts with multiple implementation approaches, AI-powered summarization using GPT-4.1, and a responsive web interface with Supabase database integration. The project handles various network restrictions and provides both command-line tools and a web application with persistent storage for transcripts, summaries, and channel management.
+YouTube Deep Summary is a comprehensive toolkit for downloading YouTube transcripts with multiple implementation approaches, AI-powered summarization using GPT-4.1, and a responsive web interface with Supabase database integration. The project handles various network restrictions and provides both command-line tools and a web application with persistent storage for transcripts, summaries, memory snippets, and channel management.
 
 ## Core Scripts
 
@@ -22,11 +22,12 @@ YouTube Deep Summary is a comprehensive toolkit for downloading YouTube transcri
 ### Architecture
 The system follows a layered architecture:
 1. **Data Layer**: Extract video ID from YouTube URLs using regex patterns
-2. **Storage Layer**: Supabase database with tables for videos, transcripts, chapters, and summaries
+2. **Storage Layer**: Supabase database with tables for videos, transcripts, chapters, summaries, and memory_snippets
 3. **Acquisition Layer**: Download transcript and video metadata using multiple methods
 4. **Processing Layer**: Format transcript into readable paragraphs with chapter organization
 5. **AI Layer**: Generate structured summaries using GPT-4.1 via AJAX
-6. **Presentation Layer**: Responsive web interface with mobile optimization and channel management
+6. **Knowledge Layer**: Memory snippets with text selection, formatting preservation, and tagging
+7. **Presentation Layer**: Responsive web interface with mobile optimization, channel management, and personal knowledge base
 
 ## Common Development Commands
 
@@ -140,6 +141,7 @@ docker run -p 33079:33079 \
 ### User Interface
 - **`/`** - Home page with instructions and examples
 - **`/watch?v=VIDEO_ID`** - Display transcript with video metadata, thumbnails, and chapters
+- **`/memory-snippets`** - Personal knowledge base with saved text snippets grouped by video
 - **`/channels`** - Browse all channels with saved videos
 - **`/channel/<channel_name>/videos`** - View all videos from a specific channel
 - **`/channel/<channel_name>/summaries`** - View all summaries from a specific channel
@@ -147,10 +149,15 @@ docker run -p 33079:33079 \
 - **Mobile-responsive design** with optimized padding and collapsible elements
 - **Dual view modes**: Toggle between readable paragraphs and detailed timestamps
 - **AJAX summarization**: Generate AI summaries without page reloads
+- **Memory snippets**: Text selection from summaries and transcripts with formatting preservation
 
 ### API Endpoints
 - **`GET /api/transcript/VIDEO_ID`** - JSON API for transcript data with database storage
 - **`POST /api/summary`** - Generate summary from provided transcript data (efficient)
+- **`GET /api/memory-snippets`** - Retrieve saved memory snippets with optional video filtering
+- **`POST /api/memory-snippets`** - Save new memory snippet with text, context, and tags
+- **`DELETE /api/memory-snippets/<snippet_id>`** - Delete specific memory snippet
+- **`PUT /api/memory-snippets/<snippet_id>/tags`** - Update tags for specific memory snippet
 - **`GET /api/cache/info`** - Legacy cache statistics (deprecated)
 - **`POST /api/cache/cleanup`** - Legacy cache cleanup (deprecated)
 - **`GET /api/storage/stats`** - Database storage statistics and metrics
@@ -158,7 +165,8 @@ docker run -p 33079:33079 \
 ### Advanced Features
 - **Chapter Organization**: Automatic detection and display of video chapters
 - **Video Metadata**: Title, thumbnail, duration, uploader information
-- **Persistent Storage**: Supabase database with tables for videos, transcripts, chapters, and summaries
+- **Persistent Storage**: Supabase database with tables for videos, transcripts, chapters, summaries, and memory_snippets
+- **Memory Snippets**: Personal knowledge base with text selection, HTML formatting preservation, and tagging system
 - **Channel Management**: Browse videos and summaries organized by YouTube channels
 - **Proxy Support**: Configurable proxy for both transcript and chapter extraction
 
@@ -172,7 +180,7 @@ docker run -p 33079:33079 \
 
 ## Database Schema
 
-The application uses four main tables in Supabase:
+The application uses five main tables in Supabase:
 
 ### youtube_videos
 - **video_id** (VARCHAR 11, unique) - YouTube video identifier
@@ -193,6 +201,13 @@ The application uses four main tables in Supabase:
 - **video_id** (FK to youtube_videos) - Links to video
 - **summary_text** (TEXT) - AI-generated summary
 - **model_used** - OpenAI model identifier (defaults to gpt-4.1)
+
+### memory_snippets
+- **video_id** (FK to youtube_videos) - Links to video
+- **snippet_text** (TEXT) - Selected text with preserved HTML formatting
+- **context_before, context_after** (TEXT) - Surrounding text context
+- **tags** (TEXT[]) - Array of custom tags for organization
+- **created_at, updated_at** - Timestamps
 
 ## Testing
 

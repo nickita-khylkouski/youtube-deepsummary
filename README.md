@@ -19,7 +19,8 @@ A comprehensive toolkit for downloading YouTube transcripts with multiple implem
 - **Dual View Modes**: Toggle between readable paragraphs and detailed timestamps
 
 ### Advanced Features
-- **Persistent Database Storage**: Supabase integration with tables for videos, transcripts, chapters, and summaries
+- **Persistent Database Storage**: Supabase integration with tables for videos, transcripts, chapters, summaries, and memory snippets
+- **Memory Snippets**: Save and organize insights from AI summaries with formatting preservation and tagging
 - **Video Metadata**: Automatic extraction of titles, thumbnails, duration, and uploader info
 - **Chapter Support**: Organized transcript display by video chapters when available
 - **Mobile Responsive**: Optimized interface for mobile devices with reduced padding
@@ -107,6 +108,7 @@ python3 download_transcript_manual.py "https://www.youtube.com/watch?v=VIDEO_ID"
 
 - **Home**: `http://localhost:33079/`
 - **Transcript**: `http://localhost:33079/watch?v=VIDEO_ID`
+- **Memory Snippets**: `http://localhost:33079/memory-snippets`
 - **Channels**: `http://localhost:33079/channels`
 - **Channel Videos**: `http://localhost:33079/channel/<channel_name>/videos`
 - **Channel Summaries**: `http://localhost:33079/channel/<channel_name>/summaries`
@@ -116,6 +118,7 @@ python3 download_transcript_manual.py "https://www.youtube.com/watch?v=VIDEO_ID"
 
 - **Transcript JSON**: `http://localhost:33079/api/transcript/VIDEO_ID`
 - **Summary with Data**: `POST http://localhost:33079/api/summary` (with transcript data in body)
+- **Memory Snippets**: `GET/POST/DELETE http://localhost:33079/api/memory-snippets`
 - **Storage Stats**: `http://localhost:33079/api/storage/stats`
 
 ### Examples
@@ -135,6 +138,12 @@ curl http://localhost:33079/api/storage/stats
 curl -X POST http://localhost:33079/api/summary \
   -H "Content-Type: application/json" \
   -d '{"video_id": "FjHtZnjNEBU", "formatted_transcript": "..."}'
+
+# Memory snippets API
+curl http://localhost:33079/api/memory-snippets
+curl -X POST http://localhost:33079/api/memory-snippets \
+  -H "Content-Type: application/json" \
+  -d '{"video_id": "FjHtZnjNEBU", "snippet_text": "Important insight", "tags": ["key-point"]}'
 ```
 
 ### Supported Input Formats
@@ -174,13 +183,42 @@ The AI summarization feature provides structured summaries with the following se
 - **Warnings & Common Mistakes** - Pitfalls and errors to avoid
 - **Resources & Next Steps** - Tools, links, and recommended follow-up actions
 
+## Memory Snippets
+
+The Memory Snippets feature allows you to save and organize key insights from AI summaries and transcripts, creating a personal knowledge base.
+
+### Features
+- **Text Selection**: Select any text from AI summaries or transcripts to save as a snippet
+- **Formatting Preservation**: HTML formatting (headers, bullet points, bold text, links) is preserved from AI summaries
+- **Tagging System**: Add custom tags to organize and categorize snippets
+- **Video Grouping**: Snippets are automatically grouped by video for better organization
+- **Context Preservation**: Saves surrounding text context for better understanding
+- **Search & Browse**: View all snippets organized by video with visual thumbnails
+
+### Usage
+1. **Generate an AI Summary** for any video
+2. **Select text** from the summary or transcript that you want to save
+3. **Click the "💾 Save as Memory Snippet" button** that appears
+4. **Add optional tags** to categorize the snippet
+5. **Save the snippet** to your personal knowledge base
+6. **Browse snippets** at `/memory-snippets` grouped by video
+
+### Database Structure
+Memory snippets are stored in the `memory_snippets` table with:
+- **snippet_text**: The selected text with preserved HTML formatting
+- **context_before/after**: Surrounding text for context
+- **tags**: Array of custom tags for organization
+- **video_id**: Link to the source video
+- **timestamps**: Creation and update times
+
 ## Performance & Storage
 
 ### Database Storage System
-- **Persistent Storage**: Supabase database with four main tables
-- **Automatic Relationships**: Foreign keys linking videos, transcripts, chapters, and summaries
-- **Performance Indexes**: Optimized queries for video_id and timestamps
+- **Persistent Storage**: Supabase database with five main tables (videos, transcripts, chapters, summaries, memory_snippets)
+- **Automatic Relationships**: Foreign keys linking videos, transcripts, chapters, summaries, and memory snippets
+- **Performance Indexes**: Optimized queries for video_id, timestamps, and memory snippet tags
 - **Storage Statistics**: Monitor database performance via API endpoints
+- **Memory Snippets**: Personal knowledge base with text selection, formatting preservation, and tagging
 
 ### Network Considerations
 - **Cloud provider IPs** are commonly blocked by YouTube

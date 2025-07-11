@@ -300,6 +300,33 @@
         font-style: italic;
     }
     
+    /* H2 Section Snippet Icons */
+    .h2-snippet-icon {
+        display: inline-block;
+        margin-left: 8px;
+        cursor: pointer;
+        opacity: 0.6;
+        transition: opacity 0.2s, transform 0.2s;
+        font-size: 14px;
+        vertical-align: middle;
+        background: #f0f0f0;
+        padding: 4px 6px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+    }
+    
+    .h2-snippet-icon:hover {
+        opacity: 1;
+        transform: scale(1.1);
+        background: #4CAF50;
+        color: white;
+        border-color: #4CAF50;
+    }
+    
+    .markdown-content h2:hover .h2-snippet-icon {
+        opacity: 0.8;
+    }
+    
     .summary-actions {
         text-align: right;
     }
@@ -470,7 +497,8 @@ function regenerateChannelSummary(videoId, title) {
                     },
                     body: JSON.stringify({
                         video_id: videoId,
-                        formatted_transcript: data.formatted_transcript
+                        formatted_transcript: data.formatted_transcript,
+                        force_regenerate: true
                     })
                 });
             } else {
@@ -534,7 +562,8 @@ function regenerateCurrentSummary() {
                     },
                     body: JSON.stringify({
                         video_id: currentVideoId,
-                        formatted_transcript: data.formatted_transcript
+                        formatted_transcript: data.formatted_transcript,
+                        force_regenerate: true
                     })
                 });
             } else {
@@ -567,5 +596,544 @@ function regenerateCurrentSummary() {
             alert('Failed to regenerate summary: ' + error.message);
         });
 }
+
+// Snippets functionality for summary pages
+let saveSnippetModal = null;
+let selectedText = '';
+let contextBefore = '';
+let contextAfter = '';
+let buttonClickInProgress = false;
+let selectionTimeout = null;
+let buttonCreateTime = 0;
+let lastSaveTime = 0;
+let currentSnippetVideoId = null;
+
+function initializeSnippets() {
+    // Listen for text selection in summary content
+    document.addEventListener('mouseup', handleTextSelection);
+    document.addEventListener('keyup', handleTextSelection);
+    
+    // Create the save snippet modal
+    createSaveSnippetModal();
+}
+
+function handleTextSelection() {
+    // Clear any existing timeout
+    if (selectionTimeout) {
+        clearTimeout(selectionTimeout);
+    }
+    
+    // Add a small delay to prevent rapid button creation/removal
+    selectionTimeout = setTimeout(() => {
+        const selection = window.getSelection();
+        
+        if (selection.toString().trim().length > 0) {
+            // Check if selection is within a summary content area
+            const summaryContent = selection.anchorNode.parentElement.closest('.markdown-content');
+            
+            if (summaryContent) {
+                selectedText = selection.toString().trim();
+                
+                // Capture HTML formatting from summary content
+                const range = selection.getRangeAt(0);
+                const clonedContents = range.cloneContents();
+                const div = document.createElement('div');
+                div.appendChild(clonedContents);
+                selectedText = div.innerHTML || selectedText; // Use HTML if available, fallback to plain text
+                
+                // Find the video ID from the modal or closest video context
+                currentSnippetVideoId = findVideoIdFromSelection(summaryContent);
+                
+                if (currentSnippetVideoId) {
+                    // Get context before and after the selection
+                    getTextContext(range, summaryContent);
+                    
+                    // Show save snippet button
+                    showSaveSnippetButton(selection);
+                }
+            }
+        } else {
+            // Don't hide button if click is in progress
+            if (!buttonClickInProgress) {
+                hideSaveSnippetButton();
+            }
+        }
+    }, 100); // 100ms delay
+}
+
+function findVideoIdFromSelection(summaryContent) {
+    // If we're in a modal, use the current video ID
+    if (currentVideoId) {
+        return currentVideoId;
+    }
+    
+    // Otherwise, this function would need to be enhanced to find the video ID
+    // from the surrounding context. For now, we'll return null if not in modal
+    return null;
+}
+
+function getTextContext(range, container) {
+    const containerText = container.textContent;
+    const selectionStart = containerText.indexOf(selectedText.replace(/<[^>]*>/g, '')); // Remove HTML tags for finding position
+    
+    if (selectionStart !== -1) {
+        const beforeStart = Math.max(0, selectionStart - 100);
+        const afterEnd = Math.min(containerText.length, selectionStart + selectedText.replace(/<[^>]*>/g, '').length + 100);
+        
+        contextBefore = containerText.substring(beforeStart, selectionStart).trim();
+        contextAfter = containerText.substring(selectionStart + selectedText.replace(/<[^>]*>/g, '').length, afterEnd).trim();
+    }
+}
+
+function showSaveSnippetButton(selection) {
+    hideSaveSnippetButton(); // Remove any existing button
+    
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    
+    const button = document.createElement('button');
+    button.id = 'saveSnippetBtn';
+    button.innerHTML = '💾 Save as Snippet';
+    button.style.cssText = `
+        position: fixed;
+        top: ${rect.bottom + 5}px;
+        left: ${rect.left}px;
+        background: #4CAF50;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        cursor: pointer;
+        z-index: 9999;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        white-space: nowrap;
+    `;
+    
+    // Add event listener
+    button.addEventListener('click', function(e) {
+        buttonClickInProgress = true;
+        e.preventDefault();
+        e.stopPropagation();
+        
+        saveSnippetDirect();
+        
+        hideSaveSnippetButton();
+        window.getSelection().removeAllRanges();
+        setTimeout(() => { buttonClickInProgress = false; }, 100);
+    });
+    
+    document.body.appendChild(button);
+    buttonCreateTime = Date.now();
+    
+    // Auto-hide after 10 seconds
+    setTimeout(hideSaveSnippetButton, 10000);
+}
+
+function hideSaveSnippetButton() {
+    const existingButton = document.getElementById('saveSnippetBtn');
+    if (existingButton) {
+        // Don't remove the button if it was created less than 2 seconds ago
+        const timeSinceCreation = Date.now() - buttonCreateTime;
+        if (timeSinceCreation < 2000) {
+            return;
+        }
+        existingButton.remove();
+    }
+}
+
+function createSaveSnippetModal() {
+    const modal = document.createElement('div');
+    modal.id = 'saveSnippetModal';
+    modal.style.cssText = `
+        display: none;
+        position: fixed;
+        z-index: 1001;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+    `;
+    
+    modal.innerHTML = `
+        <div style="background: white; margin: 5% auto; padding: 20px; border-radius: 8px; width: 90%; max-width: 500px;">
+            <h3 style="margin-top: 0;">💾 Save Snippet</h3>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Selected Text:</label>
+                <div id="selectedTextPreview" style="background: #f5f5f5; padding: 10px; border-radius: 4px; max-height: 100px; overflow-y: auto; font-style: italic;"></div>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Tags (optional):</label>
+                <input type="text" id="snippetTags" placeholder="Enter tags separated by commas" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <small style="color: #666;">e.g., important, strategy, action-item</small>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="closeSaveSnippetModal()" style="background: #ccc; color: #333; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Cancel</button>
+                <button onclick="saveSnippet()" style="background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Save Snippet</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    saveSnippetModal = modal;
+    
+    // Close modal when clicking outside
+    modal.onclick = function(e) {
+        if (e.target === modal) {
+            closeSaveSnippetModal();
+        }
+    };
+}
+
+function openSaveSnippetModal() {
+    if (!saveSnippetModal) {
+        createSaveSnippetModal();
+    }
+    
+    // Show formatted text in preview if it contains HTML, otherwise show as text
+    const previewElement = document.getElementById('selectedTextPreview');
+    if (selectedText.includes('<') && selectedText.includes('>')) {
+        previewElement.innerHTML = selectedText;
+    } else {
+        previewElement.textContent = selectedText;
+    }
+    
+    document.getElementById('snippetTags').value = '';
+    saveSnippetModal.style.display = 'block';
+}
+
+function closeSaveSnippetModal() {
+    if (saveSnippetModal) {
+        saveSnippetModal.style.display = 'none';
+    }
+}
+
+function saveSnippet() {
+    if (!currentSnippetVideoId) {
+        alert('No video selected for saving snippet');
+        return;
+    }
+    
+    const tags = document.getElementById('snippetTags').value
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0);
+    
+    const data = {
+        video_id: currentSnippetVideoId,
+        snippet_text: selectedText, // selectedText now contains HTML formatting when from summary
+        context_before: contextBefore,
+        context_after: contextAfter,
+        tags: tags
+    };
+    
+    fetch('/api/snippets', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeSaveSnippetModal();
+            // Show a brief success indicator
+            const successMsg = document.createElement('div');
+            successMsg.textContent = '✓ Snippet saved';
+            successMsg.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #4CAF50;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 5px;
+                z-index: 10000;
+                font-size: 14px;
+            `;
+            document.body.appendChild(successMsg);
+            setTimeout(() => successMsg.remove(), 3000);
+        }
+    })
+    .catch(error => {
+        // Silent error handling
+    });
+}
+
+function saveSnippetDirect() {
+    if (!currentSnippetVideoId) {
+        // Show error message
+        const errorMsg = document.createElement('div');
+        errorMsg.textContent = '⚠️ Cannot save snippet: No video context found';
+        errorMsg.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #ff4444;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 10000;
+            font-size: 14px;
+        `;
+        document.body.appendChild(errorMsg);
+        setTimeout(() => errorMsg.remove(), 3000);
+        return;
+    }
+    
+    // Prevent duplicate saves within 2 seconds
+    const now = Date.now();
+    if (now - lastSaveTime < 2000) {
+        return;
+    }
+    lastSaveTime = now;
+    
+    const data = {
+        video_id: currentSnippetVideoId,
+        snippet_text: selectedText, // selectedText now contains HTML formatting when from summary
+        context_before: contextBefore,
+        context_after: contextAfter,
+        tags: [] // No tags when saving directly
+    };
+    
+    fetch('/api/snippets', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show a brief success indicator
+            const successMsg = document.createElement('div');
+            successMsg.textContent = '✓ Snippet saved';
+            successMsg.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #4CAF50;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 5px;
+                z-index: 10000;
+                font-size: 14px;
+            `;
+            document.body.appendChild(successMsg);
+            setTimeout(() => successMsg.remove(), 3000);
+        }
+    })
+    .catch(error => {
+        // Silent error handling
+    });
+}
+
+// H2 Section Snippet Functionality
+function addH2SnippetIcons() {
+    // Find all H2 elements in markdown content
+    const h2Elements = document.querySelectorAll('.markdown-content h2');
+    
+    h2Elements.forEach((h2, index) => {
+        // Skip if icon already exists
+        if (h2.querySelector('.h2-snippet-icon')) {
+            return;
+        }
+        
+        // Create snippet icon
+        const icon = document.createElement('span');
+        icon.className = 'h2-snippet-icon';
+        icon.innerHTML = '💾';
+        icon.title = 'Save this section as snippet';
+        icon.setAttribute('data-h2-index', index);
+        
+        // Add click handler
+        icon.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            saveH2Section(h2, index);
+        });
+        
+        // Append icon to H2
+        h2.appendChild(icon);
+    });
+}
+
+function saveH2Section(h2Element, sectionIndex) {
+    if (!currentVideoId) {
+        // Show error message
+        const errorMsg = document.createElement('div');
+        errorMsg.textContent = '⚠️ Cannot save snippet: No video context found';
+        errorMsg.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #ff4444;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 10000;
+            font-size: 14px;
+        `;
+        document.body.appendChild(errorMsg);
+        setTimeout(() => errorMsg.remove(), 3000);
+        return;
+    }
+    
+    // Get the H2 section content (everything until the next H2 or end of content)
+    const sectionContent = getH2SectionContent(h2Element);
+    
+    if (!sectionContent.trim()) {
+        // Show error message
+        const errorMsg = document.createElement('div');
+        errorMsg.textContent = '⚠️ No content found in this section';
+        errorMsg.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #ff4444;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 10000;
+            font-size: 14px;
+        `;
+        document.body.appendChild(errorMsg);
+        setTimeout(() => errorMsg.remove(), 3000);
+        return;
+    }
+    
+    // Prevent duplicate saves within 2 seconds
+    const now = Date.now();
+    if (now - lastSaveTime < 2000) {
+        return;
+    }
+    lastSaveTime = now;
+    
+    // Get section title for context
+    const sectionTitle = h2Element.textContent.replace('💾', '').trim();
+    
+    const data = {
+        video_id: currentVideoId,
+        snippet_text: sectionContent,
+        context_before: '',
+        context_after: '',
+        tags: []
+    };
+    
+    // Show loading state
+    const originalIcon = h2Element.querySelector('.h2-snippet-icon');
+    const originalContent = originalIcon.innerHTML;
+    originalIcon.innerHTML = '⏳';
+    originalIcon.style.background = '#666';
+    
+    fetch('/api/snippets', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success indicator
+            const successMsg = document.createElement('div');
+            successMsg.textContent = `✓ Section "${sectionTitle}" saved as snippet`;
+            successMsg.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #4CAF50;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 5px;
+                z-index: 10000;
+                font-size: 14px;
+                max-width: 300px;
+            `;
+            document.body.appendChild(successMsg);
+            setTimeout(() => successMsg.remove(), 3000);
+            
+            // Animate icon to show success
+            originalIcon.innerHTML = '✓';
+            originalIcon.style.background = '#4CAF50';
+            originalIcon.style.color = 'white';
+            setTimeout(() => {
+                originalIcon.innerHTML = originalContent;
+                originalIcon.style.background = '';
+                originalIcon.style.color = '';
+            }, 2000);
+        } else {
+            throw new Error(data.message || 'Failed to save snippet');
+        }
+    })
+    .catch(error => {
+        // Show error message
+        const errorMsg = document.createElement('div');
+        errorMsg.textContent = `❌ Failed to save section: ${error.message}`;
+        errorMsg.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #ff4444;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 10000;
+            font-size: 14px;
+        `;
+        document.body.appendChild(errorMsg);
+        setTimeout(() => errorMsg.remove(), 3000);
+        
+        // Reset icon
+        originalIcon.innerHTML = originalContent;
+        originalIcon.style.background = '';
+        originalIcon.style.color = '';
+    });
+}
+
+function getH2SectionContent(h2Element) {
+    let content = '';
+    let currentElement = h2Element.nextElementSibling;
+    
+    // Include the H2 title itself, but remove the snippet icon
+    const h2Clone = h2Element.cloneNode(true);
+    const iconElement = h2Clone.querySelector('.h2-snippet-icon');
+    if (iconElement) {
+        iconElement.remove();
+    }
+    content += h2Clone.outerHTML;
+    
+    // Traverse siblings until we hit another H2 or end of content
+    while (currentElement) {
+        // Stop if we encounter another H2
+        if (currentElement.tagName === 'H2') {
+            break;
+        }
+        
+        // Add the element's HTML content
+        content += currentElement.outerHTML;
+        currentElement = currentElement.nextElementSibling;
+    }
+    
+    return content;
+}
+
+// Initialize snippets functionality when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    initializeSnippets();
+    addH2SnippetIcons();
+});
+
+// Re-add icons when summary modal content changes
+const originalOpenSummaryPopup = openSummaryPopup;
+openSummaryPopup = function(videoId, title) {
+    originalOpenSummaryPopup(videoId, title);
+    // Add a small delay to ensure content is loaded
+    setTimeout(addH2SnippetIcons, 100);
+};
 </script>
 {% endblock %}

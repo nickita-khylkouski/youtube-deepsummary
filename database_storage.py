@@ -404,17 +404,33 @@ class DatabaseStorage:
             summarized_video_ids = {s['video_id'] for s in summaries_result.data if s.get('video_id')}
             print(f"Found {len(summarized_video_ids)} videos with summaries")
 
-            # Count summaries by channel
+            # Count summaries by channel and get recent videos
             channels = []
             for channel_name, video_count in channel_counts.items():
                 # Get videos for this channel to count summaries
                 channel_videos = self.get_videos_by_channel(channel_name)
                 summary_count = sum(1 for v in channel_videos if v.get('video_id') in summarized_video_ids)
+                
+                # Get recent videos (limit to 3 most recent)
+                recent_videos = {}
+                for video in channel_videos[:3]:  # get_videos_by_channel already sorts by created_at desc
+                    video_id = video['video_id']
+                    recent_videos[video_id] = {
+                        'video_info': {
+                            'title': video.get('title'),
+                            'thumbnail_url': f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
+                            'duration': video.get('duration'),
+                            'uploader': video.get('uploader')
+                        },
+                        'video_id': video_id,
+                        'has_summary': video_id in summarized_video_ids
+                    }
 
                 channels.append({
                     'name': channel_name,
                     'video_count': video_count,
-                    'summary_count': summary_count
+                    'summary_count': summary_count,
+                    'recent_videos': recent_videos
                 })
                 print(f"Channel '{channel_name}': {video_count} videos, {summary_count} summaries")
 
@@ -423,6 +439,167 @@ class DatabaseStorage:
         except Exception as e:
             print(f"Error getting all channels: {e}")
             return []
+
+    def save_memory_snippet(self, video_id: str, snippet_text: str, context_before: str = None, context_after: str = None, tags: list = None) -> bool:
+        """Save a memory snippet to the database"""
+        if not self.supabase:
+            print("Database not initialized")
+            return False
+
+        try:
+            # Check if memory_snippets table exists, if not create it
+            try:
+                # Test if table exists by trying a simple select
+                self.supabase.table('memory_snippets').select('id').limit(1).execute()
+            except Exception as table_error:
+                if 'does not exist' in str(table_error):
+                    print("memory_snippets table doesn't exist. Please create it manually in Supabase:")
+                    print("""
+                    CREATE TABLE memory_snippets (
+                        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                        video_id VARCHAR(11) NOT NULL,
+                        snippet_text TEXT NOT NULL,
+                        context_before TEXT,
+                        context_after TEXT,
+                        tags TEXT[],
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    );
+                    """)
+                    return False
+                else:
+                    raise table_error
+
+            # Ensure tags is a list
+            if tags is None:
+                tags = []
+
+            # Insert the memory snippet
+            result = self.supabase.table('memory_snippets').insert({
+                'video_id': video_id,
+                'snippet_text': snippet_text,
+                'context_before': context_before,
+                'context_after': context_after,
+                'tags': tags
+            }).execute()
+
+            if result.data:
+                print(f"Memory snippet saved successfully for video {video_id}")
+                return True
+            else:
+                print(f"Failed to save memory snippet for video {video_id}")
+                return False
+
+        except Exception as e:
+            print(f"Error saving memory snippet: {e}")
+            return False
+
+    def get_memory_snippets(self, video_id: str = None, limit: int = 100) -> list:
+        """Get memory snippets, optionally filtered by video_id"""
+        if not self.supabase:
+            print("Database not initialized")
+            return []
+
+        try:
+            # First get memory snippets without join
+            query = self.supabase.table('memory_snippets').select(
+                'id, video_id, snippet_text, context_before, context_after, tags, created_at'
+            ).order('created_at', desc=True).limit(limit)
+
+            if video_id:
+                query = query.eq('video_id', video_id)
+
+            result = query.execute()
+            snippets = result.data if result.data else []
+            
+            # Now get video information for each snippet
+            for snippet in snippets:
+                try:
+                    video_result = self.supabase.table('youtube_videos').select(
+                        'title, uploader, thumbnail_url'
+                    ).eq('video_id', snippet['video_id']).execute()
+                    
+                    if video_result.data:
+                        snippet['youtube_videos'] = video_result.data
+                    else:
+                        snippet['youtube_videos'] = []
+                        
+                except Exception as video_error:
+                    print(f"Error getting video info for {snippet['video_id']}: {video_error}")
+                    snippet['youtube_videos'] = []
+            
+            return snippets
+
+        except Exception as e:
+            print(f"Error getting memory snippets: {e}")
+            return []
+
+    def delete_memory_snippet(self, snippet_id: str) -> bool:
+        """Delete a memory snippet by ID"""
+        if not self.supabase:
+            print("Database not initialized")
+            return False
+
+        try:
+            result = self.supabase.table('memory_snippets').delete().eq('id', snippet_id).execute()
+            
+            if result.data:
+                print(f"Memory snippet {snippet_id} deleted successfully")
+                return True
+            else:
+                print(f"No memory snippet found with ID {snippet_id}")
+                return False
+
+        except Exception as e:
+            print(f"Error deleting memory snippet: {e}")
+            return False
+
+    def update_memory_snippet_tags(self, snippet_id: str, tags: list) -> bool:
+        """Update tags for a memory snippet"""
+        if not self.supabase:
+            print("Database not initialized")
+            return False
+
+        try:
+            result = self.supabase.table('memory_snippets').update({
+                'tags': tags,
+                'updated_at': 'NOW()'
+            }).eq('id', snippet_id).execute()
+            
+            if result.data:
+                print(f"Memory snippet {snippet_id} tags updated successfully")
+                return True
+            else:
+                print(f"Failed to update tags for memory snippet {snippet_id}")
+                return False
+
+        except Exception as e:
+            print(f"Error updating memory snippet tags: {e}")
+            return False
+
+    def get_memory_snippets_stats(self) -> dict:
+        """Get statistics about memory snippets"""
+        if not self.supabase:
+            print("Database not initialized")
+            return {}
+
+        try:
+            # Get total count
+            count_result = self.supabase.table('memory_snippets').select('id', count='exact').execute()
+            total_snippets = count_result.count if count_result.count is not None else 0
+
+            # Get snippets by video count
+            videos_result = self.supabase.table('memory_snippets').select('video_id').execute()
+            unique_videos = len(set(item['video_id'] for item in videos_result.data)) if videos_result.data else 0
+
+            return {
+                'total_snippets': total_snippets,
+                'videos_with_snippets': unique_videos
+            }
+
+        except Exception as e:
+            print(f"Error getting memory snippets stats: {e}")
+            return {'total_snippets': 0, 'videos_with_snippets': 0}
 
 
 # Global database storage instance
