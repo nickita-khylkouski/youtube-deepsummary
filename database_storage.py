@@ -459,15 +459,16 @@ class DatabaseStorage:
             print(f"Error saving memory for {video_id}: {e}")
             return False
 
-    def get_memories(self, video_id: str = None) -> List[Dict]:
+    def get_memories(self, video_id: str = None, group_by_channel: bool = False) -> List[Dict]:
         """
-        Get memories, optionally filtered by video ID
+        Get memories, optionally filtered by video ID and/or grouped by channel
         
         Args:
             video_id: Optional video ID filter
+            group_by_channel: If True, returns memories grouped by channel
             
         Returns:
-            List of memory dictionaries
+            List of memory dictionaries or grouped channel dictionaries
         """
         try:
             query = self.supabase.table('memories')\
@@ -495,12 +496,43 @@ class DatabaseStorage:
                     'video_uploader': video_info.get('uploader') if video_info else None,
                     'thumbnail_url': video_info.get('thumbnail_url') if video_info else f"https://img.youtube.com/vi/{memory['video_id']}/maxresdefault.jpg"
                 })
-                
-            return memories
+            
+            if group_by_channel:
+                return self._group_memories_by_channel(memories)
+            else:
+                return memories
             
         except Exception as e:
             print(f"Error getting memories: {e}")
             return []
+
+    def _group_memories_by_channel(self, memories: List[Dict]) -> List[Dict]:
+        """
+        Group memories by channel
+        
+        Args:
+            memories: List of memory dictionaries
+            
+        Returns:
+            List of channel dictionaries with grouped memories
+        """
+        channels = {}
+        
+        for memory in memories:
+            uploader = memory.get('video_uploader') or 'Unknown Channel'
+            
+            if uploader not in channels:
+                channels[uploader] = {
+                    'channel_name': uploader,
+                    'memory_count': 0,
+                    'memories': []
+                }
+            
+            channels[uploader]['memories'].append(memory)
+            channels[uploader]['memory_count'] += 1
+        
+        # Sort channels by memory count (descending)
+        return sorted(channels.values(), key=lambda x: x['memory_count'], reverse=True)
 
     def delete_memory(self, memory_id: str) -> bool:
         """

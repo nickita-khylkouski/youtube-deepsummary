@@ -1,0 +1,418 @@
+{% extends "base.html" %}
+
+{% block title %}{{ channel_name }} - Memories - YouTube Deep Summary{% endblock %}
+
+{% block content %}
+    <style>
+        /* Channel memories page styling */
+        body {
+            background-color: #f8f9fa;
+        }
+        
+        .memories-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        }
+        
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #6b7280;
+            text-decoration: none;
+            font-size: 14px;
+            margin-bottom: 24px;
+            transition: color 0.15s ease;
+        }
+        
+        .back-link:hover {
+            color: #374151;
+        }
+        
+        .page-header {
+            margin-bottom: 40px;
+        }
+        
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        
+        .channel-title {
+            font-size: 28px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0;
+            line-height: 1.2;
+        }
+        
+        .stats-summary {
+            text-align: right;
+            font-size: 14px;
+            color: #6b7280;
+        }
+        
+        .stat-number {
+            font-size: 20px;
+            font-weight: 600;
+            color: #059669;
+            display: block;
+        }
+        
+        .divider {
+            height: 1px;
+            background-color: #e5e7eb;
+            margin: 40px 0;
+        }
+        
+        /* Memory Cards */
+        .memories-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .memory-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 24px;
+            transition: box-shadow 0.15s ease;
+        }
+        
+        .memory-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .memory-header {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .memory-thumbnail {
+            width: 120px;
+            height: 68px;
+            border-radius: 8px;
+            object-fit: cover;
+            flex-shrink: 0;
+            background-color: #f3f4f6;
+        }
+        
+        .memory-meta {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .video-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0 0 8px 0;
+            line-height: 1.3;
+        }
+        
+        .video-title a {
+            color: inherit;
+            text-decoration: none;
+        }
+        
+        .video-title a:hover {
+            color: #2563eb;
+        }
+        
+        .memory-badges {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .source-badge {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .source-transcript {
+            background: #e6f7ff;
+            color: #1890ff;
+        }
+        
+        .source-summary {
+            background: #f6ffed;
+            color: #52c41a;
+        }
+        
+        .memory-date {
+            font-size: 13px;
+            color: #6b7280;
+        }
+        
+        .memory-content {
+            margin-bottom: 20px;
+        }
+        
+        .memory-text {
+            background: #f8f9ff;
+            border-left: 4px solid #2563eb;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-style: italic;
+            line-height: 1.6;
+            color: #4b5563;
+            font-size: 15px;
+        }
+        
+        .memory-note {
+            background: #fff8e1;
+            border-left: 4px solid #ffc107;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            color: #7c2d12;
+        }
+        
+        .memory-note strong {
+            color: #d97706;
+        }
+        
+        .memory-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 16px;
+            border-top: 1px solid #f3f4f6;
+        }
+        
+        .memory-timestamp {
+            font-size: 13px;
+            color: #6b7280;
+        }
+        
+        .timestamp-link {
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .timestamp-link:hover {
+            text-decoration: underline;
+        }
+        
+        .memory-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .action-btn {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+        
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+        }
+        
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        .empty-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0 0 8px 0;
+        }
+        
+        .empty-subtitle {
+            font-size: 16px;
+            color: #6b7280;
+            margin: 0 0 24px 0;
+            line-height: 1.5;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .memories-container {
+                padding: 20px 16px;
+            }
+            
+            .header-top {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+            
+            .stats-summary {
+                text-align: left;
+            }
+            
+            .memory-card {
+                padding: 20px 16px;
+            }
+            
+            .memory-header {
+                flex-direction: column;
+                gap: 12px;
+            }
+            
+            .memory-thumbnail {
+                width: 100%;
+                height: auto;
+                max-width: 200px;
+            }
+            
+            .memory-footer {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+        }
+    </style>
+
+    <div class="memories-container">
+        <!-- Back Navigation -->
+        <a href="/memories" class="back-link">
+            ← Back to Memories by Channel
+        </a>
+
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="header-top">
+                <h1 class="channel-title">{{ channel_name }}</h1>
+                <div class="stats-summary">
+                    <span class="stat-number">{{ total_memories }}</span>
+                    <div>Total Memories</div>
+                    <div style="margin-top: 8px;">
+                        <span style="color: #2563eb; font-weight: 500;">{{ unique_videos }} videos</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Memories List -->
+        {% if memories %}
+            <div class="memories-list">
+                {% for memory in memories %}
+                <div class="memory-card">
+                    <div class="memory-header">
+                        <img src="{{ memory.thumbnail_url }}" alt="Video thumbnail" class="memory-thumbnail" onerror="this.style.display='none'">
+                        <div class="memory-meta">
+                            <h3 class="video-title">
+                                <a href="/watch?v={{ memory.video_id }}">
+                                    {{ memory.video_title or memory.video_id }}
+                                </a>
+                            </h3>
+                            <div class="memory-badges">
+                                <span class="source-badge source-{{ memory.source_type }}">
+                                    {% if memory.source_type == 'transcript' %}📝 Transcript{% else %}🤖 Summary{% endif %}
+                                </span>
+                                <span class="memory-date">{{ memory.created_at[:10] }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="memory-content">
+                        <div class="memory-text">
+                            "{{ memory.selected_text }}"
+                        </div>
+                        
+                        {% if memory.note %}
+                        <div class="memory-note">
+                            <strong>Your note:</strong> {{ memory.note }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="memory-footer">
+                        <div class="memory-timestamp">
+                            {% if memory.timestamp_seconds %}
+                                <a href="/watch?v={{ memory.video_id }}#timestamp-{{ memory.timestamp_seconds }}" class="timestamp-link">
+                                    ⏰ {{ "%.0f"|format(memory.timestamp_seconds // 60) }}:{{ "%02.0f"|format(memory.timestamp_seconds % 60) }}
+                                </a>
+                            {% else %}
+                                <span>From {{ memory.source_type }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="memory-actions">
+                            <a href="/watch?v={{ memory.video_id }}" class="action-btn btn-primary">View Video</a>
+                            <button onclick="deleteMemory('{{ memory.id }}')" class="action-btn btn-danger">Delete</button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <!-- Empty State -->
+            <div class="empty-state">
+                <div class="empty-icon">💭</div>
+                <h2 class="empty-title">No memories found</h2>
+                <p class="empty-subtitle">This channel doesn't have any saved memories yet.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        function deleteMemory(memoryId) {
+            if (confirm('Are you sure you want to delete this memory?')) {
+                fetch(`/api/memories/${memoryId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Failed to delete memory: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    alert('Error deleting memory: ' + error.message);
+                });
+            }
+        }
+    </script>
+{% endblock %}

@@ -4,355 +4,380 @@
 
 {% block content %}
     <style>
+        /* Exact replica of the screenshot design */
+        body {
+            background-color: #f8f9fa;
+        }
+        
+        .memories-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        }
+        
         .memories-header {
+            margin-bottom: 40px;
+        }
+        
+        .header-top {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #e0e0e0;
+            align-items: flex-start;
+            margin-bottom: 8px;
         }
         
-        .memories-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-        
-        .stat-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-        }
-        
-        .stat-number {
-            font-size: 32px;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        
-        .stat-label {
-            font-size: 14px;
-            opacity: 0.9;
-        }
-        
-        .memory-card {
-            background: white;
-            border: 1px solid #e0e0e0;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            overflow: hidden;
-            transition: box-shadow 0.3s;
-        }
-        
-        .memory-card:hover {
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-        
-        .memory-header {
+        .header-title {
             display: flex;
             align-items: center;
-            gap: 15px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-bottom: 1px solid #e0e0e0;
-        }
-        
-        .memory-thumbnail {
-            width: 80px;
-            height: 45px;
-            object-fit: cover;
-            border-radius: 5px;
-        }
-        
-        .memory-video-info {
-            flex-grow: 1;
-        }
-        
-        .memory-video-title {
+            gap: 12px;
+            font-size: 28px;
             font-weight: 600;
-            color: #333;
+            color: #1f2937;
             margin: 0;
-            font-size: 14px;
-            line-height: 1.3;
         }
         
-        .memory-video-channel {
-            color: #666;
-            font-size: 12px;
+        .header-icon {
+            font-size: 32px;
+            color: #6b7280;
+        }
+        
+        .total-count {
+            text-align: right;
+        }
+        
+        .total-number {
+            font-size: 28px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0;
+            line-height: 1;
+        }
+        
+        .total-label {
+            font-size: 14px;
+            color: #6b7280;
             margin: 2px 0 0 0;
         }
         
-        .memory-source-badge {
-            padding: 4px 8px;
+        .header-subtitle {
+            font-size: 16px;
+            color: #6b7280;
+            margin: 0;
+            font-weight: 400;
+        }
+        
+        .divider {
+            height: 1px;
+            background-color: #e5e7eb;
+            margin: 40px 0;
+        }
+        
+        /* Channel Cards */
+        .channels-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+        
+        .channel-card {
+            background: white;
+            border: 1px solid #e5e7eb;
             border-radius: 12px;
-            font-size: 11px;
-            font-weight: 500;
-            text-transform: uppercase;
+            padding: 32px;
+            margin-bottom: 24px;
+            position: relative;
         }
         
-        .source-transcript {
-            background: #e3f2fd;
-            color: #1976d2;
-        }
-        
-        .source-summary {
-            background: #f3e5f5;
-            color: #7b1fa2;
-        }
-        
-        .memory-content {
-            padding: 20px;
-        }
-        
-        .memory-text {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid #2196f3;
-            margin-bottom: 15px;
-            font-style: italic;
-            line-height: 1.6;
-        }
-        
-        .memory-note {
-            background: #fff3cd;
-            padding: 10px;
-            border-radius: 5px;
-            border-left: 3px solid #ffc107;
-            font-size: 14px;
-            margin-bottom: 15px;
-        }
-        
-        .memory-footer {
+        .channel-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            font-size: 12px;
-            color: #666;
+            align-items: flex-start;
+            margin-bottom: 24px;
         }
         
-        .memory-timestamp {
+        .channel-info {
+            flex: 1;
+        }
+        
+        .channel-name {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0 0 12px 0;
+            line-height: 1.2;
+        }
+        
+        .channel-stats {
             display: flex;
+            gap: 24px;
             align-items: center;
-            gap: 5px;
         }
         
-        .memory-actions {
-            display: flex;
-            gap: 10px;
+        .stat-item {
+            font-size: 14px;
+            color: #059669;
+            font-weight: 500;
         }
         
-        .btn-small {
-            padding: 4px 8px;
-            font-size: 11px;
-            border-radius: 4px;
+        .stat-videos {
+            color: #2563eb;
+        }
+        
+        .view-button {
+            background: #f9fafb;
+            border: 1px solid #d1d5db;
+            color: #374151;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
             text-decoration: none;
-            border: none;
-            cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.15s ease;
+            white-space: nowrap;
         }
         
-        .btn-primary {
-            background: #2196f3;
-            color: white;
+        .view-button:hover {
+            background: #f3f4f6;
+            border-color: #9ca3af;
         }
         
-        .btn-danger {
-            background: #f44336;
-            color: white;
+        .videos-section {
+            margin-top: 8px;
         }
         
-        .btn-small:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        .videos-title {
+            font-size: 14px;
+            color: #6b7280;
+            margin: 0 0 20px 0;
+            font-weight: 500;
         }
         
+        .video-item {
+            display: flex;
+            gap: 16px;
+            padding: 12px 0;
+            border-bottom: 1px solid #f3f4f6;
+            text-decoration: none;
+            color: inherit;
+            transition: background-color 0.15s ease;
+        }
+        
+        .video-item:last-child {
+            border-bottom: none;
+        }
+        
+        .video-item:hover {
+            background-color: #f9fafb;
+            margin: 12px -16px;
+            padding: 12px 16px;
+            border-radius: 6px;
+        }
+        
+        .video-thumbnail {
+            width: 80px;
+            height: 45px;
+            border-radius: 4px;
+            object-fit: cover;
+            flex-shrink: 0;
+            background-color: #f3f4f6;
+        }
+        
+        .video-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .video-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: #1f2937;
+            margin: 0 0 6px 0;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        .video-memory-count {
+            font-size: 14px;
+            color: #059669;
+            font-weight: 500;
+        }
+        
+        .more-videos {
+            font-size: 14px;
+            color: #6b7280;
+            font-style: italic;
+            margin-top: 16px;
+            padding-left: 0;
+        }
+        
+        /* Empty State */
         .empty-state {
             text-align: center;
-            padding: 60px 20px;
-            color: #666;
-        }
-        
-        .empty-state img {
-            width: 120px;
-            height: 120px;
-            opacity: 0.3;
-            margin-bottom: 20px;
-        }
-        
-        .filter-tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        
-        .filter-tab {
-            padding: 8px 16px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            padding: 80px 20px;
             background: white;
-            color: #666;
-            text-decoration: none;
-            font-size: 14px;
-            transition: all 0.3s;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
         }
         
-        .filter-tab.active {
-            background: #2196f3;
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        .empty-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0 0 8px 0;
+        }
+        
+        .empty-subtitle {
+            font-size: 16px;
+            color: #6b7280;
+            margin: 0 0 24px 0;
+            line-height: 1.5;
+        }
+        
+        .cta-button {
+            background: #2563eb;
             color: white;
-            border-color: #2196f3;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-block;
+            transition: background-color 0.15s ease;
         }
         
+        .cta-button:hover {
+            background: #1d4ed8;
+        }
+        
+        /* Responsive Design */
         @media (max-width: 768px) {
-            .memories-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 15px;
+            .memories-container {
+                padding: 20px 16px;
             }
             
-            .memory-header {
+            .header-top {
                 flex-direction: column;
                 align-items: flex-start;
-                gap: 10px;
+                gap: 12px;
             }
             
-            .memory-thumbnail {
+            .total-count {
+                text-align: left;
+            }
+            
+            .channel-card {
+                padding: 24px 20px;
+            }
+            
+            .channel-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+            }
+            
+            .channel-stats {
+                flex-wrap: wrap;
+                gap: 16px;
+            }
+            
+            .video-item {
+                flex-direction: column;
+                gap: 12px;
+            }
+            
+            .video-thumbnail {
                 width: 100%;
                 height: auto;
                 max-width: 200px;
             }
-            
-            .memory-footer {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 10px;
-            }
-            
-            .filter-tabs {
-                flex-wrap: wrap;
-            }
         }
     </style>
 
-    <div class="memories-header">
-        <div>
-            <h1 style="margin: 0; color: #333;">💭 My Memories</h1>
-            <p style="margin: 5px 0 0 0; color: #666;">Your saved highlights from videos and summaries</p>
-        </div>
-    </div>
-
-    {% if memory_stats %}
-    <div class="memories-stats">
-        <div class="stat-card">
-            <div class="stat-number">{{ memory_stats.total_memories }}</div>
-            <div class="stat-label">Total Memories</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number">{{ memory_stats.transcript_memories }}</div>
-            <div class="stat-label">From Transcripts</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number">{{ memory_stats.summary_memories }}</div>
-            <div class="stat-label">From Summaries</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number">{{ memory_stats.unique_videos }}</div>
-            <div class="stat-label">Unique Videos</div>
-        </div>
-    </div>
-    {% endif %}
-
-    <div class="filter-tabs">
-        <a href="/memories" class="filter-tab {% if not filter_type %}active{% endif %}">All Memories</a>
-        <a href="/memories?type=transcript" class="filter-tab {% if filter_type == 'transcript' %}active{% endif %}">📝 Transcripts</a>
-        <a href="/memories?type=summary" class="filter-tab {% if filter_type == 'summary' %}active{% endif %}">🤖 Summaries</a>
-    </div>
-
-    {% if memories %}
-        {% for memory in memories %}
-        <div class="memory-card">
-            <div class="memory-header">
-                <img src="{{ memory.thumbnail_url }}" alt="Video thumbnail" class="memory-thumbnail" onerror="this.style.display='none'">
-                <div class="memory-video-info">
-                    <h3 class="memory-video-title">
-                        <a href="/watch?v={{ memory.video_id }}" style="color: inherit; text-decoration: none;">
-                            {{ memory.video_title or memory.video_id }}
-                        </a>
-                    </h3>
-                    {% if memory.video_uploader %}
-                        <p class="memory-video-channel">{{ memory.video_uploader }}</p>
-                    {% endif %}
-                </div>
-                <span class="memory-source-badge source-{{ memory.source_type }}">
-                    {% if memory.source_type == 'transcript' %}📝 Transcript{% else %}🤖 Summary{% endif %}
-                </span>
-            </div>
-            
-            <div class="memory-content">
-                <div class="memory-text">
-                    "{{ memory.selected_text }}"
-                </div>
-                
-                {% if memory.note %}
-                <div class="memory-note">
-                    <strong>Your note:</strong> {{ memory.note }}
+    <div class="memories-container">
+        <!-- Header Section -->
+        <div class="memories-header">
+            <div class="header-top">
+                <h1 class="header-title">
+                    <span class="header-icon">💭</span>
+                    Memories by Channel
+                </h1>
+                {% if memory_stats %}
+                <div class="total-count">
+                    <div class="total-number">{{ memory_stats.total_memories }}</div>
+                    <div class="total-label">Total Memories</div>
                 </div>
                 {% endif %}
-                
-                <div class="memory-footer">
-                    <div class="memory-timestamp">
-                        <span>📅 {{ memory.created_at[:10] }}</span>
-                        {% if memory.timestamp_seconds %}
-                            <span>•</span>
-                            <a href="/watch?v={{ memory.video_id }}#timestamp-{{ memory.timestamp_seconds }}" 
-                               style="color: #2196f3; text-decoration: none;">
-                                ⏰ {{ "%.0f"|format(memory.timestamp_seconds // 60) }}:{{ "%02.0f"|format(memory.timestamp_seconds % 60) }}
+            </div>
+            <p class="header-subtitle">Channels with saved insights from AI summaries and transcripts</p>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Content -->
+        {% if memories %}
+            <div class="channels-list">
+                {% for channel_group in memories %}
+                <div class="channel-card">
+                    <div class="channel-header">
+                        <div class="channel-info">
+                            <h2 class="channel-name">{{ channel_group.channel_name }}</h2>
+                            <div class="channel-stats">
+                                <span class="stat-item">{{ channel_group.memory_count }} memories</span>
+                                <span class="stat-item stat-videos">{{ (channel_group.memories | map(attribute="video_id") | unique | list) | length }} videos</span>
+                            </div>
+                        </div>
+                        <a href="/memories/channel/{{ channel_group.channel_name | urlencode }}" class="view-button">View Memories →</a>
+                    </div>
+                    
+                    <div class="videos-section">
+                        <h3 class="videos-title">Recent Videos with Memories:</h3>
+                        
+                        {% set unique_videos = {} %}
+                        {% for memory in channel_group.memories %}
+                            {% if memory.video_id not in unique_videos %}
+                                {% set _ = unique_videos.update({memory.video_id: memory}) %}
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% for video_id, video in unique_videos.items() %}
+                            {% if loop.index <= 3 %}
+                            <a href="/watch?v={{ video.video_id }}" class="video-item">
+                                <img src="{{ video.thumbnail_url }}" alt="Video thumbnail" class="video-thumbnail" onerror="this.style.display='none'">
+                                <div class="video-info">
+                                    <h4 class="video-title">{{ video.video_title or video.video_id }}</h4>
+                                    <div class="video-memory-count">
+                                        {{ (channel_group.memories | selectattr("video_id", "equalto", video.video_id) | list) | length }} memories
+                                    </div>
+                                </div>
                             </a>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if unique_videos | length > 3 %}
+                        <div class="more-videos">... and {{ unique_videos | length - 3 }} more video{{ 's' if unique_videos | length - 3 != 1 else '' }}</div>
                         {% endif %}
                     </div>
-                    <div class="memory-actions">
-                        <a href="/watch?v={{ memory.video_id }}" class="btn-small btn-primary">View Video</a>
-                        <button onclick="deleteMemory('{{ memory.id }}')" class="btn-small btn-danger">Delete</button>
-                    </div>
                 </div>
+                {% endfor %}
             </div>
-        </div>
-        {% endfor %}
-    {% else %}
-        <div class="empty-state">
-            <div style="font-size: 64px; margin-bottom: 20px;">💭</div>
-            <h3>No memories saved yet</h3>
-            <p>Start saving your favorite quotes and insights by selecting text in video transcripts or summaries!</p>
-            <p style="margin-top: 20px;">
-                <a href="/" style="background: #2196f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
-                    Browse Videos
-                </a>
-            </p>
-        </div>
-    {% endif %}
+        {% else %}
+            <!-- Empty State -->
+            <div class="empty-state">
+                <div class="empty-icon">💭</div>
+                <h2 class="empty-title">No memories saved yet</h2>
+                <p class="empty-subtitle">Start saving your favorite quotes and insights by selecting text in video transcripts or summaries!</p>
+                <a href="/" class="cta-button">Browse Videos</a>
+            </div>
+        {% endif %}
+    </div>
 
-    <script>
-        function deleteMemory(memoryId) {
-            if (confirm('Are you sure you want to delete this memory?')) {
-                fetch(`/api/memories/${memoryId}`, {
-                    method: 'DELETE'
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        location.reload();
-                    } else {
-                        alert('Failed to delete memory: ' + data.error);
-                    }
-                })
-                .catch(error => {
-                    alert('Error deleting memory: ' + error.message);
-                });
-            }
-        }
-    </script>
 {% endblock %}

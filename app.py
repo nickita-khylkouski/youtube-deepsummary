@@ -511,28 +511,45 @@ def channel_summaries(channel_name):
 
 @app.route('/memories')
 def memories_page():
-    """Display user's saved memories"""
+    """Display user's saved memories grouped by channel"""
     try:
-        # Get filter type from query params
-        filter_type = request.args.get('type')
-        
-        # Get memories from database
-        memories = database_storage.get_memories()
-        
-        # Filter by type if specified
-        if filter_type:
-            memories = [m for m in memories if m['source_type'] == filter_type]
+        # Always group by channel for the new simplified design
+        memories_data = database_storage.get_memories(group_by_channel=True)
         
         # Get memory statistics
         memory_stats = database_storage.get_memory_stats()
         
         return render_template('memories.html', 
-                             memories=memories,
-                             memory_stats=memory_stats,
-                             filter_type=filter_type)
+                             memories=memories_data,
+                             memory_stats=memory_stats)
     except Exception as e:
         return render_template('error.html', 
                              error_message=f"Error loading memories: {str(e)}"), 500
+
+@app.route('/memories/channel/<path:channel_name>')
+def channel_memories(channel_name):
+    """Display individual memories for a specific channel"""
+    try:
+        # Get all memories for this channel
+        all_memories = database_storage.get_memories()
+        channel_memories_list = [m for m in all_memories if m.get('video_uploader') == channel_name]
+        
+        if not channel_memories_list:
+            return render_template('error.html', 
+                                 error_message=f"No memories found for channel: {channel_name}"), 404
+        
+        # Get unique video count for this channel
+        unique_videos = len(set(m['video_id'] for m in channel_memories_list))
+        
+        return render_template('channel_memories.html', 
+                             channel_name=channel_name,
+                             memories=channel_memories_list,
+                             total_memories=len(channel_memories_list),
+                             unique_videos=unique_videos)
+        
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading channel memories: {str(e)}"), 500
 
 @app.route('/api/memories', methods=['POST'])
 def api_save_memory():
