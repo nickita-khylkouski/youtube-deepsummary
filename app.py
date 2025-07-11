@@ -528,7 +528,7 @@ def memories_page():
 
 @app.route('/memories/channel/<path:channel_name>')
 def channel_memories(channel_name):
-    """Display individual memories for a specific channel"""
+    """Display individual memories for a specific channel grouped by video"""
     try:
         # Get all memories for this channel
         all_memories = database_storage.get_memories()
@@ -538,13 +538,34 @@ def channel_memories(channel_name):
             return render_template('error.html', 
                                  error_message=f"No memories found for channel: {channel_name}"), 404
         
-        # Get unique video count for this channel
-        unique_videos = len(set(m['video_id'] for m in channel_memories_list))
+        # Group memories by video
+        videos_with_memories = {}
+        for memory in channel_memories_list:
+            video_id = memory['video_id']
+            if video_id not in videos_with_memories:
+                videos_with_memories[video_id] = {
+                    'video_info': {
+                        'video_id': video_id,
+                        'title': memory['video_title'],
+                        'uploader': memory['video_uploader'],
+                        'thumbnail_url': memory['thumbnail_url']
+                    },
+                    'memories': []
+                }
+            videos_with_memories[video_id]['memories'].append(memory)
+        
+        # Convert to list and sort by video title
+        grouped_videos = list(videos_with_memories.values())
+        grouped_videos.sort(key=lambda x: x['video_info']['title'] or '')
+        
+        # Get stats
+        unique_videos = len(grouped_videos)
+        total_memories = len(channel_memories_list)
         
         return render_template('channel_memories.html', 
                              channel_name=channel_name,
-                             memories=channel_memories_list,
-                             total_memories=len(channel_memories_list),
+                             grouped_videos=grouped_videos,
+                             total_memories=total_memories,
                              unique_videos=unique_videos)
         
     except Exception as e:
