@@ -271,6 +271,53 @@
             }
         }
         
+        function convertHtmlToMarkdown(element) {
+            if (!element) return '';
+            
+            let markdown = '';
+            
+            // Handle different element types
+            if (element.tagName === 'UL') {
+                // Convert unordered lists
+                const listItems = element.querySelectorAll('li');
+                listItems.forEach(li => {
+                    markdown += '- ' + li.textContent.trim() + '\n';
+                });
+            } else if (element.tagName === 'OL') {
+                // Convert ordered lists
+                const listItems = element.querySelectorAll('li');
+                listItems.forEach((li, index) => {
+                    markdown += `${index + 1}. ${li.textContent.trim()}\n`;
+                });
+            } else if (element.tagName === 'P') {
+                // Convert paragraphs, preserving bold and italic
+                let pText = element.innerHTML;
+                // Convert <strong> and <b> to **bold**
+                pText = pText.replace(/<(strong|b)>(.*?)<\/(strong|b)>/g, '**$2**');
+                // Convert <em> and <i> to *italic*
+                pText = pText.replace(/<(em|i)>(.*?)<\/(em|i)>/g, '*$2*');
+                // Remove other HTML tags but keep content
+                pText = pText.replace(/<[^>]+>/g, '');
+                markdown += pText.trim();
+            } else {
+                // For other elements, just get text content but preserve structure
+                let content = element.textContent.trim();
+                if (content) {
+                    // Try to preserve formatting by checking for bold/italic patterns
+                    if (element.querySelector('strong, b')) {
+                        // This element contains bold text - try to preserve it
+                        content = element.innerHTML;
+                        content = content.replace(/<(strong|b)>(.*?)<\/(strong|b)>/g, '**$2**');
+                        content = content.replace(/<(em|i)>(.*?)<\/(em|i)>/g, '*$2*');
+                        content = content.replace(/<[^>]+>/g, '');
+                    }
+                    markdown += content;
+                }
+            }
+            
+            return markdown;
+        }
+        
         function addSnippetButtonsToExistingSummary() {
             // Find existing summary content and add snippet buttons to headers
             const summaryContent = document.querySelector('.summary-content .markdown-content');
@@ -315,15 +362,19 @@
         function copyChapterToSnippets(chapterTitle, buttonElement) {
             const videoId = '{{ video_id }}';
             
-            // Find the chapter content - get all text from this header until the next header
+            // Find the chapter content - preserve markdown formatting
             const headerElement = buttonElement.parentElement;
-            let chapterContent = chapterTitle + '\n\n';
+            let chapterContent = '## ' + chapterTitle + '\n\n';
             
             // Get the next sibling elements until we hit another header
             let nextElement = headerElement.nextElementSibling;
             while (nextElement && !nextElement.matches('h1, h2, h3')) {
                 if (nextElement.textContent && nextElement.textContent.trim()) {
-                    chapterContent += nextElement.textContent.trim() + '\n\n';
+                    // Convert HTML back to markdown for better preservation
+                    let elementMarkdown = convertHtmlToMarkdown(nextElement);
+                    if (elementMarkdown.trim()) {
+                        chapterContent += elementMarkdown + '\n\n';
+                    }
                 }
                 nextElement = nextElement.nextElementSibling;
             }
