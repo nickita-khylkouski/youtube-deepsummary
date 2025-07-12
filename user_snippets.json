@@ -33,5 +33,12 @@
     "snippet_text": "ode yourself. And here's the craziest part.\n\nThis entire process will only take minutes from start to finish. I'm going to walk you through step\nby step on the fastest way to build sophisticated agent systems, even if you're completely new to\nautomation. Let's dive in. All right,.\n\n\n## Two Methods: Claud",
     "source_type": "transcript",
     "created_at": "2025-07-12T18:10:02.727037+00:00"
+  },
+  {
+    "id": "6",
+    "video_id": "n7iT5r0Sl_Y",
+    "snippet_text": "Main Topics Covered\n\nInstallation and integration of Claude Code with various IDEs\nWorkflow improvements and real-world usage tips\nDifferences between Claude Code and Cursor (and other agents)\nBest practices for using Claude Code\u2019s terminal UI and commands\nUtilizing advanced features: queuing, custom hooks, slash commands, and memory\nCode review automation with the Claude GitHub app\nHandling large codebases and complex tasks\nPricing and value assessment for Claude Code\nVisual UI alternatives and integrations (e.g., builder.io Fusion)\nCommon quirks, pitfalls, and their workarounds",
+    "source_type": "summary",
+    "created_at": "2025-07-12T19:10:00.667866+00:00"
   }
 ]

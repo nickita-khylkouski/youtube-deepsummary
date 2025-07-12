@@ -133,6 +133,7 @@
         // Initialize snippets functionality when page loads
         document.addEventListener('DOMContentLoaded', function() {
             initializeSnippetsSelection();
+            addSnippetButtonsToExistingSummary();
         });
         
         function initializeSnippetsSelection() {
@@ -270,6 +271,126 @@
             }
         }
         
+        function addSnippetButtonsToExistingSummary() {
+            // Find existing summary content and add snippet buttons to headers
+            const summaryContent = document.querySelector('.summary-content .markdown-content');
+            if (!summaryContent) return;
+            
+            // Find all headers in the summary
+            const headers = summaryContent.querySelectorAll('h1, h2, h3');
+            headers.forEach(header => {
+                // Skip if already has a button
+                if (header.querySelector('button')) return;
+                
+                const headerText = header.textContent.trim();
+                const buttonId = 'snippet-btn-' + Math.random().toString(36).substr(2, 9);
+                
+                // Create button based on header level
+                let buttonStyle = '';
+                if (header.tagName === 'H1') {
+                    buttonStyle = 'padding: 8px 16px; font-size: 14px; margin-left: 10px;';
+                } else if (header.tagName === 'H2') {
+                    buttonStyle = 'padding: 6px 12px; font-size: 13px; margin-left: 10px;';
+                } else {
+                    buttonStyle = 'padding: 4px 8px; font-size: 12px; margin-left: 10px;';
+                }
+                
+                // Create and add the button
+                const button = document.createElement('button');
+                button.id = buttonId;
+                button.innerHTML = '✂️ Copy to Snippets';
+                button.setAttribute('onclick', `copyChapterToSnippets('${headerText.replace(/'/g, "\\'")}', this)`);
+                button.style.cssText = `background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; ${buttonStyle}`;
+                
+                // Style the header to flex layout
+                header.style.display = 'flex';
+                header.style.justifyContent = 'space-between';
+                header.style.alignItems = 'center';
+                header.style.margin = header.tagName === 'H1' ? '30px 0 20px 0' : header.tagName === 'H2' ? '25px 0 15px 0' : '20px 0 10px 0';
+                
+                header.appendChild(button);
+            });
+        }
+        
+        function copyChapterToSnippets(chapterTitle, buttonElement) {
+            const videoId = '{{ video_id }}';
+            
+            // Find the chapter content - get all text from this header until the next header
+            const headerElement = buttonElement.parentElement;
+            let chapterContent = chapterTitle + '\n\n';
+            
+            // Get the next sibling elements until we hit another header
+            let nextElement = headerElement.nextElementSibling;
+            while (nextElement && !nextElement.matches('h1, h2, h3')) {
+                if (nextElement.textContent && nextElement.textContent.trim()) {
+                    chapterContent += nextElement.textContent.trim() + '\n\n';
+                }
+                nextElement = nextElement.nextElementSibling;
+            }
+            
+            // Clean up the content
+            chapterContent = chapterContent.trim();
+            
+            // Change button to loading state
+            const originalText = buttonElement.innerHTML;
+            buttonElement.innerHTML = '⏳ Saving...';
+            buttonElement.disabled = true;
+            buttonElement.style.background = '#666';
+            
+            // Save snippet to database via API
+            fetch('/api/snippets', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    video_id: videoId,
+                    snippet_text: chapterContent,
+                    source_type: 'summary'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success state
+                    buttonElement.innerHTML = '✅ Saved!';
+                    buttonElement.style.background = '#4caf50';
+                    
+                    // Reset button after 3 seconds
+                    setTimeout(() => {
+                        buttonElement.innerHTML = originalText;
+                        buttonElement.disabled = false;
+                        buttonElement.style.background = '#4caf50';
+                    }, 3000);
+                } else {
+                    // Show error
+                    buttonElement.innerHTML = '❌ Error';
+                    buttonElement.style.background = '#f44336';
+                    alert('Failed to save snippet: ' + (data.error || 'Unknown error'));
+                    
+                    // Reset button after 3 seconds
+                    setTimeout(() => {
+                        buttonElement.innerHTML = originalText;
+                        buttonElement.disabled = false;
+                        buttonElement.style.background = '#4caf50';
+                    }, 3000);
+                }
+            })
+            .catch(error => {
+                // Show error
+                buttonElement.innerHTML = '❌ Error';
+                buttonElement.style.background = '#f44336';
+                alert('Failed to save snippet: ' + error.message);
+                
+                // Reset button after 3 seconds
+                setTimeout(() => {
+                    buttonElement.innerHTML = originalText;
+                    buttonElement.disabled = false;
+                    buttonElement.style.background = '#4caf50';
+                }, 3000);
+            });
+        }
+        
         function toggleTranscriptView() {
             const formattedDiv = document.getElementById('formatted-transcript');
             const detailedDiv = document.getElementById('detailed-transcript');
@@ -346,10 +467,19 @@
         function convertMarkdownToHtml(markdown) {
             let html = markdown;
             
-            // Convert headers (## Header -> <h2>Header</h2>)
-            html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-            html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-            html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+            // Convert headers with snippet buttons (## Header -> <h2>Header <button>...</button></h2>)
+            html = html.replace(/^### (.+)$/gm, (match, title) => {
+                const buttonId = 'snippet-btn-' + Math.random().toString(36).substr(2, 9);
+                return `<h3 style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0 10px 0; flex-wrap: wrap; gap: 10px;">${title} <button id="${buttonId}" onclick="copyChapterToSnippets('${title.replace(/'/g, "\\'")}', this)" style="background: #4caf50; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 10px; flex-shrink: 0;">✂️ Copy to Snippets</button></h3>`;
+            });
+            html = html.replace(/^## (.+)$/gm, (match, title) => {
+                const buttonId = 'snippet-btn-' + Math.random().toString(36).substr(2, 9);
+                return `<h2 style="display: flex; justify-content: space-between; align-items: center; margin: 25px 0 15px 0; flex-wrap: wrap; gap: 10px;">${title} <button id="${buttonId}" onclick="copyChapterToSnippets('${title.replace(/'/g, "\\'")}', this)" style="background: #4caf50; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; margin-left: 10px; flex-shrink: 0;">✂️ Copy to Snippets</button></h2>`;
+            });
+            html = html.replace(/^# (.+)$/gm, (match, title) => {
+                const buttonId = 'snippet-btn-' + Math.random().toString(36).substr(2, 9);
+                return `<h1 style="display: flex; justify-content: space-between; align-items: center; margin: 30px 0 20px 0; flex-wrap: wrap; gap: 10px;">${title} <button id="${buttonId}" onclick="copyChapterToSnippets('${title.replace(/'/g, "\\'")}', this)" style="background: #4caf50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-left: 10px; flex-shrink: 0;">✂️ Copy to Snippets</button></h1>`;
+            });
             
             // Convert **bold** to <strong>bold</strong>
             html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
