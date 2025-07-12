@@ -1,6 +1,443 @@
-{% extends "base.html" %}
-
-{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Deep Summary</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 20px;
+        }
+        .header h1 {
+            color: #ff0000;
+            margin: 0;
+        }
+        .video-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .transcript-container {
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 0;
+            margin: 0;
+        }
+        .transcript-entry {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-left: 3px solid #ff0000;
+            background: #fafafa;
+        }
+        .timestamp {
+            font-weight: bold;
+            color: #666;
+            font-size: 0.9em;
+        }
+        .text {
+            margin-top: 5px;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 20px;
+            border-radius: 5px;
+            border-left: 4px solid #c62828;
+        }
+        .proxy-info {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            color: #1565c0;
+            margin-bottom: 20px;
+        }
+        .search-form {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .search-form input {
+            width: 70%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .search-form button {
+            background: #ff0000;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        .search-form button:hover {
+            background: #cc0000;
+        }
+        .summary-section {
+            background: #f0f7ff;
+            border: 1px solid #2196f3;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .summary-content {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #2196f3;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .summary-content pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+            font-family: inherit;
+        }
+        
+        /* Markdown formatting for summaries */
+        .markdown-content {
+            font-size: 15px;
+            line-height: 1.7;
+            color: #333;
+            max-width: none;
+        }
+        
+        .markdown-content h1,
+        .markdown-content h2,
+        .markdown-content h3,
+        .markdown-content h4,
+        .markdown-content h5,
+        .markdown-content h6 {
+            color: #2196f3;
+            margin: 16px 0 8px 0;
+            font-weight: 600;
+        }
+        
+        .markdown-content h2 {
+            font-size: 16px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+        
+        .markdown-content h3 {
+            font-size: 15px;
+        }
+        
+        .markdown-content p {
+            margin: 12px 0;
+            line-height: 1.6;
+        }
+        
+        .markdown-content ul,
+        .markdown-content ol {
+            margin: 12px 0;
+            padding-left: 20px;
+        }
+        
+        .markdown-content li {
+            margin: 4px 0;
+            line-height: 1.5;
+        }
+        
+        .markdown-content a {
+            color: #2196f3;
+            text-decoration: none;
+        }
+        
+        .markdown-content a:hover {
+            text-decoration: underline;
+        }
+        
+        .markdown-content strong {
+            font-weight: 600;
+            color: #222;
+        }
+        
+        .markdown-content em {
+            font-style: italic;
+        }
+        
+        .markdown-content code {
+            background: #f1f1f1;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        
+        .markdown-content blockquote {
+            border-left: 3px solid #2196f3;
+            margin: 16px 0;
+            padding: 8px 16px;
+            background: #f8f9fa;
+            font-style: italic;
+        }
+        .summary-error {
+            background: #ffebee;
+            border: 1px solid #f44336;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .summary-button {
+            display: inline-block;
+            background: #2196f3;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .summary-button:hover {
+            background: #1976d2;
+        }
+        
+        /* Navigation hover effects */
+        .header nav a:hover {
+            background-color: #f0f0f0 !important;
+            color: #333 !important;
+            border-color: #ccc !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        /* Input focus effects */
+        input:focus {
+            border-color: #667eea !important;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+        }
+        
+        /* Button hover effects */
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255,107,107,0.4) !important;
+        }
+        
+        /* Mobile responsive adjustments */
+        @media (max-width: 768px) {
+            body {
+                padding: 5px;
+            }
+            .container {
+                padding: 10px;
+            }
+            .header {
+                padding-bottom: 15px;
+                margin-bottom: 20px;
+            }
+            .header h1 {
+                font-size: 22px !important;
+            }
+            .header p {
+                font-size: 13px !important;
+            }
+            .header > div {
+                flex-direction: column !important;
+                align-items: center !important;
+                text-align: center;
+            }
+            .header nav {
+                flex-direction: row !important;
+                justify-content: center;
+                gap: 15px !important;
+                margin-top: 15px;
+                width: 100%;
+            }
+            .header nav a {
+                padding: 8px 12px !important;
+                text-align: center;
+                font-size: 13px !important;
+            }
+            .transcript-container {
+                padding: 0;
+                margin: 0;
+            }
+            .formatted-text {
+                padding: 10px !important;
+            }
+            .video-info > div {
+                flex-direction: column !important;
+                gap: 15px !important;
+            }
+            .video-info img {
+                width: 100% !important;
+                max-width: 320px;
+                height: auto !important;
+            }
+        }
+        
+        /* Enhanced mobile responsiveness for new design elements */
+        @media (max-width: 768px) {
+            /* Hero section mobile adjustments */
+            .hero-section {
+                padding: 40px 15px !important;
+                margin-bottom: 30px !important;
+            }
+            .hero-title {
+                font-size: 28px !important;
+                line-height: 1.3 !important;
+            }
+            .hero-subtitle {
+                font-size: 16px !important;
+                margin: 0 auto 25px !important;
+            }
+            .hero-form {
+                padding: 20px !important;
+                margin: 0 10px !important;
+            }
+            .hero-form form {
+                flex-direction: column !important;
+                gap: 15px !important;
+            }
+            .hero-form input {
+                padding: 14px 16px !important;
+                font-size: 16px !important;
+            }
+            .hero-form button {
+                padding: 14px 24px !important;
+                font-size: 16px !important;
+                width: 100%;
+            }
+            
+            /* Stats section mobile */
+            .stats-grid {
+                grid-template-columns: 1fr !important;
+                gap: 20px !important;
+                margin-bottom: 40px !important;
+            }
+            .stat-card {
+                padding: 20px !important;
+            }
+            .stat-number {
+                font-size: 28px !important;
+            }
+            
+            /* Testimonials mobile */
+            .testimonials-section {
+                padding: 30px 15px !important;
+            }
+            .testimonials-title {
+                font-size: 24px !important;
+                margin-bottom: 30px !important;
+            }
+            .testimonials-grid {
+                grid-template-columns: 1fr !important;
+                gap: 20px !important;
+            }
+            .testimonial-card {
+                padding: 20px !important;
+                margin: 0 !important;
+            }
+            .testimonial-text {
+                font-size: 14px !important;
+                line-height: 1.6 !important;
+            }
+            .testimonial-avatar {
+                width: 44px !important;
+                height: 44px !important;
+                font-size: 14px !important;
+            }
+            .testimonial-name {
+                font-size: 14px !important;
+            }
+            .testimonial-title {
+                font-size: 12px !important;
+            }
+            
+            /* How-to section mobile */
+            .howto-details {
+                border-radius: 15px !important;
+                margin-top: 40px !important;
+            }
+            .howto-summary {
+                padding: 15px 20px !important;
+                font-size: 16px !important;
+            }
+            .howto-content {
+                padding: 25px 15px !important;
+            }
+            .howto-grid {
+                grid-template-columns: 1fr !important;
+                gap: 20px !important;
+            }
+            .howto-card {
+                padding: 25px 20px !important;
+                border-radius: 15px !important;
+            }
+            .howto-card h4 {
+                font-size: 18px !important;
+            }
+            .howto-card ul,
+            .howto-card ol {
+                font-size: 14px !important;
+            }
+        }
+        
+        /* Touch-friendly adjustments */
+        @media (max-width: 480px) {
+            .hero-title {
+                font-size: 24px !important;
+            }
+            .hero-subtitle {
+                font-size: 15px !important;
+            }
+            .hero-form {
+                padding: 15px !important;
+            }
+            .testimonials-title {
+                font-size: 20px !important;
+            }
+            .howto-summary {
+                font-size: 15px !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1 style="margin: 0; font-size: 28px; font-weight: 700;"><a href="/" style="color: #1a1a1a; text-decoration: none; display: flex; align-items: center; gap: 12px;"><img src="/static/favicon.svg" alt="YouTube Deep Summary" style="width: 32px; height: 32px; filter: drop-shadow(0 2px 4px rgba(255,0,0,0.3));">YouTube Deep Summary</a></h1>
+                    <p style="margin: 6px 0 0 0; color: #666; font-size: 15px; font-weight: 500; letter-spacing: 0.3px;">⭐ Extract content that makes a tangible impact on your life</p>
+                </div>
+                <nav style="display: flex; gap: 20px; font-size: 14px;">
+                    <a href="/channels" style="color: #555; text-decoration: none; padding: 10px 16px; border-radius: 8px; transition: all 0.3s; font-weight: 500; border: 1px solid #e0e0e0;">📺 Channels</a>
+                    <a href="/storage" style="color: #555; text-decoration: none; padding: 10px 16px; border-radius: 8px; transition: all 0.3s; font-weight: 500; border: 1px solid #e0e0e0;">💾 Storage</a>
+                </nav>
+            </div>
+        </div>
+        
+        
     <!-- Hero Section -->
     <div class="hero-section">
         <div class="hero-background">
@@ -889,4 +1326,7 @@
             animateNumbers();
         });
     </script>
-{% endblock %}
+
+    </div>
+</body>
+</html>
