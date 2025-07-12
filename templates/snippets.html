@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Snippets - YouTube Deep Summary{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 20px;">
+    <h2 style="color: #333; margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
+        <span>💾</span>
+        <span>Saved Snippets</span>
+    </h2>
+    <p style="color: #666; margin: 0;">Your saved text snippets from YouTube video transcripts and summaries</p>
+</div>
+
+{% if channels %}
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+    {% for channel in channels %}
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); transition: transform 0.3s, box-shadow 0.3s;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                📺
+            </div>
+            <div style="flex: 1;">
+                <h3 style="margin: 0; font-size: 16px; font-weight: 600; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    {{ channel.name }}
+                </h3>
+            </div>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <div style="text-align: center;">
+                <div style="font-size: 24px; font-weight: 700; margin-bottom: 2px;">{{ channel.snippet_count }}</div>
+                <div style="font-size: 11px; opacity: 0.8;">{{ 'snippet' if channel.snippet_count == 1 else 'snippets' }}</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 24px; font-weight: 700; margin-bottom: 2px;">{{ channel.videos_with_snippets }}</div>
+                <div style="font-size: 11px; opacity: 0.8;">{{ 'video' if channel.videos_with_snippets == 1 else 'videos' }}</div>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 8px;">
+            <a href="/snippets/channel/{{ channel.name | urlencode }}" 
+               style="flex: 1; background: rgba(255,255,255,0.2); color: white; text-decoration: none; padding: 8px 12px; border-radius: 6px; text-align: center; font-size: 12px; font-weight: 500; transition: background 0.3s;">
+                View Snippets
+            </a>
+            <a href="/channel/{{ channel.name | urlencode }}/videos" 
+               style="flex: 1; background: rgba(255,255,255,0.1); color: white; text-decoration: none; padding: 8px 12px; border-radius: 6px; text-align: center; font-size: 12px; font-weight: 500; transition: background 0.3s;">
+                View Videos
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #2196f3;">
+    <h3 style="margin: 0 0 10px 0; color: #333; font-size: 16px;">💡 How to Save Snippets</h3>
+    <ul style="margin: 0; padding-left: 20px; color: #666;">
+        <li>Go to any video page with transcript or summary</li>
+        <li>Select text with your mouse or keyboard</li>
+        <li>Click the "💾 Save as Snippet" button that appears</li>
+        <li>Add tags to organize your snippets</li>
+        <li>Access saved snippets from any channel page</li>
+    </ul>
+</div>
+
+{% else %}
+<div style="text-align: center; padding: 60px 20px; color: #666;">
+    <div style="font-size: 48px; margin-bottom: 20px; opacity: 0.3;">💾</div>
+    <h3 style="margin: 0 0 10px 0; font-size: 18px; color: #555;">No snippets saved yet</h3>
+    <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.6;">
+        Start by visiting a video transcript or summary page.<br>
+        Select any text and click the "💾 Save as Snippet" button to get started.
+    </p>
+    <a href="/channels" style="display: inline-block; background: #2196f3; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; transition: background 0.3s;">
+        Browse Channels
+    </a>
+</div>
+{% endif %}
+{% endblock %}

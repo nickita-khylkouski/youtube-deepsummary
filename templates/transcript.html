@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{% if video_title %}{{ video_title }}{% else %}{{ video_id }}{% endif %} - YouTube Deep Search{% endblock %}
+{% block title %}{% if video_title %}{{ video_title }}{% else %}{{ video_id }}{% endif %} - YouTube Deep Summary{% endblock %}
 
 {% block content %}
     <div class="video-info">
@@ -25,7 +25,7 @@
                 <p style="margin-top: 10px;">
                     <a href="https://www.youtube.com/watch?v={{ video_id }}" target="_blank" style="background: #ff0000; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; display: inline-block; margin-right: 10px;">▶️ Watch on YouTube</a>
                     {% if summarize_enabled %}
-                        <button id="generateSummaryBtn" onclick="generateSummary('{{ video_id }}')" style="background: #2196f3; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; display: {% if summary %}none{% else %}inline-block{% endif %};">🤖 Generate AI Summary</button>
+                        <button id="generateSummaryBtn" onclick="generateSummary('{{ video_id }}')" style="background: #2196f3; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; display: inline-block;">🤖 {% if summary %}Regenerate AI Summary{% else %}Generate AI Summary{% endif %}</button>
                     {% endif %}
                 </p>
             </div>
@@ -62,9 +62,14 @@
     <div id="summary-section" style="{% if not summary and not summary_error %}display: none;{% endif %}">
         {% if summary %}
             <div class="summary-section">
-                <h3>🤖 AI-Generated Summary:</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0;">🤖 AI-Generated Summary:</h3>
+                    {% if summarize_enabled %}
+                        <button id="regenerateSummaryBtn" onclick="regenerateSummary('{{ video_id }}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
+                    {% endif %}
+                </div>
                 <div class="summary-content">
-                    <pre>{{ summary }}</pre>
+                    <div class="markdown-content">{{ summary|safe }}</div>
                 </div>
             </div>
             <hr style="margin: 30px 0; border: 1px solid #ddd;">
@@ -189,6 +194,44 @@
             }
         }
         
+        function convertMarkdownToHtml(markdown) {
+            let html = markdown;
+            
+            // Convert headers (## Header -> <h2>Header</h2>)
+            html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+            html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+            html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+            
+            // Convert **bold** to <strong>bold</strong>
+            html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            
+            // Convert *italic* to <em>italic</em>
+            html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+            
+            // Convert [text](url) to <a href="url" target="_blank">text</a>
+            html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+            
+            // Convert bullet lists (- item or * item)
+            html = html.replace(/^[-*] (.+)$/gm, '<li>$1</li>');
+            html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+            
+            // Convert numbered lists (1. item)
+            html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+            
+            // Convert line breaks to paragraphs
+            html = html.replace(/\n\n/g, '</p><p>');
+            html = '<p>' + html + '</p>';
+            
+            // Clean up empty paragraphs
+            html = html.replace(/<p><\/p>/g, '');
+            html = html.replace(/<p>(<h[1-6]>)/g, '$1');
+            html = html.replace(/(<\/h[1-6]>)<\/p>/g, '$1');
+            html = html.replace(/<p>(<ul>)/g, '$1');
+            html = html.replace(/(<\/ul>)<\/p>/g, '$1');
+            
+            return html;
+        }
+        
         function generateSummary(videoId) {
             const btn = document.getElementById('generateSummaryBtn');
             const summarySection = document.getElementById('summary-section');
@@ -215,27 +258,31 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Convert markdown links and formatting to HTML
-                        let summaryHtml = data.summary;
-                        // Convert [text](url) to <a href="url" target="_blank">text</a>
-                        summaryHtml = summaryHtml.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #0066cc; text-decoration: underline;">$1</a>');
-                        // Convert **text** to <strong>text</strong>
-                        summaryHtml = summaryHtml.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+                        // Convert markdown to HTML
+                        const summaryHtml = convertMarkdownToHtml(data.summary);
                         
                         // Show summary section
                         summarySection.style.display = 'block';
                         summarySection.innerHTML = `
                             <div class="summary-section">
-                                <h3>🤖 AI-Generated Summary:</h3>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                    <h3 style="margin: 0;">🤖 AI-Generated Summary:</h3>
+                                    <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
+                                </div>
                                 <div class="summary-content">
-                                    <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: inherit;">${summaryHtml}</pre>
+                                    <div class="markdown-content">${summaryHtml}</div>
                                 </div>
                             </div>
                             <hr style="margin: 30px 0; border: 1px solid #ddd;">
                         `;
                         
-                        // Hide the generate button
-                        btn.style.display = 'none';
+                        // Update the button text to indicate it can regenerate
+                        btn.textContent = '🤖 Regenerate AI Summary';
+                        btn.disabled = false;
+                        btn.style.background = '#2196f3';
+                        
+                        // Re-add H2 quick save buttons after summary is loaded
+                        setTimeout(addH2QuickSaveButtons, 100);
                     } else {
                         // Show error
                         summarySection.style.display = 'block';
@@ -270,6 +317,470 @@
                     btn.style.background = '#2196f3';
                 });
         }
+        
+        function regenerateSummary(videoId) {
+            const btn = document.getElementById('regenerateSummaryBtn');
+            const summarySection = document.getElementById('summary-section');
+            
+            // Get formatted transcript text (readable version, not detailed timestamps)
+            const formattedTranscript = {{ formatted_transcript|tojson }};
+            
+            // Update button to show loading state
+            btn.textContent = '⏳ Regenerating...';
+            btn.disabled = true;
+            btn.style.background = '#666';
+            
+            // Make AJAX request to generate summary with formatted transcript
+            fetch('/api/summary', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    video_id: videoId,
+                    formatted_transcript: formattedTranscript
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Convert markdown to HTML
+                        const summaryHtml = convertMarkdownToHtml(data.summary);
+                        
+                        // Update summary section with new content
+                        summarySection.innerHTML = `
+                            <div class="summary-section">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                    <h3 style="margin: 0;">🤖 AI-Generated Summary:</h3>
+                                    <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
+                                </div>
+                                <div class="summary-content">
+                                    <div class="markdown-content">${summaryHtml}</div>
+                                </div>
+                            </div>
+                            <hr style="margin: 30px 0; border: 1px solid #ddd;">
+                        `;
+                        
+                        // Update the main generate button
+                        const mainBtn = document.getElementById('generateSummaryBtn');
+                        if (mainBtn) {
+                            mainBtn.textContent = '🤖 Regenerate AI Summary';
+                            mainBtn.disabled = false;
+                            mainBtn.style.background = '#2196f3';
+                        }
+                        
+                        // Re-add H2 quick save buttons after summary is regenerated
+                        setTimeout(addH2QuickSaveButtons, 100);
+                    } else {
+                        // Show error but keep the regenerate button
+                        summarySection.innerHTML = `
+                            <div class="summary-error">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                    <h3 style="margin: 0;">❌ Summary Error:</h3>
+                                    <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
+                                </div>
+                                <p style="color: #d32f2f;">${data.error}</p>
+                            </div>
+                            <hr style="margin: 30px 0; border: 1px solid #ddd;">
+                        `;
+                    }
+                })
+                .catch(error => {
+                    // Show error but keep the regenerate button
+                    summarySection.innerHTML = `
+                        <div class="summary-error">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <h3 style="margin: 0;">❌ Summary Error:</h3>
+                                <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
+                            </div>
+                            <p style="color: #d32f2f;">Failed to generate summary: ${error.message}</p>
+                        </div>
+                        <hr style="margin: 30px 0; border: 1px solid #ddd;">
+                    `;
+                });
+        }
+        
+        // ===== SNIPPET FUNCTIONALITY =====
+        
+        let snippetSaveButton = null;
+        let selectedText = '';
+        let selectedRange = null;
+        let contextBefore = '';
+        let contextAfter = '';
+        
+        function createSnippetSaveButton() {
+            const button = document.createElement('button');
+            button.id = 'snippet-save-btn';
+            button.innerHTML = '💾 Save as Snippet';
+            button.style.cssText = `
+                position: absolute;
+                background: #2196f3;
+                color: white;
+                border: none;
+                padding: 8px 12px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 500;
+                cursor: pointer;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                z-index: 1000;
+                transition: all 0.3s;
+                display: none;
+            `;
+            
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                saveSnippet();
+            });
+            
+            button.addEventListener('mouseenter', function() {
+                this.style.background = '#1976d2';
+                this.style.transform = 'scale(1.05)';
+            });
+            
+            button.addEventListener('mouseleave', function() {
+                this.style.background = '#2196f3';
+                this.style.transform = 'scale(1)';
+            });
+            
+            document.body.appendChild(button);
+            return button;
+        }
+        
+        function showSnippetSaveButton(x, y) {
+            if (!snippetSaveButton) {
+                snippetSaveButton = createSnippetSaveButton();
+            }
+            
+            // Position the button near the selection
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const buttonWidth = 140;
+            const buttonHeight = 40;
+            
+            // Adjust position to keep button in viewport
+            let buttonX = x;
+            let buttonY = y - 50; // Above the selection
+            
+            if (buttonX + buttonWidth > viewportWidth) {
+                buttonX = viewportWidth - buttonWidth - 10;
+            }
+            if (buttonX < 10) {
+                buttonX = 10;
+            }
+            if (buttonY < 10) {
+                buttonY = y + 30; // Below the selection
+            }
+            if (buttonY + buttonHeight > viewportHeight) {
+                buttonY = viewportHeight - buttonHeight - 10;
+            }
+            
+            snippetSaveButton.style.left = buttonX + 'px';
+            snippetSaveButton.style.top = buttonY + 'px';
+            snippetSaveButton.style.display = 'block';
+            
+            // Auto-hide after 10 seconds
+            setTimeout(() => {
+                hideSnippetSaveButton();
+            }, 10000);
+        }
+        
+        function hideSnippetSaveButton() {
+            if (snippetSaveButton) {
+                snippetSaveButton.style.display = 'none';
+            }
+        }
+        
+        function extractContext(textContent, selectedText, selectionStart) {
+            const contextLength = 100;
+            const beforeStart = Math.max(0, selectionStart - contextLength);
+            const afterEnd = Math.min(textContent.length, selectionStart + selectedText.length + contextLength);
+            
+            const before = textContent.substring(beforeStart, selectionStart).trim();
+            const after = textContent.substring(selectionStart + selectedText.length, afterEnd).trim();
+            
+            return { before, after };
+        }
+        
+        function handleTextSelection() {
+            const selection = window.getSelection();
+            
+            if (selection.rangeCount === 0) {
+                hideSnippetSaveButton();
+                return;
+            }
+            
+            const range = selection.getRangeAt(0);
+            const selectedText = selection.toString().trim();
+            
+            // Check minimum text length
+            
+            if (selectedText.length < 10) {
+                hideSnippetSaveButton();
+                return;
+            }
+            
+            // Check if selection is within transcript or summary content
+            const transcriptContainer = document.querySelector('.transcript-container');
+            const summaryContent = document.querySelector('.summary-content');
+            const markdownContent = document.querySelector('.markdown-content');
+            
+            let isValidSelection = false;
+            let parentContainer = null;
+            
+            // Function to check if element is within a valid container
+            function isWithinValidContainer(element) {
+                let currentElement = element;
+                while (currentElement && currentElement !== document.body) {
+                    if (currentElement === transcriptContainer || 
+                        currentElement === summaryContent || 
+                        currentElement === markdownContent) {
+                        return currentElement;
+                    }
+                    currentElement = currentElement.parentElement;
+                }
+                return null;
+            }
+            
+            // Check if selection is within valid containers
+            const validContainer = isWithinValidContainer(range.commonAncestorContainer);
+            
+            if (validContainer) {
+                isValidSelection = true;
+                parentContainer = validContainer;
+            } else {
+                hideSnippetSaveButton();
+                return;
+            }
+            
+            // Store selection data
+            window.selectedText = selectedText;
+            window.selectedRange = range;
+            
+            // Extract context
+            const containerText = parentContainer.textContent || parentContainer.innerText;
+            const selectionStart = containerText.indexOf(selectedText);
+            
+            if (selectionStart !== -1) {
+                const context = extractContext(containerText, selectedText, selectionStart);
+                window.contextBefore = context.before;
+                window.contextAfter = context.after;
+            } else {
+                window.contextBefore = '';
+                window.contextAfter = '';
+            }
+            
+            // Get selection position
+            const rect = range.getBoundingClientRect();
+            const x = rect.left + (rect.width / 2);
+            const y = rect.top + window.scrollY;
+            
+            showSnippetSaveButton(x, y);
+        }
+        
+        async function saveSnippet() {
+            if (!window.selectedText) {
+                showToast('No text selected', 'error');
+                return;
+            }
+            
+            const videoId = '{{ video_id }}';
+            
+            try {
+                // Show loading state
+                if (snippetSaveButton) {
+                    snippetSaveButton.innerHTML = '⏳ Saving...';
+                    snippetSaveButton.disabled = true;
+                }
+                
+                const response = await fetch('/api/snippets', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        video_id: videoId,
+                        snippet_text: window.selectedText,
+                        context_before: window.contextBefore,
+                        context_after: window.contextAfter,
+                        tags: []
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('Snippet saved successfully! ✅');
+                    hideSnippetSaveButton();
+                    
+                    // Clear selection
+                    window.getSelection().removeAllRanges();
+                } else {
+                    showToast(result.message || 'Failed to save snippet', 'error');
+                }
+            } catch (error) {
+                console.error('Error saving snippet:', error);
+                showToast('Error saving snippet', 'error');
+            } finally {
+                // Reset button
+                if (snippetSaveButton) {
+                    snippetSaveButton.innerHTML = '💾 Save as Snippet';
+                    snippetSaveButton.disabled = false;
+                }
+            }
+        }
+        
+        // Add H2 section quick save buttons
+        function addH2QuickSaveButtons() {
+            const h2Elements = document.querySelectorAll('.summary-content h2');
+            
+            h2Elements.forEach((h2, index) => {
+                const quickSaveBtn = document.createElement('button');
+                quickSaveBtn.innerHTML = '💾';
+                quickSaveBtn.title = 'Save this section as snippet';
+                quickSaveBtn.style.cssText = `
+                    margin-left: 10px;
+                    background: #2196f3;
+                    color: white;
+                    border: none;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-size: 12px;
+                    cursor: pointer;
+                    transition: all 0.3s;
+                `;
+                
+                quickSaveBtn.addEventListener('click', function() {
+                    saveH2Section(h2);
+                });
+                
+                quickSaveBtn.addEventListener('mouseenter', function() {
+                    this.style.background = '#1976d2';
+                    this.style.transform = 'scale(1.1)';
+                });
+                
+                quickSaveBtn.addEventListener('mouseleave', function() {
+                    this.style.background = '#2196f3';
+                    this.style.transform = 'scale(1)';
+                });
+                
+                h2.appendChild(quickSaveBtn);
+            });
+        }
+        
+        async function saveH2Section(h2Element) {
+            const videoId = '{{ video_id }}';
+            
+            try {
+                // Get the section content (h2 + all content until next h2)
+                let sectionContent = h2Element.textContent.trim();
+                let currentElement = h2Element.nextElementSibling;
+                
+                while (currentElement && currentElement.tagName !== 'H2') {
+                    sectionContent += '\n\n' + currentElement.textContent.trim();
+                    currentElement = currentElement.nextElementSibling;
+                }
+                
+                // Auto-tag with section title
+                const sectionTitle = h2Element.textContent.replace('💾', '').trim();
+                const tags = [sectionTitle];
+                
+                // Show loading state
+                const originalText = h2Element.querySelector('button').innerHTML;
+                h2Element.querySelector('button').innerHTML = '⏳';
+                h2Element.querySelector('button').disabled = true;
+                
+                const response = await fetch('/api/snippets', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        video_id: videoId,
+                        snippet_text: sectionContent,
+                        context_before: '',
+                        context_after: '',
+                        tags: tags
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(`Section "${sectionTitle}" saved as snippet! ✅`);
+                    
+                    // Success animation
+                    h2Element.querySelector('button').innerHTML = '✅';
+                    h2Element.querySelector('button').style.background = '#4caf50';
+                    
+                    setTimeout(() => {
+                        h2Element.querySelector('button').innerHTML = originalText;
+                        h2Element.querySelector('button').style.background = '#2196f3';
+                    }, 2000);
+                } else {
+                    showToast(result.message || 'Failed to save section', 'error');
+                }
+            } catch (error) {
+                console.error('Error saving section:', error);
+                showToast('Error saving section', 'error');
+            } finally {
+                // Reset button
+                h2Element.querySelector('button').disabled = false;
+            }
+        }
+        
+        function showToast(message, type = 'success') {
+            // Create toast if it doesn't exist
+            let toast = document.getElementById('snippet-toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'snippet-toast';
+                toast.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    padding: 12px 20px;
+                    border-radius: 6px;
+                    font-size: 14px;
+                    font-weight: 500;
+                    transform: translateX(100%);
+                    transition: transform 0.3s;
+                    z-index: 1001;
+                    max-width: 300px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                `;
+                document.body.appendChild(toast);
+            }
+            
+            toast.textContent = message;
+            toast.style.background = type === 'success' ? '#4caf50' : '#ff4444';
+            toast.style.color = 'white';
+            toast.style.transform = 'translateX(0)';
+            
+            setTimeout(() => {
+                toast.style.transform = 'translateX(100%)';
+            }, 3000);
+        }
+        
+        // Event listeners for text selection
+        document.addEventListener('mouseup', handleTextSelection);
+        document.addEventListener('keyup', handleTextSelection);
+        
+        // Hide button when clicking elsewhere
+        document.addEventListener('click', function(e) {
+            if (e.target !== snippetSaveButton && !snippetSaveButton?.contains(e.target)) {
+                hideSnippetSaveButton();
+            }
+        });
+        
+        // Add quick save buttons to H2 sections when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Wait a bit for content to load
+            setTimeout(addH2QuickSaveButtons, 500);
+        });
+        
+        // Note: H2 quick save buttons are now added automatically after summary generation/regeneration
     </script>
     
 {% endblock %}

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Database storage module using Supabase for YouTube Deep Search
+Database storage module using Supabase for YouTube Deep Summary
 Replaces the file-based transcript_cache.py
 """
 
@@ -17,12 +17,12 @@ load_dotenv()
 
 class DatabaseStorage:
     """Supabase database storage for YouTube transcripts, summaries, and metadata"""
-    
+
     def _parse_datetime(self, datetime_str: str) -> datetime:
         """Parse datetime string with variable microsecond precision"""
         # Replace Z with +00:00 for proper timezone parsing
         datetime_str = datetime_str.replace('Z', '+00:00')
-        
+
         # Handle variable microsecond precision by padding with zeros if needed
         if '+' in datetime_str and '.' in datetime_str:
             timestamp_part, tz_part = datetime_str.rsplit('+', 1)
@@ -31,23 +31,23 @@ class DatabaseStorage:
                 # Pad microseconds to 6 digits
                 microsec_part = microsec_part.ljust(6, '0')
                 datetime_str = f"{date_part}.{microsec_part}+{tz_part}"
-        
+
         return datetime.fromisoformat(datetime_str)
-    
+
     def __init__(self):
         """Initialize Supabase client"""
         self.url = os.getenv('SUPABASE_URL')
         self.key = os.getenv('SUPABASE_API_KEY')
-        
+
         if not self.url or not self.key:
             raise ValueError("SUPABASE_URL and SUPABASE_API_KEY must be set in environment variables")
-        
+
         # Temporarily clear proxy environment variables for Supabase
         original_http_proxy = os.environ.pop('HTTP_PROXY', None)
         original_https_proxy = os.environ.pop('HTTPS_PROXY', None)
         original_http_proxy_lower = os.environ.pop('http_proxy', None)
         original_https_proxy_lower = os.environ.pop('https_proxy', None)
-        
+
         try:
             # Create Supabase client without any proxy interference
             self.supabase: Client = create_client(self.url, self.key)
@@ -62,40 +62,40 @@ class DatabaseStorage:
             if original_https_proxy_lower:
                 os.environ['https_proxy'] = original_https_proxy_lower
         print("Database storage initialized with Supabase (no proxy)")
-    
+
     def get(self, video_id: str) -> Optional[Dict]:
         """
         Get cached transcript data for video ID from database
-        
+
         Args:
             video_id: YouTube video ID
-            
+
         Returns:
             Cached data dict or None if not found
         """
         try:
             # Get video metadata
             video_response = self.supabase.table('youtube_videos').select('*').eq('video_id', video_id).execute()
-            
+
             if not video_response.data or len(video_response.data) == 0:
                 print(f"Database MISS for video {video_id}")
                 return None
-            
+
             video_data = video_response.data[0]
-            
+
             # Get transcript
             transcript_response = self.supabase.table('transcripts').select('*').eq('video_id', video_id).execute()
-            
+
             if not transcript_response.data or len(transcript_response.data) == 0:
                 print(f"Database MISS - no transcript for video {video_id}")
                 return None
-            
+
             transcript_data = transcript_response.data[0]
-            
+
             # Get chapters (optional)
             chapters_response = self.supabase.table('video_chapters').select('*').eq('video_id', video_id).execute()
             chapters = chapters_response.data[0].get('chapters_data') if chapters_response.data and len(chapters_response.data) > 0 else None
-            
+
             # Reconstruct the cache format
             cached_data = {
                 'video_id': video_id,
@@ -109,18 +109,18 @@ class DatabaseStorage:
                 },
                 'formatted_transcript': transcript_data['formatted_transcript']
             }
-            
+
             print(f"Database HIT for video {video_id}")
             return cached_data
-            
+
         except Exception as e:
             print(f"Database read error for {video_id}: {e}")
             return None
-    
+
     def set(self, video_id: str, transcript: List[Dict], video_info: Dict, formatted_transcript: str):
         """
         Store transcript data for video ID in database
-        
+
         Args:
             video_id: YouTube video ID
             transcript: Raw transcript data
@@ -137,10 +137,10 @@ class DatabaseStorage:
                 'thumbnail_url': f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
                 'updated_at': datetime.now(timezone.utc).isoformat()
             }
-            
+
             # Use upsert to insert or update (on_conflict specifies the unique constraint)
             self.supabase.table('youtube_videos').upsert(video_data, on_conflict='video_id').execute()
-            
+
             # Insert or update transcript
             transcript_data = {
                 'video_id': video_id,
@@ -149,11 +149,11 @@ class DatabaseStorage:
                 'language_used': 'en',  # Default, could be enhanced
                 'updated_at': datetime.now(timezone.utc).isoformat()
             }
-            
+
             # Delete existing transcript and insert new one
             self.supabase.table('transcripts').delete().eq('video_id', video_id).execute()
             self.supabase.table('transcripts').insert(transcript_data).execute()
-            
+
             # Insert or update chapters if available
             chapters = video_info.get('chapters')
             print(f"Chapters data for {video_id}: {chapters}")
@@ -163,24 +163,24 @@ class DatabaseStorage:
                     'chapters_data': chapters,
                     'updated_at': datetime.now(timezone.utc).isoformat()
                 }
-                
+
                 # Delete existing chapters and insert new ones
                 self.supabase.table('video_chapters').delete().eq('video_id', video_id).execute()
                 self.supabase.table('video_chapters').insert(chapters_data).execute()
                 print(f"Chapters saved for {video_id}: {len(chapters)} chapters")
             else:
                 print(f"No chapters found for video {video_id}")
-            
+
             print(f"Database SAVED for video {video_id}")
-            
+
         except Exception as e:
             print(f"Database write error for {video_id}: {e}")
             raise
-    
+
     def save_summary(self, video_id: str, summary: str, model_used: str = 'gpt-4.1'):
         """
         Save AI summary for a video
-        
+
         Args:
             video_id: YouTube video ID
             summary: Generated summary text
@@ -193,38 +193,38 @@ class DatabaseStorage:
                 'model_used': model_used,
                 'updated_at': datetime.now(timezone.utc).isoformat()
             }
-            
+
             # Delete existing summary and insert new one
             self.supabase.table('summaries').delete().eq('video_id', video_id).execute()
             self.supabase.table('summaries').insert(summary_data).execute()
-            
+
             print(f"Summary saved for video {video_id}")
-            
+
         except Exception as e:
             print(f"Error saving summary for {video_id}: {e}")
             raise
-    
+
     def get_summary(self, video_id: str) -> Optional[str]:
         """
         Get saved summary for a video
-        
+
         Args:
             video_id: YouTube video ID
-            
+
         Returns:
             Summary text or None if not found
         """
         try:
             response = self.supabase.table('summaries').select('summary_text').eq('video_id', video_id).execute()
-            
+
             if response.data and len(response.data) > 0:
                 return response.data[0]['summary_text']
             return None
-            
+
         except Exception as e:
             print(f"Error getting summary for {video_id}: {e}")
             return None
-    
+
     def clear_expired(self):
         """
         Remove expired cache files - for database, we'll keep everything
@@ -232,22 +232,22 @@ class DatabaseStorage:
         """
         print("Database storage doesn't expire - keeping all data")
         return
-    
+
     def get_cache_info(self) -> Dict:
         """Get database statistics"""
         try:
             # Alternative count method - get all records and count them
             videos_response = self.supabase.table('youtube_videos').select('video_id').execute()
             videos_count = len(videos_response.data) if videos_response.data else 0
-            
+
             transcripts_response = self.supabase.table('transcripts').select('video_id').execute()
             transcripts_count = len(transcripts_response.data) if transcripts_response.data else 0
-            
+
             summaries_response = self.supabase.table('summaries').select('video_id').execute()
             summaries_count = len(summaries_response.data) if summaries_response.data else 0
-            
+
             print(f"Database stats: {videos_count} videos, {transcripts_count} transcripts, {summaries_count} summaries")
-            
+
             return {
                 'total_files': videos_count,
                 'valid_files': videos_count,
@@ -258,7 +258,7 @@ class DatabaseStorage:
                 'transcripts_count': transcripts_count,
                 'summaries_count': summaries_count
             }
-            
+
         except Exception as e:
             print(f"Error getting database info: {e}")
             return {
@@ -271,7 +271,7 @@ class DatabaseStorage:
                 'transcripts_count': 0,
                 'summaries_count': 0
             }
-    
+
     def get_all_cached_videos(self) -> List[Dict]:
         """Get list of all cached videos with metadata from database"""
         try:
@@ -280,29 +280,29 @@ class DatabaseStorage:
                 .select('*, transcripts(transcript_data), summaries(summary_text), video_chapters(chapters_data)')\
                 .order('created_at', desc=True)\
                 .execute()
-            
+
             cached_videos = []
-            
+
             for video in response.data:
                 # Calculate transcript entries count
                 transcript_entries = 0
                 if video.get('transcripts') and len(video['transcripts']) > 0:
                     transcript_data = video['transcripts'][0].get('transcript_data', [])
                     transcript_entries = len(transcript_data) if transcript_data else 0
-                
+
                 # Calculate chapters count
                 chapters_count = 0
                 if video.get('video_chapters') and len(video['video_chapters']) > 0:
                     chapters_data = video['video_chapters'][0].get('chapters_data', [])
                     chapters_count = len(chapters_data) if chapters_data else 0
-                
+
                 # Calculate cache age
                 created_at = self._parse_datetime(video['created_at'])
                 cache_age_hours = (datetime.now(timezone.utc) - created_at).total_seconds() / 3600
-                
+
                 # Check if summary exists
                 has_summary = video.get('summaries') and len(video['summaries']) > 0
-                
+
                 cached_videos.append({
                     'video_id': video['video_id'],
                     'title': video['title'] or 'Unknown Title',
@@ -317,13 +317,13 @@ class DatabaseStorage:
                     'has_summary': has_summary,
                     'created_at': video['created_at']
                 })
-            
+
             return cached_videos
-            
+
         except Exception as e:
             print(f"Error getting all cached videos: {e}")
             return []
-    
+
     def get_videos_by_channel(self, channel_name: str) -> List[Dict]:
         """Get all videos from a specific channel"""
         try:
@@ -333,39 +333,301 @@ class DatabaseStorage:
                 .eq('uploader', channel_name)\
                 .order('created_at', desc=True)\
                 .execute()
-            
+
             return response.data if response.data else []
-            
+
         except Exception as e:
             print(f"Error getting videos for channel {channel_name}: {e}")
             return []
-    
+
     def delete(self, video_id: str) -> bool:
         """Delete a video and all its associated data"""
         try:
             print(f"Deleting video {video_id} and all associated data...")
-            
+
             # Delete summaries first (foreign key dependency)
             summaries_response = self.supabase.table('summaries').delete().eq('video_id', video_id).execute()
             print(f"Deleted summaries: {len(summaries_response.data) if summaries_response.data else 0}")
-            
+
             # Delete chapters
             chapters_response = self.supabase.table('video_chapters').delete().eq('video_id', video_id).execute()
             print(f"Deleted chapters: {len(chapters_response.data) if chapters_response.data else 0}")
-            
+
             # Delete transcripts
             transcripts_response = self.supabase.table('transcripts').delete().eq('video_id', video_id).execute()
             print(f"Deleted transcripts: {len(transcripts_response.data) if transcripts_response.data else 0}")
-            
+
             # Delete the main video record
             video_response = self.supabase.table('youtube_videos').delete().eq('video_id', video_id).execute()
             print(f"Deleted video: {len(video_response.data) if video_response.data else 0}")
-            
+
             return True
-            
+
         except Exception as e:
             print(f"Error deleting video {video_id}: {e}")
             return False
+
+    
+
+    def get_all_channels(self):
+        """Get all channels with video counts and summary counts"""
+        try:
+            # Try RPC first (will fail if function doesn't exist)
+            try:
+                result = self.supabase.rpc('get_channel_stats').execute()
+                if result.data:
+                    return result.data
+            except Exception as rpc_error:
+                print(f"RPC get_channel_stats not available: {rpc_error}")
+            
+            # Fallback: get channels manually
+            print("Using fallback method to get channels...")
+            videos_result = self.supabase.table('youtube_videos').select('video_id, uploader').execute()
+            summaries_result = self.supabase.table('summaries').select('video_id').execute()
+
+            print(f"Found {len(videos_result.data)} videos total")
+            
+            # Count videos by channel
+            channel_counts = {}
+            for video in videos_result.data:
+                uploader = video.get('uploader')
+                if uploader and uploader.strip():  # Check for non-empty uploader
+                    channel_counts[uploader] = channel_counts.get(uploader, 0) + 1
+
+            print(f"Found {len(channel_counts)} unique channels")
+            
+            if not channel_counts:
+                print("No channels found - videos may have empty/null uploader field")
+                return []
+
+            # Get video IDs that have summaries
+            summarized_video_ids = {s['video_id'] for s in summaries_result.data if s.get('video_id')}
+            print(f"Found {len(summarized_video_ids)} videos with summaries")
+
+            # Count summaries by channel
+            channels = []
+            for channel_name, video_count in channel_counts.items():
+                # Get videos for this channel to count summaries
+                channel_videos = self.get_videos_by_channel(channel_name)
+                summary_count = sum(1 for v in channel_videos if v.get('video_id') in summarized_video_ids)
+
+                channels.append({
+                    'name': channel_name,
+                    'video_count': video_count,
+                    'summary_count': summary_count
+                })
+                print(f"Channel '{channel_name}': {video_count} videos, {summary_count} summaries")
+
+            return sorted(channels, key=lambda x: x['video_count'], reverse=True)
+
+        except Exception as e:
+            print(f"Error getting all channels: {e}")
+            return []
+
+    # Snippet-related methods
+    def save_snippet(self, video_id: str, snippet_text: str, context_before: Optional[str] = None, context_after: Optional[str] = None, tags: Optional[List[str]] = None) -> Dict:
+        """Save a snippet to the database"""
+        try:
+            # Validate input
+            if not video_id or not snippet_text:
+                return {'success': False, 'message': 'video_id and snippet_text are required'}
+            
+            # Check if video exists
+            video_response = self.supabase.table('youtube_videos').select('video_id').eq('video_id', video_id).execute()
+            if not video_response.data:
+                return {'success': False, 'message': 'Video not found'}
+            
+            # Prepare snippet data
+            snippet_data = {
+                'video_id': video_id,
+                'snippet_text': snippet_text.strip(),
+                'context_before': context_before.strip() if context_before else None,
+                'context_after': context_after.strip() if context_after else None,
+                'tags': tags or [],
+                'created_at': datetime.now(timezone.utc).isoformat(),
+                'updated_at': datetime.now(timezone.utc).isoformat()
+            }
+            
+            # Save snippet
+            response = self.supabase.table('snippets').insert(snippet_data).execute()
+            
+            if response.data:
+                snippet_id = response.data[0]['id']
+                print(f"Snippet saved successfully for video {video_id}, ID: {snippet_id}")
+                return {'success': True, 'message': 'Snippet saved successfully', 'snippet_id': snippet_id}
+            else:
+                return {'success': False, 'message': 'Failed to save snippet'}
+        
+        except Exception as e:
+            print(f"Error saving snippet: {e}")
+            return {'success': False, 'message': f'Error saving snippet: {str(e)}'}
+
+    def get_snippets(self, video_id: Optional[str] = None, limit: int = 100) -> Dict:
+        """Get snippets from the database"""
+        try:
+            query = self.supabase.table('snippets').select(
+                'id, video_id, snippet_text, context_before, context_after, tags, created_at, updated_at, '
+                'youtube_videos(title, uploader, duration, thumbnail_url)'
+            ).order('created_at', desc=True).limit(limit)
+            
+            if video_id:
+                query = query.eq('video_id', video_id)
+            
+            response = query.execute()
+            
+            if response.data:
+                snippets = []
+                for snippet in response.data:
+                    # Add video metadata
+                    video_data = snippet.get('youtube_videos', {})
+                    snippet_data = {
+                        'id': snippet['id'],
+                        'video_id': snippet['video_id'],
+                        'snippet_text': snippet['snippet_text'],
+                        'context_before': snippet.get('context_before'),
+                        'context_after': snippet.get('context_after'),
+                        'tags': snippet.get('tags', []),
+                        'created_at': snippet['created_at'],
+                        'updated_at': snippet['updated_at'],
+                        'video_title': video_data.get('title'),
+                        'video_uploader': video_data.get('uploader'),
+                        'video_duration': video_data.get('duration'),
+                        'video_thumbnail': video_data.get('thumbnail_url')
+                    }
+                    snippets.append(snippet_data)
+                
+                return {'success': True, 'snippets': snippets}
+            else:
+                return {'success': True, 'snippets': []}
+        
+        except Exception as e:
+            print(f"Error getting snippets: {e}")
+            return {'success': False, 'message': f'Error getting snippets: {str(e)}'}
+
+    def delete_snippet(self, snippet_id: str) -> Dict:
+        """Delete a snippet from the database"""
+        try:
+            response = self.supabase.table('snippets').delete().eq('id', snippet_id).execute()
+            
+            if response.data:
+                print(f"Snippet deleted successfully: {snippet_id}")
+                return {'success': True, 'message': 'Snippet deleted successfully'}
+            else:
+                return {'success': False, 'message': 'Snippet not found'}
+        
+        except Exception as e:
+            print(f"Error deleting snippet: {e}")
+            return {'success': False, 'message': f'Error deleting snippet: {str(e)}'}
+
+    def update_snippet_tags(self, snippet_id: str, tags: List[str]) -> Dict:
+        """Update tags for a snippet"""
+        try:
+            # Validate tags
+            if not isinstance(tags, list):
+                return {'success': False, 'message': 'Tags must be a list'}
+            
+            # Clean and validate tags
+            clean_tags = []
+            for tag in tags:
+                if isinstance(tag, str) and tag.strip():
+                    clean_tag = tag.strip()[:50]  # Limit tag length
+                    if not any(char in clean_tag for char in ['<', '>', '&', '"', "'"]):
+                        clean_tags.append(clean_tag)
+            
+            update_data = {
+                'tags': clean_tags,
+                'updated_at': datetime.now(timezone.utc).isoformat()
+            }
+            
+            response = self.supabase.table('snippets').update(update_data).eq('id', snippet_id).execute()
+            
+            if response.data:
+                print(f"Snippet tags updated successfully: {snippet_id}")
+                return {'success': True, 'message': 'Tags updated successfully'}
+            else:
+                return {'success': False, 'message': 'Snippet not found'}
+        
+        except Exception as e:
+            print(f"Error updating snippet tags: {e}")
+            return {'success': False, 'message': f'Error updating snippet tags: {str(e)}'}
+
+    def get_snippets_by_channel(self, channel_name: str) -> List[Dict]:
+        """Get all snippets from a specific channel"""
+        try:
+            response = self.supabase.table('snippets').select(
+                'id, video_id, snippet_text, context_before, context_after, tags, created_at, updated_at, '
+                'youtube_videos(title, uploader, duration, thumbnail_url)'
+            ).eq('youtube_videos.uploader', channel_name).order('created_at', desc=True).execute()
+            
+            if response.data:
+                snippets = []
+                for snippet in response.data:
+                    video_data = snippet.get('youtube_videos', {})
+                    snippet_data = {
+                        'id': snippet['id'],
+                        'video_id': snippet['video_id'],
+                        'snippet_text': snippet['snippet_text'],
+                        'context_before': snippet.get('context_before'),
+                        'context_after': snippet.get('context_after'),
+                        'tags': snippet.get('tags', []),
+                        'created_at': snippet['created_at'],
+                        'updated_at': snippet['updated_at'],
+                        'video_title': video_data.get('title'),
+                        'video_uploader': video_data.get('uploader'),
+                        'video_duration': video_data.get('duration'),
+                        'video_thumbnail': video_data.get('thumbnail_url')
+                    }
+                    snippets.append(snippet_data)
+                
+                return snippets
+            else:
+                return []
+        
+        except Exception as e:
+            print(f"Error getting snippets by channel: {e}")
+            return []
+
+    def get_channels_with_snippets(self) -> List[Dict]:
+        """Get all channels with snippet counts"""
+        try:
+            # Get all channels that have snippets
+            response = self.supabase.table('snippets').select(
+                'video_id, youtube_videos(uploader, title)'
+            ).execute()
+            
+            if not response.data:
+                return []
+            
+            # Count snippets by channel
+            channel_counts = {}
+            channel_videos = {}
+            
+            for snippet in response.data:
+                video_data = snippet.get('youtube_videos', {})
+                uploader = video_data.get('uploader')
+                
+                if uploader and uploader.strip():
+                    channel_counts[uploader] = channel_counts.get(uploader, 0) + 1
+                    
+                    # Track unique videos per channel
+                    if uploader not in channel_videos:
+                        channel_videos[uploader] = set()
+                    channel_videos[uploader].add(snippet['video_id'])
+            
+            # Build result
+            channels = []
+            for channel_name, snippet_count in channel_counts.items():
+                channels.append({
+                    'name': channel_name,
+                    'snippet_count': snippet_count,
+                    'videos_with_snippets': len(channel_videos.get(channel_name, set()))
+                })
+            
+            return sorted(channels, key=lambda x: x['snippet_count'], reverse=True)
+        
+        except Exception as e:
+            print(f"Error getting channels with snippets: {e}")
+            return []
 
 
 # Global database storage instance

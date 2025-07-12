@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}YouTube Deep Search{% endblock %}</title>
+    <title>{% block title %}YouTube Deep Summary{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <style>
         body {
@@ -121,6 +121,85 @@
             margin: 0;
             font-family: inherit;
         }
+        
+        /* Markdown formatting for summaries */
+        .markdown-content {
+            font-size: 15px;
+            line-height: 1.7;
+            color: #333;
+            max-width: none;
+        }
+        
+        .markdown-content h1,
+        .markdown-content h2,
+        .markdown-content h3,
+        .markdown-content h4,
+        .markdown-content h5,
+        .markdown-content h6 {
+            color: #2196f3;
+            margin: 16px 0 8px 0;
+            font-weight: 600;
+        }
+        
+        .markdown-content h2 {
+            font-size: 16px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+        
+        .markdown-content h3 {
+            font-size: 15px;
+        }
+        
+        .markdown-content p {
+            margin: 12px 0;
+            line-height: 1.6;
+        }
+        
+        .markdown-content ul,
+        .markdown-content ol {
+            margin: 12px 0;
+            padding-left: 20px;
+        }
+        
+        .markdown-content li {
+            margin: 4px 0;
+            line-height: 1.5;
+        }
+        
+        .markdown-content a {
+            color: #2196f3;
+            text-decoration: none;
+        }
+        
+        .markdown-content a:hover {
+            text-decoration: underline;
+        }
+        
+        .markdown-content strong {
+            font-weight: 600;
+            color: #222;
+        }
+        
+        .markdown-content em {
+            font-style: italic;
+        }
+        
+        .markdown-content code {
+            background: #f1f1f1;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        
+        .markdown-content blockquote {
+            border-left: 3px solid #2196f3;
+            margin: 16px 0;
+            padding: 8px 16px;
+            background: #f8f9fa;
+            font-style: italic;
+        }
         .summary-error {
             background: #ffebee;
             border: 1px solid #f44336;
@@ -146,15 +225,57 @@
         .header nav a:hover {
             background-color: #f0f0f0 !important;
             color: #333 !important;
+            border-color: #ccc !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        /* Input focus effects */
+        input:focus {
+            border-color: #667eea !important;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+        }
+        
+        /* Button hover effects */
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255,107,107,0.4) !important;
         }
         
         /* Mobile responsive adjustments */
         @media (max-width: 768px) {
             body {
-                padding: 10px;
+                padding: 5px;
             }
             .container {
-                padding: 15px;
+                padding: 10px;
+            }
+            .header {
+                padding-bottom: 15px;
+                margin-bottom: 20px;
+            }
+            .header h1 {
+                font-size: 22px !important;
+            }
+            .header p {
+                font-size: 13px !important;
+            }
+            .header > div {
+                flex-direction: column !important;
+                align-items: center !important;
+                text-align: center;
+            }
+            .header nav {
+                flex-direction: row !important;
+                justify-content: center;
+                gap: 15px !important;
+                margin-top: 15px;
+                width: 100%;
+            }
+            .header nav a {
+                padding: 8px 12px !important;
+                text-align: center;
+                font-size: 13px !important;
             }
             .transcript-container {
                 padding: 0;
@@ -173,15 +294,146 @@
                 height: auto !important;
             }
         }
+        
+        /* Enhanced mobile responsiveness for new design elements */
+        @media (max-width: 768px) {
+            /* Hero section mobile adjustments */
+            .hero-section {
+                padding: 40px 15px !important;
+                margin-bottom: 30px !important;
+            }
+            .hero-title {
+                font-size: 28px !important;
+                line-height: 1.3 !important;
+            }
+            .hero-subtitle {
+                font-size: 16px !important;
+                margin: 0 auto 25px !important;
+            }
+            .hero-form {
+                padding: 20px !important;
+                margin: 0 10px !important;
+            }
+            .hero-form form {
+                flex-direction: column !important;
+                gap: 15px !important;
+            }
+            .hero-form input {
+                padding: 14px 16px !important;
+                font-size: 16px !important;
+            }
+            .hero-form button {
+                padding: 14px 24px !important;
+                font-size: 16px !important;
+                width: 100%;
+            }
+            
+            /* Stats section mobile */
+            .stats-grid {
+                grid-template-columns: 1fr !important;
+                gap: 20px !important;
+                margin-bottom: 40px !important;
+            }
+            .stat-card {
+                padding: 20px !important;
+            }
+            .stat-number {
+                font-size: 28px !important;
+            }
+            
+            /* Testimonials mobile */
+            .testimonials-section {
+                padding: 30px 15px !important;
+            }
+            .testimonials-title {
+                font-size: 24px !important;
+                margin-bottom: 30px !important;
+            }
+            .testimonials-grid {
+                grid-template-columns: 1fr !important;
+                gap: 20px !important;
+            }
+            .testimonial-card {
+                padding: 20px !important;
+                margin: 0 !important;
+            }
+            .testimonial-text {
+                font-size: 14px !important;
+                line-height: 1.6 !important;
+            }
+            .testimonial-avatar {
+                width: 44px !important;
+                height: 44px !important;
+                font-size: 14px !important;
+            }
+            .testimonial-name {
+                font-size: 14px !important;
+            }
+            .testimonial-title {
+                font-size: 12px !important;
+            }
+            
+            /* How-to section mobile */
+            .howto-details {
+                border-radius: 15px !important;
+                margin-top: 40px !important;
+            }
+            .howto-summary {
+                padding: 15px 20px !important;
+                font-size: 16px !important;
+            }
+            .howto-content {
+                padding: 25px 15px !important;
+            }
+            .howto-grid {
+                grid-template-columns: 1fr !important;
+                gap: 20px !important;
+            }
+            .howto-card {
+                padding: 25px 20px !important;
+                border-radius: 15px !important;
+            }
+            .howto-card h4 {
+                font-size: 18px !important;
+            }
+            .howto-card ul,
+            .howto-card ol {
+                font-size: 14px !important;
+            }
+        }
+        
+        /* Touch-friendly adjustments */
+        @media (max-width: 480px) {
+            .hero-title {
+                font-size: 24px !important;
+            }
+            .hero-subtitle {
+                font-size: 15px !important;
+            }
+            .hero-form {
+                padding: 15px !important;
+            }
+            .testimonials-title {
+                font-size: 20px !important;
+            }
+            .howto-summary {
+                font-size: 15px !important;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h1 style="margin: 0;"><a href="/" style="color: #ff0000; text-decoration: none;">🔍 YouTube Deep Search</a></h1>
-                <nav style="display: flex; gap: 15px; font-size: 14px;">
-                    <a href="/storage" style="color: #666; text-decoration: none; padding: 8px 12px; border-radius: 4px; transition: background-color 0.3s;">💾 Storage</a>
+                <div>
+                    <h1 style="margin: 0; font-size: 28px; font-weight: 700;"><a href="/" style="color: #1a1a1a; text-decoration: none; display: flex; align-items: center; gap: 12px;"><img src="/static/favicon.svg" alt="YouTube Deep Summary" style="width: 32px; height: 32px; filter: drop-shadow(0 2px 4px rgba(255,0,0,0.3));">YouTube Deep Summary</a></h1>
+                    <p style="margin: 6px 0 0 0; color: #666; font-size: 15px; font-weight: 500; letter-spacing: 0.3px;">⭐ Extract content that makes a tangible impact on your life</p>
+                </div>
+                <nav style="display: flex; gap: 20px; font-size: 14px;">
+                    <a href="/channels" style="color: #555; text-decoration: none; padding: 10px 16px; border-radius: 8px; transition: all 0.3s; font-weight: 500; border: 1px solid #e0e0e0;">📺 Channels</a>
+                    <a href="/snippets" style="color: #555; text-decoration: none; padding: 10px 16px; border-radius: 8px; transition: all 0.3s; font-weight: 500; border: 1px solid #e0e0e0;">💾 Snippets</a>
+                    <a href="/storage" style="color: #555; text-decoration: none; padding: 10px 16px; border-radius: 8px; transition: all 0.3s; font-weight: 500; border: 1px solid #e0e0e0;">�️ Storage</a>
                 </nav>
             </div>
         </div>
