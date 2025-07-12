@@ -424,6 +424,399 @@ class DatabaseStorage:
             print(f"Error getting all channels: {e}")
             return []
 
+    def get_notes(self) -> str:
+        """
+        Get user notes content from database, with file fallback
+        
+        Returns:
+            Notes content as string, empty string if none exist
+        """
+        try:
+            # Get the latest notes entry (there should only be one)
+            response = self.supabase.table('user_notes')\
+                .select('notes_content')\
+                .order('updated_at', desc=True)\
+                .limit(1)\
+                .execute()
+            
+            if response.data and len(response.data) > 0:
+                return response.data[0]['notes_content']
+            else:
+                # No notes exist yet, return empty string
+                return ''
+
+        except Exception as e:
+            print(f"Error getting notes from database: {e}")
+            # Fallback to file-based storage
+            try:
+                import os
+                notes_file = 'user_notes.txt'
+                if os.path.exists(notes_file):
+                    with open(notes_file, 'r', encoding='utf-8') as f:
+                        return f.read()
+                return ''
+            except Exception as file_error:
+                print(f"File fallback also failed: {file_error}")
+                return ''
+
+    def save_notes(self, notes_content: str) -> bool:
+        """
+        Save user notes to database, with file fallback
+        
+        Args:
+            notes_content: The notes content to save
+            
+        Returns:
+            True if successful, False if failed
+        """
+        try:
+            # Check if notes record already exists
+            existing_response = self.supabase.table('user_notes')\
+                .select('id')\
+                .order('updated_at', desc=True)\
+                .limit(1)\
+                .execute()
+            
+            if existing_response.data and len(existing_response.data) > 0:
+                # Update existing notes
+                note_id = existing_response.data[0]['id']
+                response = self.supabase.table('user_notes')\
+                    .update({
+                        'notes_content': notes_content,
+                        'updated_at': datetime.now(timezone.utc).isoformat()
+                    })\
+                    .eq('id', note_id)\
+                    .execute()
+                print(f"Notes updated: {note_id}")
+            else:
+                # Create new notes record
+                response = self.supabase.table('user_notes')\
+                    .insert({
+                        'notes_content': notes_content,
+                        'updated_at': datetime.now(timezone.utc).isoformat()
+                    })\
+                    .execute()
+                print(f"New notes created")
+            
+            return True
+
+        except Exception as e:
+            print(f"Error saving notes to database: {e}")
+            # Fallback to file-based storage
+            try:
+                notes_file = 'user_notes.txt'
+                with open(notes_file, 'w', encoding='utf-8') as f:
+                    f.write(notes_content)
+                print(f"Notes saved to file fallback: {notes_file}")
+                return True
+            except Exception as file_error:
+                print(f"File fallback also failed: {file_error}")
+                return False
+
+    def append_to_notes(self, text_to_append: str) -> bool:
+        """
+        Append text to existing notes
+        
+        Args:
+            text_to_append: Text to append to current notes
+            
+        Returns:
+            True if successful, False if failed
+        """
+        try:
+            current_notes = self.get_notes()
+            updated_notes = current_notes + text_to_append
+            return self.save_notes(updated_notes)
+
+        except Exception as e:
+            print(f"Error appending to notes: {e}")
+            return False
+
+    def save_snippet(self, video_id: str, snippet_text: str, source_type: str) -> str:
+        """
+        Save a highlighted text snippet
+        
+        Args:
+            video_id: YouTube video ID
+            snippet_text: The highlighted text
+            source_type: 'transcript' or 'summary'
+            
+        Returns:
+            Snippet ID if successful, None if failed
+        """
+        try:
+            snippet_data = {
+                'video_id': video_id,
+                'snippet_text': snippet_text,
+                'source_type': source_type,
+                'updated_at': datetime.now(timezone.utc).isoformat()
+            }
+
+            response = self.supabase.table('user_snippets').insert(snippet_data).execute()
+            
+            if response.data and len(response.data) > 0:
+                snippet_id = response.data[0]['id']
+                print(f"Snippet saved for video {video_id}: {snippet_id}")
+                return snippet_id
+            else:
+                print(f"Failed to save snippet for video {video_id}")
+                return None
+
+        except Exception as e:
+            print(f"Error saving snippet for {video_id}: {e}")
+            # Fallback to file-based storage for snippets too
+            try:
+                import json
+                snippets_file = 'user_snippets.json'
+                
+                # Load existing snippets
+                try:
+                    with open(snippets_file, 'r', encoding='utf-8') as f:
+                        snippets = json.load(f)
+                except (FileNotFoundError, json.JSONDecodeError):
+                    snippets = []
+                
+                # Add new snippet
+                snippet_id = str(len(snippets) + 1)
+                snippets.append({
+                    'id': snippet_id,
+                    'video_id': video_id,
+                    'snippet_text': snippet_text,
+                    'source_type': source_type,
+                    'created_at': datetime.now(timezone.utc).isoformat()
+                })
+                
+                # Save back to file
+                with open(snippets_file, 'w', encoding='utf-8') as f:
+                    json.dump(snippets, f, indent=2)
+                    
+                print(f"Snippet saved to file fallback: {snippet_id}")
+                return snippet_id
+                
+            except Exception as file_error:
+                print(f"File fallback also failed: {file_error}")
+                return None
+
+    def get_snippets_by_video(self, video_id: str = None) -> List[Dict]:
+        """
+        Get snippets, optionally filtered by video ID
+        
+        Args:
+            video_id: Optional video ID to filter snippets
+            
+        Returns:
+            List of snippet dictionaries grouped by video
+        """
+        try:
+            query = self.supabase.table('user_snippets')\
+                .select('*, youtube_videos(title, uploader, thumbnail_url)')\
+                .order('created_at', desc=True)
+            
+            if video_id:
+                query = query.eq('video_id', video_id)
+            
+            response = query.execute()
+            
+            snippets = []
+            for snippet in response.data:
+                video_info = snippet.get('youtube_videos', {})
+                snippets.append({
+                    'id': snippet['id'],
+                    'video_id': snippet['video_id'],
+                    'snippet_text': snippet['snippet_text'],
+                    'source_type': snippet['source_type'],
+                    'created_at': snippet['created_at'],
+                    'video_title': video_info.get('title'),
+                    'video_uploader': video_info.get('uploader'),
+                    'thumbnail_url': video_info.get('thumbnail_url') or f"https://img.youtube.com/vi/{snippet['video_id']}/maxresdefault.jpg"
+                })
+            
+            return snippets
+
+        except Exception as e:
+            print(f"Error getting snippets from database: {e}")
+            # Fallback to file-based storage
+            try:
+                import json
+                snippets_file = 'user_snippets.json'
+                
+                with open(snippets_file, 'r', encoding='utf-8') as f:
+                    file_snippets = json.load(f)
+                
+                # Filter by video_id if specified
+                if video_id:
+                    file_snippets = [s for s in file_snippets if s.get('video_id') == video_id]
+                
+                # Add video info from database for file snippets
+                for snippet in file_snippets:
+                    vid = snippet.get('video_id')
+                    if vid:
+                        try:
+                            video_response = self.supabase.table('youtube_videos').select('title, uploader').eq('video_id', vid).execute()
+                            if video_response.data and len(video_response.data) > 0:
+                                video_data = video_response.data[0]
+                                snippet['video_title'] = video_data.get('title')
+                                snippet['video_uploader'] = video_data.get('uploader')
+                            snippet['thumbnail_url'] = f"https://img.youtube.com/vi/{vid}/maxresdefault.jpg"
+                        except:
+                            snippet['video_title'] = vid
+                            snippet['video_uploader'] = 'Unknown'
+                            snippet['thumbnail_url'] = f"https://img.youtube.com/vi/{vid}/maxresdefault.jpg"
+                
+                return file_snippets
+                
+            except Exception as file_error:
+                print(f"File fallback also failed: {file_error}")
+                return []
+
+    def get_snippets_grouped_by_video(self) -> Dict[str, Dict]:
+        """
+        Get all snippets grouped by video
+        
+        Returns:
+            Dictionary with video_id as key and video info + snippets as value
+        """
+        try:
+            snippets = self.get_snippets_by_video()
+            grouped = {}
+            
+            for snippet in snippets:
+                video_id = snippet['video_id']
+                if video_id not in grouped:
+                    grouped[video_id] = {
+                        'video_id': video_id,
+                        'video_title': snippet['video_title'],
+                        'video_uploader': snippet['video_uploader'],
+                        'thumbnail_url': snippet['thumbnail_url'],
+                        'snippets': []
+                    }
+                grouped[video_id]['snippets'].append(snippet)
+            
+            return grouped
+            
+        except Exception as e:
+            print(f"Error grouping snippets: {e}")
+            return {}
+
+    def get_snippets_grouped_by_channel(self) -> Dict[str, Dict]:
+        """
+        Get all snippets grouped by channel and then by video
+        
+        Returns:
+            Dictionary with channel name as key and channel info + videos as value
+        """
+        try:
+            snippets = self.get_snippets_by_video()
+            grouped = {}
+            
+            for snippet in snippets:
+                video_id = snippet['video_id']
+                uploader = snippet['video_uploader'] or 'Unknown Channel'
+                
+                # Initialize channel if not exists
+                if uploader not in grouped:
+                    grouped[uploader] = {
+                        'channel_name': uploader,
+                        'videos': {},
+                        'total_snippets': 0,
+                        'recent_thumbnails': []  # Store recent video thumbnails
+                    }
+                
+                # Initialize video if not exists in this channel
+                if video_id not in grouped[uploader]['videos']:
+                    grouped[uploader]['videos'][video_id] = {
+                        'video_id': video_id,
+                        'video_title': snippet['video_title'],
+                        'video_uploader': snippet['video_uploader'],
+                        'thumbnail_url': snippet['thumbnail_url'],
+                        'snippets': [],
+                        'latest_snippet_date': snippet['created_at']
+                    }
+                
+                # Add snippet to video
+                grouped[uploader]['videos'][video_id]['snippets'].append(snippet)
+                grouped[uploader]['total_snippets'] += 1
+                
+                # Update latest snippet date for this video
+                if snippet['created_at'] > grouped[uploader]['videos'][video_id]['latest_snippet_date']:
+                    grouped[uploader]['videos'][video_id]['latest_snippet_date'] = snippet['created_at']
+            
+            # Add recent thumbnails for each channel (up to 4 most recent videos)
+            for channel_name, channel_data in grouped.items():
+                # Sort videos by latest snippet date
+                sorted_videos = sorted(channel_data['videos'].items(), 
+                                     key=lambda x: x[1]['latest_snippet_date'], 
+                                     reverse=True)
+                
+                # Get up to 4 recent video thumbnails
+                channel_data['recent_thumbnails'] = [
+                    {
+                        'video_id': video_id,
+                        'thumbnail_url': video_data['thumbnail_url'],
+                        'video_title': video_data['video_title']
+                    }
+                    for video_id, video_data in sorted_videos[:4]
+                    if video_data['thumbnail_url']
+                ]
+            
+            # Sort channels by total snippets (descending)
+            sorted_channels = dict(sorted(grouped.items(), 
+                                        key=lambda x: x[1]['total_snippets'], 
+                                        reverse=True))
+            
+            return sorted_channels
+            
+        except Exception as e:
+            print(f"Error grouping snippets by channel: {e}")
+            return {}
+
+    def delete_snippet(self, snippet_id: str) -> bool:
+        """
+        Delete a snippet by ID
+        
+        Args:
+            snippet_id: UUID of the snippet to delete
+            
+        Returns:
+            True if successful, False if failed
+        """
+        try:
+            response = self.supabase.table('user_snippets').delete().eq('id', snippet_id).execute()
+            
+            if response.data and len(response.data) > 0:
+                print(f"Snippet deleted: {snippet_id}")
+                return True
+            else:
+                print(f"Snippet not found or already deleted: {snippet_id}")
+                return False
+
+        except Exception as e:
+            print(f"Error deleting snippet {snippet_id}: {e}")
+            # Fallback to file-based storage
+            try:
+                import json
+                snippets_file = 'user_snippets.json'
+                
+                with open(snippets_file, 'r', encoding='utf-8') as f:
+                    snippets = json.load(f)
+                
+                # Remove snippet with matching ID
+                original_length = len(snippets)
+                snippets = [s for s in snippets if s.get('id') != snippet_id]
+                
+                if len(snippets) < original_length:
+                    with open(snippets_file, 'w', encoding='utf-8') as f:
+                        json.dump(snippets, f, indent=2)
+                    print(f"Snippet deleted from file: {snippet_id}")
+                    return True
+                else:
+                    print(f"Snippet not found in file: {snippet_id}")
+                    return False
+                    
+            except Exception as file_error:
+                print(f"File fallback also failed: {file_error}")
+                return False
+
 
 # Global database storage instance
 database_storage = DatabaseStorage()

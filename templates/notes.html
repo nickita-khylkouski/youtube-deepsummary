@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}Notes - YouTube Deep Summary{% endblock %}
+
+{% block content %}
+    <div class="notes-header">
+        <h2 style="margin-bottom: 10px;">📝 Notes</h2>
+        <p style="color: #666; margin-bottom: 20px;">Your personal notes editor - highlight text from transcripts or summaries to add them here</p>
+    </div>
+
+    <!-- Text Editor Section -->
+    <div class="text-editor-section" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin: 0; color: #333;">📝 Notes Editor</h3>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button onclick="saveNotes()" style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">💾 Save</button>
+                <button onclick="loadNotes()" style="background: #6c757d; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">📂 Load</button>
+                <button onclick="clearNotes()" style="background: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">🗑️ Clear</button>
+                <span id="notesStatus" style="margin-left: 10px; color: #666; font-size: 14px;"></span>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+            <div id="notesDisplay" style="width: 100%; height: 400px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; font-family: Georgia, serif; font-size: 14px; line-height: 1.6; overflow-y: auto; background: white; display: none;"></div>
+            <textarea id="notesEditor" 
+                      placeholder="Write your notes here... Highlight text on transcript or summary pages to automatically add them here."
+                      style="width: 100%; height: 400px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; font-family: Georgia, serif; font-size: 14px; line-height: 1.6; resize: vertical; box-sizing: border-box;"></textarea>
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+            <button id="toggleView" onclick="toggleNotesView()" style="background: #17a2b8; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">📄 Switch to Formatted View</button>
+        </div>
+        
+        <div style="color: #666; font-size: 13px; line-height: 1.4;">
+            <strong>💡 Tips:</strong>
+            <ul style="margin: 5px 0; padding-left: 20px;">
+                <li>Visit any transcript or summary page and highlight text to automatically copy it here</li>
+                <li>Your notes are automatically saved to the database and persist across all devices and sessions</li>
+                <li>Use this space to compile insights, create summaries, or take personal notes</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="instructions" style="background: #e3f2fd; border: 1px solid #2196f3; border-radius: 8px; padding: 20px;">
+        <h4 style="margin-top: 0; color: #1976d2;">🚀 How to use:</h4>
+        <ol style="color: #333; line-height: 1.6;">
+            <li>Go to any <a href="/" style="color: #1976d2;">video transcript page</a></li>
+            <li>Highlight any text in the transcript or AI summary</li>
+            <li>The highlighted text will automatically be copied to your notes editor</li>
+            <li>Come back to this page to review, edit, and organize your notes</li>
+            <li>Your notes are saved to the database and persist across all sessions</li>
+        </ol>
+    </div>
+
+    <script>
+        // Notes editor functionality
+        function saveNotes() {
+            const notes = document.getElementById('notesEditor').value;
+            const status = document.getElementById('notesStatus');
+            
+            status.textContent = '⏳ Saving...';
+            status.style.color = '#007bff';
+            
+            fetch('/api/notes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    notes: notes
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    status.textContent = '✅ Notes saved to database';
+                    status.style.color = '#28a745';
+                } else {
+                    status.textContent = '❌ Failed to save: ' + (data.error || 'Unknown error');
+                    status.style.color = '#dc3545';
+                }
+                setTimeout(() => {
+                    status.textContent = '';
+                }, 3000);
+            })
+            .catch(error => {
+                status.textContent = '❌ Error: ' + error.message;
+                status.style.color = '#dc3545';
+                setTimeout(() => {
+                    status.textContent = '';
+                }, 3000);
+            });
+        }
+        
+        function loadNotes() {
+            const status = document.getElementById('notesStatus');
+            
+            status.textContent = '📂 Loading...';
+            status.style.color = '#007bff';
+            
+            fetch('/api/notes')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('notesEditor').value = data.notes || '';
+                    status.textContent = '📂 Notes loaded from database';
+                    status.style.color = '#007bff';
+                } else {
+                    status.textContent = '❌ Failed to load: ' + (data.error || 'Unknown error');
+                    status.style.color = '#dc3545';
+                }
+                setTimeout(() => {
+                    status.textContent = '';
+                }, 3000);
+            })
+            .catch(error => {
+                status.textContent = '❌ Error: ' + error.message;
+                status.style.color = '#dc3545';
+                setTimeout(() => {
+                    status.textContent = '';
+                }, 3000);
+            });
+        }
+        
+        function clearNotes() {
+            if (confirm('Are you sure you want to clear all notes? This cannot be undone.')) {
+                document.getElementById('notesEditor').value = '';
+                saveNotes(); // Save the empty notes to database
+            }
+        }
+        
+        // Load notes on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadNotes();
+        });
+        
+        // Auto-save notes every 30 seconds
+        setInterval(function() {
+            const notes = document.getElementById('notesEditor').value;
+            saveNotes(); // Always save, even if empty
+        }, 30000);
+        
+        // Auto-save on window unload (when closing tab/page)
+        window.addEventListener('beforeunload', function() {
+            const notes = document.getElementById('notesEditor').value;
+            // Use sendBeacon for more reliable saving on page unload
+            if (navigator.sendBeacon) {
+                const formData = new FormData();
+                formData.append('notes', notes);
+                navigator.sendBeacon('/api/notes', JSON.stringify({notes: notes}));
+            }
+        });
+        
+        // Toggle between raw editor and formatted view
+        function toggleNotesView() {
+            const editor = document.getElementById('notesEditor');
+            const display = document.getElementById('notesDisplay');
+            const toggleBtn = document.getElementById('toggleView');
+            
+            if (display.style.display === 'none') {
+                // Switch to formatted view
+                const notes = editor.value;
+                display.innerHTML = formatNotesWithLinks(notes);
+                display.style.display = 'block';
+                editor.style.display = 'none';
+                toggleBtn.textContent = '✏️ Switch to Edit Mode';
+            } else {
+                // Switch to editor view
+                display.style.display = 'none';
+                editor.style.display = 'block';
+                toggleBtn.textContent = '📄 Switch to Formatted View';
+            }
+        }
+        
+        // Format notes text with clickable video links
+        function formatNotesWithLinks(notes) {
+            if (!notes) return '<p style="color: #666; text-align: center; margin-top: 150px;">No notes yet. Start highlighting text on transcript pages!</p>';
+            
+            // Split notes into lines and process each
+            const lines = notes.split('\n');
+            let formattedHtml = '';
+            
+            for (let line of lines) {
+                // Check if this is a header line with video info
+                const headerMatch = line.match(/^--- (.*?) from "(.*?)" \((.*?)\) \[VIDEO_ID:(.*?)\] ---$/);
+                
+                if (headerMatch) {
+                    const [, sourceType, title, date, videoId] = headerMatch;
+                    const sourceIcon = sourceType.includes('Transcript') ? '📝' : '🤖';
+                    formattedHtml += `
+                        <div style="margin: 20px 0 10px 0; padding: 10px; background: #f0f7ff; border-left: 4px solid #2196f3; border-radius: 4px;">
+                            <div style="font-weight: bold; color: #1976d2;">
+                                ${sourceIcon} <a href="/watch?v=${videoId}" style="color: #1976d2; text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${title}</a>
+                            </div>
+                            <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                                ${sourceType} • ${date}
+                            </div>
+                        </div>
+                    `;
+                } else if (line.trim() === '') {
+                    // Empty line
+                    formattedHtml += '<br>';
+                } else {
+                    // Regular content line
+                    formattedHtml += `<div style="margin: 5px 0; line-height: 1.6;">${escapeHtml(line)}</div>`;
+                }
+            }
+            
+            return formattedHtml || '<p style="color: #666; text-align: center; margin-top: 150px;">No notes yet. Start highlighting text on transcript pages!</p>';
+        }
+        
+        // Escape HTML entities
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Update the loadNotes function to also update the formatted view
+        const originalLoadNotes = loadNotes;
+        loadNotes = function() {
+            originalLoadNotes();
+            // If in formatted view, refresh it
+            const display = document.getElementById('notesDisplay');
+            if (display.style.display !== 'none') {
+                setTimeout(() => {
+                    const notes = document.getElementById('notesEditor').value;
+                    display.innerHTML = formatNotesWithLinks(notes);
+                }, 100);
+            }
+        };
+    </script>
+{% endblock %}

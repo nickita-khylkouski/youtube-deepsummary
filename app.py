@@ -509,6 +509,237 @@ def channel_summaries(channel_name):
         return render_template('error.html', 
                              error_message=f"Error loading channel summaries: {str(e)}"), 500
 
+@app.route('/snippets')
+def snippets_page():
+    """Display snippets interface page"""
+    try:
+        return render_template('snippets.html')
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading snippets page: {str(e)}"), 500
+
+@app.route('/snippets/channel/<channel_name>')
+def channel_snippets_page(channel_name):
+    """Display snippets for a specific channel"""
+    try:
+        # Decode channel name from URL
+        import urllib.parse
+        decoded_channel_name = urllib.parse.unquote(channel_name)
+        
+        return render_template('channel_snippets.html', channel_name=decoded_channel_name)
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading channel snippets: {str(e)}"), 500
+
+@app.route('/api/snippets', methods=['GET'])
+def api_get_snippets():
+    """API endpoint to get user snippets grouped by channel and video"""
+    try:
+        snippets = database_storage.get_snippets_grouped_by_channel()
+        return jsonify({
+            'success': True,
+            'snippets': snippets
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/snippets', methods=['POST'])
+def api_save_snippet():
+    """API endpoint to save a new snippet"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No JSON data provided'
+            }), 400
+        
+        video_id = data.get('video_id')
+        snippet_text = data.get('snippet_text')
+        source_type = data.get('source_type')
+        
+        if not video_id or not snippet_text or not source_type:
+            return jsonify({
+                'success': False,
+                'error': 'video_id, snippet_text, and source_type are required'
+            }), 400
+        
+        if source_type not in ['transcript', 'summary']:
+            return jsonify({
+                'success': False,
+                'error': 'source_type must be either "transcript" or "summary"'
+            }), 400
+        
+        snippet_id = database_storage.save_snippet(video_id, snippet_text, source_type)
+        
+        if snippet_id:
+            return jsonify({
+                'success': True,
+                'snippet_id': snippet_id,
+                'message': 'Snippet saved successfully'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to save snippet'
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/snippets/<snippet_id>', methods=['DELETE'])
+def api_delete_snippet(snippet_id):
+    """API endpoint to delete a snippet"""
+    try:
+        success = database_storage.delete_snippet(snippet_id)
+        if success:
+            return jsonify({'success': True, 'message': f'Snippet {snippet_id} deleted successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Failed to delete snippet or snippet not found'}), 404
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/snippets/video/<video_id>')
+def api_get_video_snippets(video_id):
+    """API endpoint to get snippets for a specific video"""
+    try:
+        snippets = database_storage.get_snippets_by_video(video_id)
+        return jsonify({
+            'success': True,
+            'snippets': snippets
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/snippets/channel/<channel_name>')
+def api_get_channel_snippets(channel_name):
+    """API endpoint to get snippets for a specific channel"""
+    try:
+        import urllib.parse
+        decoded_channel_name = urllib.parse.unquote(channel_name)
+        
+        # Get all snippets grouped by channel
+        all_channels = database_storage.get_snippets_grouped_by_channel()
+        
+        # Find the specific channel
+        channel_data = all_channels.get(decoded_channel_name)
+        if not channel_data:
+            return jsonify({
+                'success': False,
+                'error': 'Channel not found'
+            }), 404
+            
+        return jsonify({
+            'success': True,
+            'channel': channel_data
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# Keep notes endpoints for backward compatibility
+@app.route('/notes')
+def notes_page():
+    """Redirect to snippets page"""
+    from flask import redirect
+    return redirect('/snippets')
+
+@app.route('/api/notes', methods=['GET'])
+def api_get_notes():
+    """API endpoint to get user notes"""
+    try:
+        notes = database_storage.get_notes()
+        return jsonify({
+            'success': True,
+            'notes': notes
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/notes', methods=['POST'])
+def api_save_notes():
+    """API endpoint to save user notes"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No JSON data provided'
+            }), 400
+        
+        notes_content = data.get('notes', '')
+        
+        success = database_storage.save_notes(notes_content)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Notes saved successfully'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to save notes'
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/notes/append', methods=['POST'])
+def api_append_to_notes():
+    """API endpoint to append text to user notes (deprecated - use snippets instead)"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No JSON data provided'
+            }), 400
+        
+        text_to_append = data.get('text', '')
+        
+        if not text_to_append:
+            return jsonify({
+                'success': False,
+                'error': 'No text provided to append'
+            }), 400
+        
+        success = database_storage.append_to_notes(text_to_append)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Text appended to notes successfully'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to append to notes'
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/favicon.ico')
 def favicon():
     """Serve favicon from static directory"""

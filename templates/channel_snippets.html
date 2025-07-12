@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block title %}{{ channel_name }} Snippets - YouTube Deep Summary{% endblock %}
+
+{% block content %}
+    <div class="channel-snippets-header">
+        <div style="margin-bottom: 20px;">
+            <a href="/snippets" style="color: #666; text-decoration: none; font-size: 14px;">
+                ← Back to All Channels
+            </a>
+        </div>
+        <h2 style="margin-bottom: 10px;">📺 {{ channel_name }}</h2>
+        <p style="color: #666; margin-bottom: 30px;">All snippets from this channel</p>
+    </div>
+
+    <!-- Channel snippets content area -->
+    <div id="channelSnippetsContainer">
+        <div style="text-align: center; padding: 60px 20px; color: #666;">
+            <div style="font-size: 48px; margin-bottom: 20px;">✂️</div>
+            <h3 style="margin-bottom: 10px; color: #333;">Loading snippets...</h3>
+            <p>Please wait while we fetch your saved highlights.</p>
+        </div>
+    </div>
+
+    <script>
+        let channelData = {};
+        const channelName = "{{ channel_name }}";
+        
+        // Load channel snippets when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadChannelSnippets();
+        });
+        
+        async function loadChannelSnippets() {
+            try {
+                const response = await fetch(`/api/snippets/channel/${encodeURIComponent(channelName)}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    channelData = data.channel;
+                    renderChannelSnippets();
+                } else {
+                    showError('Failed to load channel snippets: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                showError('Error loading channel snippets: ' + error.message);
+            }
+        }
+        
+        function renderChannelSnippets() {
+            const container = document.getElementById('channelSnippetsContainer');
+            
+            if (!channelData.videos || Object.keys(channelData.videos).length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 60px 20px; color: #666;">
+                        <div style="font-size: 48px; margin-bottom: 20px;">✂️</div>
+                        <h3 style="margin-bottom: 10px; color: #333;">No snippets found</h3>
+                        <p style="margin-bottom: 20px;">This channel doesn't have any snippets yet.</p>
+                        <a href="/snippets" style="background: #007bff; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500;">Back to Channels</a>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <div style="background: white; border: 2px solid #e3f2fd; border-radius: 12px; margin-bottom: 30px; padding: 20px; box-shadow: 0 3px 10px rgba(0,0,0,0.1);">
+                    <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+                        <div style="background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%); padding: 15px; border-radius: 50%; font-size: 24px;">📺</div>
+                        <div>
+                            <h3 style="margin: 0 0 8px 0; font-size: 24px; color: #1976d2;">${channelName}</h3>
+                            <div style="display: flex; align-items: center; gap: 20px; font-size: 16px; color: #666;">
+                                <span>🎥 ${Object.keys(channelData.videos).length} videos</span>
+                                <span>✂️ ${channelData.total_snippets} snippets</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Sort videos by latest snippet date
+            const sortedVideos = Object.entries(channelData.videos).sort((a, b) => {
+                const aLatest = Math.max(...a[1].snippets.map(s => new Date(s.created_at).getTime()));
+                const bLatest = Math.max(...b[1].snippets.map(s => new Date(s.created_at).getTime()));
+                return bLatest - aLatest;
+            });
+            
+            for (const [videoId, video] of sortedVideos) {
+                const snippetCount = video.snippets.length;
+                
+                html += `
+                    <div class="video-card" style="background: white; border: 1px solid #e0e0e0; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden;">
+                        <!-- Video header -->
+                        <div class="video-header" style="display: flex; align-items: flex-start; gap: 20px; padding: 20px;">
+                            <img src="${video.thumbnail_url}" 
+                                 alt="Video thumbnail" 
+                                 style="width: 160px; height: 90px; object-fit: cover; border-radius: 8px; flex-shrink: 0;"
+                                 onerror="this.style.display='none'">
+                            <div style="flex-grow: 1; min-width: 0;">
+                                <h4 style="margin: 0 0 8px 0; font-size: 16px; line-height: 1.4;">
+                                    <a href="/watch?v=${video.video_id}" 
+                                       style="color: #333; text-decoration: none;"
+                                       onmouseover="this.style.color='#0066cc'"
+                                       onmouseout="this.style.color='#333'">${video.video_title || video.video_id}</a>
+                                </h4>
+                                <div style="display: flex; align-items: center; gap: 15px; font-size: 14px;">
+                                    <span style="background: #f0f7ff; color: #1976d2; padding: 4px 8px; border-radius: 4px; font-weight: 500;">
+                                        ${snippetCount} snippet${snippetCount !== 1 ? 's' : ''}
+                                    </span>
+                                    <a href="/watch?v=${video.video_id}" 
+                                       style="color: #0066cc; text-decoration: none; font-weight: 500;"
+                                       onmouseover="this.style.textDecoration='underline'"
+                                       onmouseout="this.style.textDecoration='none'">View Video</a>
+                                    <button onclick="toggleVideoSnippets('${video.video_id}')" 
+                                            id="video-toggle-${video.video_id}"
+                                            style="background: none; border: 1px solid #ddd; padding: 4px 12px; border-radius: 4px; cursor: pointer; color: #666; font-size: 12px;">
+                                        Show Snippets ▼
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Snippets container (hidden by default) -->
+                        <div id="video-snippets-${video.video_id}" class="snippets-list" style="display: none; border-top: 1px solid #f0f0f0; background: #fafafa;">
+                            ${renderVideoSnippets(video.snippets)}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        function renderVideoSnippets(snippets) {
+            return snippets.map(snippet => {
+                const sourceIcon = snippet.source_type === 'transcript' ? '📝' : '🤖';
+                const sourceColor = snippet.source_type === 'transcript' ? '#e3f2fd' : '#f3e5f5';
+                const sourceBorder = snippet.source_type === 'transcript' ? '#2196f3' : '#9c27b0';
+                const date = new Date(snippet.created_at).toLocaleDateString();
+                
+                return `
+                    <div class="snippet-item" style="padding: 20px; border-bottom: 1px solid #f0f0f0; position: relative;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                            <div style="background: ${sourceColor}; color: ${sourceBorder}; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">
+                                ${sourceIcon} ${snippet.source_type === 'transcript' ? 'Transcript' : 'AI Summary'}
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 10px; font-size: 12px; color: #888;">
+                                <span>${date}</span>
+                                <button onclick="deleteSnippet('${snippet.id}')" 
+                                        style="background: #dc3545; color: white; border: none; padding: 2px 6px; border-radius: 3px; cursor: pointer; font-size: 11px;"
+                                        title="Delete this snippet">🗑️</button>
+                            </div>
+                        </div>
+                        <div style="background: #fffbf0; border-left: 4px solid #ffc107; padding: 15px; border-radius: 4px; line-height: 1.6; color: #333;">
+                            ${escapeHtml(snippet.snippet_text)}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function toggleVideoSnippets(videoId) {
+            const snippetsDiv = document.getElementById(`video-snippets-${videoId}`);
+            const toggleBtn = document.getElementById(`video-toggle-${videoId}`);
+            
+            if (snippetsDiv.style.display === 'none') {
+                snippetsDiv.style.display = 'block';
+                toggleBtn.textContent = 'Hide Snippets ▲';
+                toggleBtn.style.background = '#e3f2fd';
+                toggleBtn.style.borderColor = '#2196f3';
+                toggleBtn.style.color = '#1976d2';
+            } else {
+                snippetsDiv.style.display = 'none';
+                toggleBtn.textContent = 'Show Snippets ▼';
+                toggleBtn.style.background = 'none';
+                toggleBtn.style.borderColor = '#ddd';
+                toggleBtn.style.color = '#666';
+            }
+        }
+        
+        async function deleteSnippet(snippetId) {
+            if (!confirm('Are you sure you want to delete this snippet? This cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/snippets/${snippetId}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Reload snippets to reflect the change
+                    loadChannelSnippets();
+                } else {
+                    alert('Failed to delete snippet: ' + (data.message || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error deleting snippet: ' + error.message);
+            }
+        }
+        
+        function showError(message) {
+            const container = document.getElementById('channelSnippetsContainer');
+            container.innerHTML = `
+                <div style="text-align: center; padding: 60px 20px; color: #666;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">❌</div>
+                    <h3 style="margin-bottom: 10px; color: #d32f2f;">Error</h3>
+                    <p style="margin-bottom: 20px;">${message}</p>
+                    <button onclick="loadChannelSnippets()" style="background: #007bff; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer;">Retry</button>
+                </div>
+            `;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+{% endblock %}
