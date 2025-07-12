@@ -404,7 +404,10 @@
             
             let textToCopy = '';
             
-            if (formattedDiv.style.display !== 'none') {
+            // Check which view is currently visible
+            const formattedVisible = formattedDiv.style.display !== 'none';
+            
+            if (formattedVisible) {
                 // Copy formatted transcript (readable view)
                 const formattedContent = document.getElementById('formatted-transcript-content');
                 textToCopy = formattedContent.textContent || formattedContent.innerText;
@@ -422,31 +425,76 @@
                 textToCopy = transcriptLines.join('\n');
             }
             
-            // Copy to clipboard
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                // Show success feedback
+            // Fallback function for older browsers or HTTP connections
+            function fallbackCopyTextToClipboard(text) {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.top = '-999px';
+                textArea.style.left = '-999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                
+                try {
+                    const successful = document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    return successful;
+                } catch (err) {
+                    console.error('Fallback copy failed:', err);
+                    document.body.removeChild(textArea);
+                    return false;
+                }
+            }
+            
+            // Function to show success feedback
+            function showSuccessFeedback() {
                 const originalText = copyBtn.textContent;
+                const originalBg = copyBtn.style.background;
                 copyBtn.textContent = '✅ Copied!';
                 copyBtn.style.background = '#28a745';
                 
-                // Reset button after 2 seconds
                 setTimeout(() => {
                     copyBtn.textContent = originalText;
-                    copyBtn.style.background = '#28a745';
+                    copyBtn.style.background = originalBg;
                 }, 2000);
-            }).catch(err => {
-                // Show error feedback
-                console.error('Failed to copy text: ', err);
+            }
+            
+            // Function to show error feedback
+            function showErrorFeedback(errorMsg) {
+                console.error('Copy failed:', errorMsg);
                 const originalText = copyBtn.textContent;
+                const originalBg = copyBtn.style.background;
                 copyBtn.textContent = '❌ Copy failed';
                 copyBtn.style.background = '#dc3545';
                 
-                // Reset button after 2 seconds
                 setTimeout(() => {
                     copyBtn.textContent = originalText;
-                    copyBtn.style.background = '#28a745';
+                    copyBtn.style.background = originalBg;
                 }, 2000);
-            });
+            }
+            
+            // Try modern clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    showSuccessFeedback();
+                }).catch(err => {
+                    // If modern API fails, try fallback
+                    console.log('Modern clipboard API failed, trying fallback...');
+                    if (fallbackCopyTextToClipboard(textToCopy)) {
+                        showSuccessFeedback();
+                    } else {
+                        showErrorFeedback('Both clipboard methods failed');
+                    }
+                });
+            } else {
+                // Use fallback method directly
+                if (fallbackCopyTextToClipboard(textToCopy)) {
+                    showSuccessFeedback();
+                } else {
+                    showErrorFeedback('Clipboard not supported in this browser');
+                }
+            }
         }
     </script>
     
