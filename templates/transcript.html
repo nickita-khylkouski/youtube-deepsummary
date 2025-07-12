@@ -120,7 +120,156 @@
         {% endfor %}
     </div>
     
+    <!-- Floating "Add to Snippets" button -->
+    <button id="snippetsAddBtn" class="memory-add-button" style="display: none;" onclick="addToSnippets()">
+        ✂️ Add to Snippets
+    </button>
+    
     <script>
+        // Snippets functionality variables
+        let selectedText = '';
+        let sourceType = '';
+        
+        // Initialize snippets functionality when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeSnippetsSelection();
+        });
+        
+        function initializeSnippetsSelection() {
+            // Add event listeners for text selection
+            document.addEventListener('mouseup', handleTextSelection);
+            document.addEventListener('keyup', handleTextSelection);
+        }
+        
+        function handleTextSelection() {
+            const selection = window.getSelection();
+            const selectedTextContent = selection.toString().trim();
+            
+            if (selectedTextContent.length > 0) {
+                // Determine if selection is from transcript or summary
+                const range = selection.getRangeAt(0);
+                const container = range.commonAncestorContainer;
+                
+                let sourceContainer = container;
+                while (sourceContainer && sourceContainer.nodeType !== Node.ELEMENT_NODE) {
+                    sourceContainer = sourceContainer.parentNode;
+                }
+                
+                let sourceTypeLocal = '';
+                if (sourceContainer) {
+                    if (sourceContainer.closest('#formatted-transcript') || sourceContainer.closest('#detailed-transcript')) {
+                        sourceTypeLocal = 'transcript';
+                    } else if (sourceContainer.closest('.summary-section')) {
+                        sourceTypeLocal = 'summary';
+                    }
+                }
+                
+                if (sourceTypeLocal) {
+                    showSnippetsButton(range, selectedTextContent, sourceTypeLocal);
+                } else {
+                    hideSnippetsButton();
+                }
+            } else {
+                hideSnippetsButton();
+            }
+        }
+        
+        function showSnippetsButton(range, text, type) {
+            const button = document.getElementById('snippetsAddBtn');
+            const rect = range.getBoundingClientRect();
+            
+            // Store selection data
+            selectedText = text;
+            sourceType = type;
+            
+            // Position button below the selection
+            button.style.left = Math.max(10, rect.left) + 'px';
+            button.style.top = (rect.bottom + window.scrollY + 8) + 'px';
+            button.style.display = 'block';
+            
+            // Hide button after 5 seconds
+            setTimeout(() => {
+                if (button.style.display === 'block') {
+                    hideSnippetsButton();
+                }
+            }, 5000);
+        }
+        
+        function hideSnippetsButton() {
+            document.getElementById('snippetsAddBtn').style.display = 'none';
+        }
+        
+        function addToSnippets() {
+            if (!selectedText) {
+                alert('No text selected. Please highlight some text first.');
+                return;
+            }
+            
+            const videoId = '{{ video_id }}';
+            
+            // Save snippet to database via API
+            fetch('/api/snippets', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    video_id: videoId,
+                    snippet_text: selectedText,
+                    source_type: sourceType
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    alert('Snippet saved! ✂️\nVisit the Snippets page to view and manage your snippets.');
+                    
+                    // Hide the button
+                    hideSnippetsButton();
+                    
+                    // Clear selection
+                    if (window.getSelection) {
+                        window.getSelection().removeAllRanges();
+                    }
+                    
+                    // Temporarily highlight the saved text
+                    highlightSavedText();
+                } else {
+                    alert('Failed to save snippet: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                alert('Failed to save snippet: ' + error.message);
+            });
+        }
+        
+        function highlightSavedText() {
+            try {
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    const span = document.createElement('span');
+                    span.className = 'memory-selection-highlight';
+                    span.style.animation = 'pulse 2s ease-in-out';
+                    
+                    range.surroundContents(span);
+                    
+                    // Remove highlight after 3 seconds
+                    setTimeout(() => {
+                        if (span.parentNode) {
+                            const parent = span.parentNode;
+                            parent.insertBefore(document.createTextNode(span.textContent), span);
+                            parent.removeChild(span);
+                        }
+                    }, 3000);
+                }
+            } catch (e) {
+                // If highlighting fails (e.g., range spans multiple elements), just skip it
+                console.log('Could not highlight saved text:', e);
+            }
+        }
+        
         function toggleTranscriptView() {
             const formattedDiv = document.getElementById('formatted-transcript');
             const detailedDiv = document.getElementById('detailed-transcript');
