@@ -698,6 +698,78 @@ class DatabaseStorage:
             print(f"Error grouping snippets: {e}")
             return {}
 
+    def get_snippets_grouped_by_channel(self) -> Dict[str, Dict]:
+        """
+        Get all snippets grouped by channel and then by video
+        
+        Returns:
+            Dictionary with channel name as key and channel info + videos as value
+        """
+        try:
+            snippets = self.get_snippets_by_video()
+            grouped = {}
+            
+            for snippet in snippets:
+                video_id = snippet['video_id']
+                uploader = snippet['video_uploader'] or 'Unknown Channel'
+                
+                # Initialize channel if not exists
+                if uploader not in grouped:
+                    grouped[uploader] = {
+                        'channel_name': uploader,
+                        'videos': {},
+                        'total_snippets': 0,
+                        'recent_thumbnails': []  # Store recent video thumbnails
+                    }
+                
+                # Initialize video if not exists in this channel
+                if video_id not in grouped[uploader]['videos']:
+                    grouped[uploader]['videos'][video_id] = {
+                        'video_id': video_id,
+                        'video_title': snippet['video_title'],
+                        'video_uploader': snippet['video_uploader'],
+                        'thumbnail_url': snippet['thumbnail_url'],
+                        'snippets': [],
+                        'latest_snippet_date': snippet['created_at']
+                    }
+                
+                # Add snippet to video
+                grouped[uploader]['videos'][video_id]['snippets'].append(snippet)
+                grouped[uploader]['total_snippets'] += 1
+                
+                # Update latest snippet date for this video
+                if snippet['created_at'] > grouped[uploader]['videos'][video_id]['latest_snippet_date']:
+                    grouped[uploader]['videos'][video_id]['latest_snippet_date'] = snippet['created_at']
+            
+            # Add recent thumbnails for each channel (up to 4 most recent videos)
+            for channel_name, channel_data in grouped.items():
+                # Sort videos by latest snippet date
+                sorted_videos = sorted(channel_data['videos'].items(), 
+                                     key=lambda x: x[1]['latest_snippet_date'], 
+                                     reverse=True)
+                
+                # Get up to 4 recent video thumbnails
+                channel_data['recent_thumbnails'] = [
+                    {
+                        'video_id': video_id,
+                        'thumbnail_url': video_data['thumbnail_url'],
+                        'video_title': video_data['video_title']
+                    }
+                    for video_id, video_data in sorted_videos[:4]
+                    if video_data['thumbnail_url']
+                ]
+            
+            # Sort channels by total snippets (descending)
+            sorted_channels = dict(sorted(grouped.items(), 
+                                        key=lambda x: x[1]['total_snippets'], 
+                                        reverse=True))
+            
+            return sorted_channels
+            
+        except Exception as e:
+            print(f"Error grouping snippets by channel: {e}")
+            return {}
+
     def delete_snippet(self, snippet_id: str) -> bool:
         """
         Delete a snippet by ID

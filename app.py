@@ -518,11 +518,24 @@ def snippets_page():
         return render_template('error.html', 
                              error_message=f"Error loading snippets page: {str(e)}"), 500
 
+@app.route('/snippets/channel/<channel_name>')
+def channel_snippets_page(channel_name):
+    """Display snippets for a specific channel"""
+    try:
+        # Decode channel name from URL
+        import urllib.parse
+        decoded_channel_name = urllib.parse.unquote(channel_name)
+        
+        return render_template('channel_snippets.html', channel_name=decoded_channel_name)
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading channel snippets: {str(e)}"), 500
+
 @app.route('/api/snippets', methods=['GET'])
 def api_get_snippets():
-    """API endpoint to get user snippets grouped by video"""
+    """API endpoint to get user snippets grouped by channel and video"""
     try:
-        snippets = database_storage.get_snippets_grouped_by_video()
+        snippets = database_storage.get_snippets_grouped_by_channel()
         return jsonify({
             'success': True,
             'snippets': snippets
@@ -600,6 +613,34 @@ def api_get_video_snippets(video_id):
         return jsonify({
             'success': True,
             'snippets': snippets
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/snippets/channel/<channel_name>')
+def api_get_channel_snippets(channel_name):
+    """API endpoint to get snippets for a specific channel"""
+    try:
+        import urllib.parse
+        decoded_channel_name = urllib.parse.unquote(channel_name)
+        
+        # Get all snippets grouped by channel
+        all_channels = database_storage.get_snippets_grouped_by_channel()
+        
+        # Find the specific channel
+        channel_data = all_channels.get(decoded_channel_name)
+        if not channel_data:
+            return jsonify({
+                'success': False,
+                'error': 'Channel not found'
+            }), 404
+            
+        return jsonify({
+            'success': True,
+            'channel': channel_data
         })
     except Exception as e:
         return jsonify({
