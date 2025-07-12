@@ -96,8 +96,11 @@
     {% endif %}
     
     <div class="transcript-options" style="margin: 20px 0;">
-        <button onclick="toggleTranscriptView()" id="toggleBtn" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+        <button onclick="toggleTranscriptView()" id="toggleBtn" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">
             📖 Switch to Detailed View
+        </button>
+        <button onclick="copyTranscriptToClipboard()" id="copyBtn" style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+            📋 Copy Transcript
         </button>
     </div>
     
@@ -390,8 +393,60 @@
                             <p style="color: #d32f2f;">Failed to generate summary: ${error.message}</p>
                         </div>
                         <hr style="margin: 30px 0; border: 1px solid #ddd;">
-                    `;
+                                            `;
                 });
+        }
+        
+        function copyTranscriptToClipboard() {
+            const formattedDiv = document.getElementById('formatted-transcript');
+            const detailedDiv = document.getElementById('detailed-transcript');
+            const copyBtn = document.getElementById('copyBtn');
+            
+            let textToCopy = '';
+            
+            if (formattedDiv.style.display !== 'none') {
+                // Copy formatted transcript (readable view)
+                const formattedContent = document.getElementById('formatted-transcript-content');
+                textToCopy = formattedContent.textContent || formattedContent.innerText;
+            } else {
+                // Copy detailed transcript (timestamped view)
+                const transcriptEntries = document.querySelectorAll('#detailed-transcript .transcript-entry');
+                const transcriptLines = [];
+                
+                transcriptEntries.forEach(entry => {
+                    const timestamp = entry.querySelector('.timestamp').textContent;
+                    const text = entry.querySelector('.text').textContent;
+                    transcriptLines.push(`${timestamp} ${text}`);
+                });
+                
+                textToCopy = transcriptLines.join('\n');
+            }
+            
+            // Copy to clipboard
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                // Show success feedback
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = '✅ Copied!';
+                copyBtn.style.background = '#28a745';
+                
+                // Reset button after 2 seconds
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                    copyBtn.style.background = '#28a745';
+                }, 2000);
+            }).catch(err => {
+                // Show error feedback
+                console.error('Failed to copy text: ', err);
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = '❌ Copy failed';
+                copyBtn.style.background = '#dc3545';
+                
+                // Reset button after 2 seconds
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                    copyBtn.style.background = '#28a745';
+                }, 2000);
+            });
         }
     </script>
     
