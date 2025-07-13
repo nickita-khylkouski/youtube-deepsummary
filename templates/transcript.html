@@ -96,8 +96,11 @@
     {% endif %}
     
     <div class="transcript-options" style="margin: 20px 0;">
-        <button onclick="toggleTranscriptView()" id="toggleBtn" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+        <button onclick="toggleTranscriptView()" id="toggleBtn" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">
             📖 Switch to Detailed View
+        </button>
+        <button onclick="copyTranscriptToClipboard()" id="copyBtn" style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+            📋 Copy Transcript
         </button>
     </div>
     
@@ -398,8 +401,108 @@
                             <p style="color: #d32f2f;">Failed to generate summary: ${error.message}</p>
                         </div>
                         <hr style="margin: 30px 0; border: 1px solid #ddd;">
-                    `;
+                                            `;
                 });
+        }
+        
+        function copyTranscriptToClipboard() {
+            const formattedDiv = document.getElementById('formatted-transcript');
+            const detailedDiv = document.getElementById('detailed-transcript');
+            const copyBtn = document.getElementById('copyBtn');
+            
+            let textToCopy = '';
+            
+            // Check which view is currently visible
+            const formattedVisible = formattedDiv.style.display !== 'none';
+            
+            if (formattedVisible) {
+                // Copy formatted transcript (readable view)
+                const formattedContent = document.getElementById('formatted-transcript-content');
+                textToCopy = formattedContent.textContent || formattedContent.innerText;
+            } else {
+                // Copy detailed transcript (timestamped view)
+                const transcriptEntries = document.querySelectorAll('#detailed-transcript .transcript-entry');
+                const transcriptLines = [];
+                
+                transcriptEntries.forEach(entry => {
+                    const timestamp = entry.querySelector('.timestamp').textContent;
+                    const text = entry.querySelector('.text').textContent;
+                    transcriptLines.push(`${timestamp} ${text}`);
+                });
+                
+                textToCopy = transcriptLines.join('\n');
+            }
+            
+            // Fallback function for older browsers or HTTP connections
+            function fallbackCopyTextToClipboard(text) {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.top = '-999px';
+                textArea.style.left = '-999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                
+                try {
+                    const successful = document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    return successful;
+                } catch (err) {
+                    console.error('Fallback copy failed:', err);
+                    document.body.removeChild(textArea);
+                    return false;
+                }
+            }
+            
+            // Function to show success feedback
+            function showSuccessFeedback() {
+                const originalText = copyBtn.textContent;
+                const originalBg = copyBtn.style.background;
+                copyBtn.textContent = '✅ Copied!';
+                copyBtn.style.background = '#28a745';
+                
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                    copyBtn.style.background = originalBg;
+                }, 2000);
+            }
+            
+            // Function to show error feedback
+            function showErrorFeedback(errorMsg) {
+                console.error('Copy failed:', errorMsg);
+                const originalText = copyBtn.textContent;
+                const originalBg = copyBtn.style.background;
+                copyBtn.textContent = '❌ Copy failed';
+                copyBtn.style.background = '#dc3545';
+                
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                    copyBtn.style.background = originalBg;
+                }, 2000);
+            }
+            
+            // Try modern clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    showSuccessFeedback();
+                }).catch(err => {
+                    // If modern API fails, try fallback
+                    console.log('Modern clipboard API failed, trying fallback...');
+                    if (fallbackCopyTextToClipboard(textToCopy)) {
+                        showSuccessFeedback();
+                    } else {
+                        showErrorFeedback('Both clipboard methods failed');
+                    }
+                });
+            } else {
+                // Use fallback method directly
+                if (fallbackCopyTextToClipboard(textToCopy)) {
+                    showSuccessFeedback();
+                } else {
+                    showErrorFeedback('Clipboard not supported in this browser');
+                }
+            }
         }
         
         // Snippets functionality
