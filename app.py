@@ -233,7 +233,7 @@ def get_channel_videos(channel_name, max_results=5):
                 part='snippet,contentDetails',
                 channelId=actual_channel_id,
                 maxResults=max_results,
-                publishedAfter=(datetime.utcnow() - timedelta(days=30)).isoformat() + 'Z'  # Last 30 days
+                publishedAfter=(datetime.utcnow() - timedelta(days=60)).isoformat() + 'Z'  # Last 60 days
             )
             activities_response = activities_request.execute()
             
