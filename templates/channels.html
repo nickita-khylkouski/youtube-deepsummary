@@ -4,16 +4,13 @@
 {% block title %}Channels - YouTube Deep Summary{% endblock %}
 
 {% block content %}
-<div class="header">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <div>
-            <h2 style="margin: 0;">📺 Channels</h2>
-            <p style="margin: 5px 0 0 0; color: #666;">Browse all channels with saved videos</p>
-        </div>
-        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 18px; font-weight: bold; color: #333;">{{ channels|length }}</div>
-            <div style="font-size: 12px; color: #666;">Channels</div>
-        </div>
+<div class="header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #f8f9fa; padding: 12px 16px; border-radius: 8px; border-left: 4px solid #2196f3;">
+    <div>
+        <h2 style="margin: 0; font-size: 20px; display: flex; align-items: center; gap: 8px;">📺 Channels <span style="font-size: 14px; color: #666; font-weight: normal;">• Browse all channels with saved videos</span></h2>
+    </div>
+    <div style="background: white; padding: 8px 12px; border-radius: 6px; text-align: center; border: 1px solid #e0e0e0;">
+        <div style="font-size: 16px; font-weight: bold; color: #333;">{{ channels|length }}</div>
+        <div style="font-size: 11px; color: #666;">Channels</div>
     </div>
 </div>
 
@@ -129,17 +126,22 @@
     
     /* Mobile responsive */
     @media (max-width: 768px) {
-        .header > div {
+        .header {
             flex-direction: column !important;
             text-align: center;
+            gap: 10px;
         }
         
-        .header > div > div {
-            margin-top: 15px;
+        .header h2 span {
+            display: none;
         }
         
         .channel-card {
             padding: 15px !important;
+        }
+        
+        .channels-grid {
+            gap: 15px !important;
         }
         
         .channel-card > div {

@@ -3,41 +3,38 @@
 {% block title %}Snippets - YouTube Deep Summary{% endblock %}
 
 {% block content %}
-<div class="header">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <div>
-            {% if channel_name %}
-                <h2 style="margin: 0;">💾 Snippets - {{ channel_name }}</h2>
-                <p style="margin: 5px 0 0 0; color: #666;">
-                    <a href="/snippets" style="color: #0066cc; text-decoration: none;">← Back to all channels</a>
-                    • Saved insights from this channel
-                </p>
-            {% else %}
-                <h2 style="margin: 0;">💾 Snippets</h2>
-                <p style="margin: 5px 0 0 0; color: #666;">Your saved insights from AI summaries</p>
-            {% endif %}
-        </div>
-        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 18px; font-weight: bold; color: #333;">{{ stats.total_snippets }}</div>
-            <div style="font-size: 12px; color: #666;">{% if channel_name %}Channel {% endif %}Snippets</div>
-        </div>
+<div class="header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #f8f9fa; padding: 12px 16px; border-radius: 8px; border-left: 4px solid #9c27b0;">
+    <div>
+        {% if channel_name %}
+            <h2 style="margin: 0; font-size: 20px; display: flex; align-items: center; gap: 8px;">💾 Snippets - {{ channel_name }}</h2>
+            <div style="font-size: 14px; color: #666; margin-top: 2px;">
+                <a href="/snippets" style="color: #0066cc; text-decoration: none;">← Back to all channels</a>
+                • Saved insights from this channel
+            </div>
+        {% else %}
+            <h2 style="margin: 0; font-size: 20px; display: flex; align-items: center; gap: 8px;">💾 Snippets <span style="font-size: 14px; color: #666; font-weight: normal;">• Your saved insights from AI summaries</span></h2>
+        {% endif %}
+    </div>
+    <div style="background: white; padding: 8px 12px; border-radius: 6px; text-align: center; border: 1px solid #e0e0e0;">
+        <div style="font-size: 16px; font-weight: bold; color: #333;">{{ stats.total_snippets }}</div>
+        <div style="font-size: 11px; color: #666;">{% if channel_name %}Channel {% endif %}Snippets</div>
     </div>
 </div>
 
 {% if video_groups %}
-    <div class="video-groups" style="display: grid; gap: 25px;">
+    <div class="video-groups" style="display: grid; gap: 16px;">
         {% for group in video_groups %}
-            <div class="video-group" style="background: white; border: 1px solid #e0e0e0; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+            <div class="video-group" style="background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
                 <!-- Video header -->
-                <div class="video-header" style="display: flex; align-items: center; gap: 15px; margin-bottom: 18px; padding-bottom: 15px; border-bottom: 2px solid #f0f0f0;">
+                <div class="video-header" style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #f0f0f0;">
                     {% if group.video_info.thumbnail_url %}
                         <img src="{{ group.video_info.thumbnail_url }}" 
                              alt="Video thumbnail" 
-                             style="width: 120px; height: 90px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+                             style="width: 80px; height: 60px; object-fit: cover; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                     {% endif %}
                     <div style="flex: 1;">
                         {% if group.video_info.title %}
-                            <h3 style="margin: 0 0 8px 0; font-size: 18px; line-height: 1.3;">
+                            <h3 style="margin: 0 0 4px 0; font-size: 16px; line-height: 1.3;">
                                 <a href="/watch?v={{ group.video_id }}" style="color: #333; text-decoration: none;">{{ group.video_info.title }}</a>
                             </h3>
                             <p style="margin: 0; color: #666; font-size: 14px;">
@@ -46,7 +43,7 @@
                                 • <a href="/watch?v={{ group.video_id }}" style="color: #0066cc; text-decoration: none;">View Video</a>
                             </p>
                         {% else %}
-                            <h3 style="margin: 0 0 8px 0; font-size: 18px;">
+                            <h3 style="margin: 0 0 4px 0; font-size: 16px;">
                                 <a href="/watch?v={{ group.video_id }}" style="color: #333; text-decoration: none;">Video {{ group.video_id }}</a>
                             </h3>
                             <p style="margin: 0; color: #666; font-size: 14px;">
@@ -66,7 +63,7 @@
                 <!-- Snippets for this video -->
                 <div class="snippets-list" id="snippets-{{ loop.index0 }}" style="display: none;">
                     {% for snippet in group.snippets %}
-                        <div class="snippet-item" style="background: white; border: 1px solid #e8eaed; border-radius: 8px; padding: 12px; margin-bottom: 12px; position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                        <div class="snippet-item" style="background: white; border: 1px solid #e8eaed; border-radius: 6px; padding: 10px; margin-bottom: 8px; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
                             <!-- Delete button -->
                             <button class="delete-snippet-btn" onclick="deleteSnippet('{{ snippet.id }}')" 
                                     style="position: absolute; top: 6px; right: 6px; background: #ff4444; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center;"
@@ -74,7 +71,7 @@
                             
                             <!-- Snippet content and tags in one line for compact display -->
                             <div class="snippet-content" style="padding-right: 25px;">
-                                <div class="formatted-snippet-text" style="line-height: 1.5; font-size: 14px; color: #333; margin-bottom: 8px;">{{ snippet.snippet_text|safe }}</div>
+                                <div class="formatted-snippet-text" style="line-height: 1.4; font-size: 14px; color: #333; margin-bottom: 6px;">{{ snippet.snippet_text|safe }}</div>
                                 
                                 <!-- Tags and context on same line -->
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -113,16 +110,16 @@
     <!-- Load more button (if needed) -->
     {% set total_snippets = stats.total_snippets %}
     {% if total_snippets >= 100 %}
-        <div style="text-align: center; margin-top: 30px;">
+        <div style="text-align: center; margin-top: 20px;">
             <button onclick="loadMoreSnippets()" style="background: #2196f3; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Load More Snippets</button>
         </div>
     {% endif %}
     
 {% else %}
-    <div class="no-snippets" style="text-align: center; padding: 60px 20px; background: #f8f9fa; border-radius: 10px;">
-        <div style="font-size: 48px; margin-bottom: 20px;">💭</div>
-        <h3 style="color: #333; margin-bottom: 15px;">No Snippets Yet</h3>
-        <p style="color: #666; margin-bottom: 20px;">Start saving insights from AI summaries to build your personal knowledge base.</p>
+    <div class="no-snippets" style="text-align: center; padding: 40px 20px; background: #f8f9fa; border-radius: 8px;">
+        <div style="font-size: 36px; margin-bottom: 16px;">💭</div>
+        <h3 style="color: #333; margin-bottom: 12px; font-size: 18px;">No Snippets Yet</h3>
+        <p style="color: #666; margin-bottom: 16px; font-size: 14px;">Start saving insights from AI summaries to build your personal knowledge base.</p>
         <a href="/" style="background: #2196f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Explore Videos</a>
     </div>
 {% endif %}
@@ -188,13 +185,14 @@
     
     /* Mobile responsive */
     @media (max-width: 768px) {
-        .header > div {
+        .header {
             flex-direction: column !important;
             text-align: center;
+            gap: 10px;
         }
         
-        .header > div > div {
-            margin-top: 15px;
+        .header h2 span {
+            display: none;
         }
         
         .video-header {
@@ -282,7 +280,7 @@ function addExpandCollapseAllButton() {
     const header = document.querySelector('.header');
     if (header) {
         const buttonContainer = document.createElement('div');
-        buttonContainer.style.cssText = 'text-align: center; margin: 20px 0;';
+        buttonContainer.style.cssText = 'text-align: center; margin: 16px 0;';
         
         const expandAllBtn = document.createElement('button');
         expandAllBtn.textContent = 'Expand All';
