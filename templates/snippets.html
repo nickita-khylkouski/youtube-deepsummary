@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+
+{% block title %}Snippets - YouTube Deep Summary{% endblock %}
+
+{% block content %}
+<div class="header">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+            {% if channel_name %}
+                <h2 style="margin: 0;">💾 Snippets - {{ channel_name }}</h2>
+                <p style="margin: 5px 0 0 0; color: #666;">
+                    <a href="/snippets" style="color: #0066cc; text-decoration: none;">← Back to all channels</a>
+                    • Saved insights from this channel
+                </p>
+            {% else %}
+                <h2 style="margin: 0;">💾 Snippets</h2>
+                <p style="margin: 5px 0 0 0; color: #666;">Your saved insights from AI summaries</p>
+            {% endif %}
+        </div>
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 18px; font-weight: bold; color: #333;">{{ stats.total_snippets }}</div>
+            <div style="font-size: 12px; color: #666;">{% if channel_name %}Channel {% endif %}Snippets</div>
+        </div>
+    </div>
+</div>
+
+{% if video_groups %}
+    <div class="video-groups" style="display: grid; gap: 25px;">
+        {% for group in video_groups %}
+            <div class="video-group" style="background: white; border: 1px solid #e0e0e0; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+                <!-- Video header -->
+                <div class="video-header" style="display: flex; align-items: center; gap: 15px; margin-bottom: 18px; padding-bottom: 15px; border-bottom: 2px solid #f0f0f0;">
+                    {% if group.video_info.thumbnail_url %}
+                        <img src="{{ group.video_info.thumbnail_url }}" 
+                             alt="Video thumbnail" 
+                             style="width: 120px; height: 90px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+                    {% endif %}
+                    <div style="flex: 1;">
+                        {% if group.video_info.title %}
+                            <h3 style="margin: 0 0 8px 0; font-size: 18px; line-height: 1.3;">
+                                <a href="/watch?v={{ group.video_id }}" style="color: #333; text-decoration: none;">{{ group.video_info.title }}</a>
+                            </h3>
+                            <p style="margin: 0; color: #666; font-size: 14px;">
+                                {% if group.video_info.uploader %}{{ group.video_info.uploader }} • {% endif %}
+                                <span style="background: #e8f5e8; color: #2e7d32; padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">{{ group.snippets|length }} snippet{{ 's' if group.snippets|length != 1 else '' }}</span>
+                                • <a href="/watch?v={{ group.video_id }}" style="color: #0066cc; text-decoration: none;">View Video</a>
+                            </p>
+                        {% else %}
+                            <h3 style="margin: 0 0 8px 0; font-size: 18px;">
+                                <a href="/watch?v={{ group.video_id }}" style="color: #333; text-decoration: none;">Video {{ group.video_id }}</a>
+                            </h3>
+                            <p style="margin: 0; color: #666; font-size: 14px;">
+                                <span style="background: #e8f5e8; color: #2e7d32; padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">{{ group.snippets|length }} snippet{{ 's' if group.snippets|length != 1 else '' }}</span>
+                            </p>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Toggle button -->
+                    <button class="toggle-snippets-btn" onclick="toggleSnippets('{{ loop.index0 }}')" 
+                            style="background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 12px; color: #666; min-width: 80px; align-self: flex-start;">
+                        <span id="toggle-text-{{ loop.index0 }}">Show</span>
+                        <span id="toggle-icon-{{ loop.index0 }}" style="margin-left: 4px;">▼</span>
+                    </button>
+                </div>
+                
+                <!-- Snippets for this video -->
+                <div class="snippets-list" id="snippets-{{ loop.index0 }}" style="display: none;">
+                    {% for snippet in group.snippets %}
+                        <div class="snippet-item" style="background: white; border: 1px solid #e8eaed; border-radius: 8px; padding: 12px; margin-bottom: 12px; position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                            <!-- Delete button -->
+                            <button class="delete-snippet-btn" onclick="deleteSnippet('{{ snippet.id }}')" 
+                                    style="position: absolute; top: 6px; right: 6px; background: #ff4444; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center;"
+                                    title="Delete snippet">×</button>
+                            
+                            <!-- Snippet content and tags in one line for compact display -->
+                            <div class="snippet-content" style="padding-right: 25px;">
+                                <div class="formatted-snippet-text" style="line-height: 1.5; font-size: 14px; color: #333; margin-bottom: 8px;">{{ snippet.snippet_text|safe }}</div>
+                                
+                                <!-- Tags and context on same line -->
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <!-- Tags -->
+                                    {% if snippet.tags %}
+                                        <div class="tags">
+                                            {% for tag in snippet.tags %}
+                                                <span class="tag" style="background: #e3f2fd; color: #1976d2; padding: 2px 6px; border-radius: 8px; font-size: 10px; margin-right: 4px;">{{ tag }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    
+                                    <!-- Context (if available) - as a small button -->
+                                    {% if snippet.context_before or snippet.context_after %}
+                                        <details style="margin-left: auto;">
+                                            <summary style="cursor: pointer; color: #666; font-size: 10px; background: #f5f5f5; padding: 2px 6px; border-radius: 4px; border: none;">context</summary>
+                                            <div style="position: absolute; right: 0; top: 100%; background: white; border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px; margin-top: 2px; font-size: 11px; color: #666; max-width: 300px; z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                                {% if snippet.context_before %}
+                                                    <p style="margin: 0 0 4px 0;"><strong>Before:</strong> ...{{ snippet.context_before }}...</p>
+                                                {% endif %}
+                                                {% if snippet.context_after %}
+                                                    <p style="margin: 0;"><strong>After:</strong> ...{{ snippet.context_after }}...</p>
+                                                {% endif %}
+                                            </div>
+                                        </details>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Load more button (if needed) -->
+    {% set total_snippets = stats.total_snippets %}
+    {% if total_snippets >= 100 %}
+        <div style="text-align: center; margin-top: 30px;">
+            <button onclick="loadMoreSnippets()" style="background: #2196f3; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Load More Snippets</button>
+        </div>
+    {% endif %}
+    
+{% else %}
+    <div class="no-snippets" style="text-align: center; padding: 60px 20px; background: #f8f9fa; border-radius: 10px;">
+        <div style="font-size: 48px; margin-bottom: 20px;">💭</div>
+        <h3 style="color: #333; margin-bottom: 15px;">No Snippets Yet</h3>
+        <p style="color: #666; margin-bottom: 20px;">Start saving insights from AI summaries to build your personal knowledge base.</p>
+        <a href="/" style="background: #2196f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Explore Videos</a>
+    </div>
+{% endif %}
+
+<style>
+    .video-group:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        transition: all 0.3s ease;
+    }
+    
+    .snippet-item:hover {
+        background: #f0f7ff !important;
+        transition: all 0.2s ease;
+    }
+    
+    .delete-snippet-btn:hover {
+        background: #ff0000 !important;
+        transform: scale(1.1);
+    }
+    
+    .tag:hover {
+        background: #bbdefb !important;
+    }
+    
+    /* Formatting for snippet content */
+    .formatted-snippet-text h1,
+    .formatted-snippet-text h2,
+    .formatted-snippet-text h3 {
+        margin: 8px 0 4px 0;
+        font-weight: bold;
+    }
+    
+    .formatted-snippet-text h1 { font-size: 16px; }
+    .formatted-snippet-text h2 { font-size: 15px; }
+    .formatted-snippet-text h3 { font-size: 14px; }
+    
+    .formatted-snippet-text ul,
+    .formatted-snippet-text ol {
+        margin: 8px 0;
+        padding-left: 20px;
+    }
+    
+    .formatted-snippet-text li {
+        margin: 2px 0;
+    }
+    
+    .formatted-snippet-text p {
+        margin: 6px 0;
+    }
+    
+    .formatted-snippet-text strong {
+        font-weight: bold;
+    }
+    
+    .formatted-snippet-text em {
+        font-style: italic;
+    }
+    
+    .formatted-snippet-text a {
+        color: #0066cc;
+        text-decoration: underline;
+    }
+    
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+        .header > div {
+            flex-direction: column !important;
+            text-align: center;
+        }
+        
+        .header > div > div {
+            margin-top: 15px;
+        }
+        
+        .video-header {
+            flex-direction: column !important;
+            text-align: center;
+            gap: 15px !important;
+        }
+        
+        .video-header img {
+            width: 100px !important;
+            height: 75px !important;
+        }
+        
+        .video-group {
+            padding: 20px !important;
+        }
+        
+        .snippet-item {
+            padding: 12px !important;
+        }
+        
+        .delete-snippet-btn {
+            top: 5px !important;
+            right: 5px !important;
+            width: 20px !important;
+            height: 20px !important;
+            font-size: 10px !important;
+        }
+    }
+</style>
+
+<script>
+function deleteSnippet(snippetId) {
+    if (!confirm('Are you sure you want to delete this snippet?')) {
+        return;
+    }
+    
+    fetch(`/api/snippets/${snippetId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Remove the snippet card from the page
+            location.reload(); // Simple reload for now
+        } else {
+            alert('Failed to delete snippet: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error deleting snippet: ' + error.message);
+    });
+}
+
+function loadMoreSnippets() {
+    // TODO: Implement pagination
+    alert('Pagination not yet implemented');
+}
+
+function toggleSnippets(groupIndex) {
+    const snippetsList = document.getElementById(`snippets-${groupIndex}`);
+    const toggleText = document.getElementById(`toggle-text-${groupIndex}`);
+    const toggleIcon = document.getElementById(`toggle-icon-${groupIndex}`);
+    const toggleBtn = document.querySelector(`[onclick="toggleSnippets('${groupIndex}')"]`);
+    
+    if (snippetsList.style.display === 'none') {
+        // Show snippets
+        snippetsList.style.display = 'block';
+        toggleText.textContent = 'Hide';
+        toggleIcon.textContent = '▲';
+        toggleBtn.style.background = '#e8f5e8';
+        toggleBtn.style.color = '#2e7d32';
+    } else {
+        // Hide snippets
+        snippetsList.style.display = 'none';
+        toggleText.textContent = 'Show';
+        toggleIcon.textContent = '▼';
+        toggleBtn.style.background = '#f5f5f5';
+        toggleBtn.style.color = '#666';
+    }
+}
+
+// Add expand/collapse all functionality
+function addExpandCollapseAllButton() {
+    const header = document.querySelector('.header');
+    if (header) {
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.cssText = 'text-align: center; margin: 20px 0;';
+        
+        const expandAllBtn = document.createElement('button');
+        expandAllBtn.textContent = 'Expand All';
+        expandAllBtn.style.cssText = 'background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin-right: 10px; font-size: 14px;';
+        expandAllBtn.onclick = () => expandCollapseAll(true);
+        
+        const collapseAllBtn = document.createElement('button');
+        collapseAllBtn.textContent = 'Collapse All';
+        collapseAllBtn.style.cssText = 'background: #666; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px;';
+        collapseAllBtn.onclick = () => expandCollapseAll(false);
+        
+        buttonContainer.appendChild(expandAllBtn);
+        buttonContainer.appendChild(collapseAllBtn);
+        header.appendChild(buttonContainer);
+    }
+}
+
+function expandCollapseAll(expand) {
+    const videoGroups = document.querySelectorAll('.video-group');
+    videoGroups.forEach((group, index) => {
+        const snippetsList = document.getElementById(`snippets-${index}`);
+        const toggleText = document.getElementById(`toggle-text-${index}`);
+        const toggleIcon = document.getElementById(`toggle-icon-${index}`);
+        const toggleBtn = document.querySelector(`[onclick="toggleSnippets('${index}')"]`);
+        
+        if (expand) {
+            snippetsList.style.display = 'block';
+            toggleText.textContent = 'Hide';
+            toggleIcon.textContent = '▲';
+            toggleBtn.style.background = '#e8f5e8';
+            toggleBtn.style.color = '#2e7d32';
+        } else {
+            snippetsList.style.display = 'none';
+            toggleText.textContent = 'Show';
+            toggleIcon.textContent = '▼';
+            toggleBtn.style.background = '#f5f5f5';
+            toggleBtn.style.color = '#666';
+        }
+    });
+}
+
+// Initialize expand/collapse all buttons when page loads
+document.addEventListener('DOMContentLoaded', addExpandCollapseAllButton);
+</script>
+
+{% endblock %}

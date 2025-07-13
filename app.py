@@ -319,6 +319,7 @@ def api_summary_with_data():
         
         video_id = data.get('video_id')
         formatted_transcript = data.get('formatted_transcript')
+        force_regenerate = data.get('force_regenerate', False)
         
         if not video_id or not formatted_transcript:
             return jsonify({
@@ -326,16 +327,19 @@ def api_summary_with_data():
                 'error': 'video_id and formatted_transcript are required'
             }), 400
         
-        # First check if summary already exists in database
-        existing_summary = database_storage.get_summary(video_id)
-        if existing_summary:
-            print(f"Using existing summary for video {video_id}")
-            return jsonify({
-                'success': True,
-                'video_id': video_id,
-                'summary': existing_summary,
-                'from_cache': True
-            })
+        # First check if summary already exists in database (unless force regeneration)
+        if not force_regenerate:
+            existing_summary = database_storage.get_summary(video_id)
+            if existing_summary:
+                print(f"Using existing summary for video {video_id}")
+                return jsonify({
+                    'success': True,
+                    'video_id': video_id,
+                    'summary': existing_summary,
+                    'from_cache': True
+                })
+        else:
+            print(f"Force regenerating summary for video {video_id}")
         
         # Get video info and chapters from database to include in summary
         cached_data = database_storage.get(video_id)
@@ -426,6 +430,85 @@ def api_delete_video(video_id):
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+# Snippets API endpoints
+@app.route('/api/snippets', methods=['POST'])
+def api_save_snippet():
+    """API endpoint to save a snippet"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'No data provided'}), 400
+
+        video_id = data.get('video_id')
+        snippet_text = data.get('snippet_text')
+        context_before = data.get('context_before')
+        context_after = data.get('context_after')
+        tags = data.get('tags', [])
+
+        if not video_id or not snippet_text:
+            return jsonify({'success': False, 'message': 'video_id and snippet_text are required'}), 400
+
+        success = database_storage.save_memory_snippet(
+            video_id=video_id,
+            snippet_text=snippet_text,
+            context_before=context_before,
+            context_after=context_after,
+            tags=tags
+        )
+
+        if success:
+            return jsonify({'success': True, 'message': 'Snippet saved successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Failed to save snippet'}), 500
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/snippets')
+def api_get_snippets():
+    """API endpoint to get snippets"""
+    try:
+        video_id = request.args.get('video_id')
+        limit = int(request.args.get('limit', 100))
+
+        snippets = database_storage.get_memory_snippets(video_id=video_id, limit=limit)
+        return jsonify({'success': True, 'snippets': snippets})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/snippets/<snippet_id>', methods=['DELETE'])
+def api_delete_snippet(snippet_id):
+    """API endpoint to delete a snippet"""
+    try:
+        success = database_storage.delete_memory_snippet(snippet_id)
+        if success:
+            return jsonify({'success': True, 'message': 'Snippet deleted successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Failed to delete snippet'}), 404
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/snippets/<snippet_id>/tags', methods=['PUT'])
+def api_update_snippet_tags(snippet_id):
+    """API endpoint to update snippet tags"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'No data provided'}), 400
+
+        tags = data.get('tags', [])
+
+        success = database_storage.update_memory_snippet_tags(snippet_id, tags)
+        if success:
+            return jsonify({'success': True, 'message': 'Snippet tags updated successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Failed to update snippet tags'}), 404
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.route('/channels')
 def channels_page():
     """Display all channels with video counts"""
@@ -508,6 +591,107 @@ def channel_summaries(channel_name):
     except Exception as e:
         return render_template('error.html', 
                              error_message=f"Error loading channel summaries: {str(e)}"), 500
+
+@app.route('/snippets')
+def snippets_page():
+    """Display channels that have snippets"""
+    try:
+        snippets = database_storage.get_memory_snippets(limit=1000)
+        stats = database_storage.get_memory_snippets_stats()
+        
+        # Group snippets by channel (uploader)
+        channel_groups = {}
+        for snippet in snippets:
+            video_info = snippet.get('youtube_videos', [{}])[0] if snippet.get('youtube_videos') else {}
+            uploader = video_info.get('uploader', 'Unknown Channel')
+            
+            if uploader not in channel_groups:
+                channel_groups[uploader] = {
+                    'channel_name': uploader,
+                    'videos': {},
+                    'total_snippets': 0,
+                    'latest_date': ''
+                }
+            
+            video_id = snippet['video_id']
+            if video_id not in channel_groups[uploader]['videos']:
+                channel_groups[uploader]['videos'][video_id] = {
+                    'video_info': video_info,
+                    'video_id': video_id,
+                    'snippet_count': 0
+                }
+            
+            channel_groups[uploader]['videos'][video_id]['snippet_count'] += 1
+            channel_groups[uploader]['total_snippets'] += 1
+            
+            # Track latest snippet date for channel
+            snippet_date = snippet.get('created_at', '')
+            if snippet_date > channel_groups[uploader]['latest_date']:
+                channel_groups[uploader]['latest_date'] = snippet_date
+        
+        # Convert to list and sort by most recent snippet
+        channels = []
+        for channel_name, group in channel_groups.items():
+            group['video_count'] = len(group['videos'])
+            channels.append(group)
+        
+        # Sort channels by latest snippet date (newest first)
+        channels.sort(key=lambda x: x['latest_date'], reverse=True)
+        
+        return render_template('snippet_channels.html', 
+                             channels=channels,
+                             stats=stats)
+        
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading snippets: {str(e)}"), 500
+
+@app.route('/snippets/channel/<channel_name>')
+def snippets_channel_page(channel_name):
+    """Display snippets for a specific channel"""
+    try:
+        snippets = database_storage.get_memory_snippets(limit=1000)
+        
+        # Filter snippets by channel
+        channel_snippets = []
+        for snippet in snippets:
+            video_info = snippet.get('youtube_videos', [{}])[0] if snippet.get('youtube_videos') else {}
+            uploader = video_info.get('uploader', 'Unknown Channel')
+            if uploader == channel_name:
+                channel_snippets.append(snippet)
+        
+        # Group snippets by video_id
+        grouped_snippets = {}
+        for snippet in channel_snippets:
+            video_id = snippet['video_id']
+            if video_id not in grouped_snippets:
+                grouped_snippets[video_id] = {
+                    'video_info': snippet.get('youtube_videos', [{}])[0] if snippet.get('youtube_videos') else {},
+                    'video_id': video_id,
+                    'snippets': []
+                }
+            grouped_snippets[video_id]['snippets'].append(snippet)
+        
+        # Convert to list and sort by most recent snippet in each group
+        video_groups = []
+        for video_id, group in grouped_snippets.items():
+            # Sort snippets within group by creation date (newest first)
+            group['snippets'].sort(key=lambda x: x.get('created_at', ''), reverse=True)
+            # Use the newest snippet's date for group sorting
+            group['latest_date'] = group['snippets'][0].get('created_at', '') if group['snippets'] else ''
+            video_groups.append(group)
+        
+        # Sort groups by latest snippet date (newest first)
+        video_groups.sort(key=lambda x: x['latest_date'], reverse=True)
+        
+        return render_template('snippets.html', 
+                             video_groups=video_groups,
+                             channel_name=channel_name,
+                             stats={'total_snippets': len(channel_snippets)})
+        
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading channel snippets: {str(e)}"), 500
 
 @app.route('/favicon.ico')
 def favicon():
