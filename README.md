@@ -20,6 +20,7 @@ A comprehensive toolkit for downloading YouTube transcripts with multiple implem
 
 ### Advanced Features
 - **Persistent Database Storage**: Supabase integration with tables for videos, transcripts, chapters, summaries, and memory snippets
+- **Channel Video Import**: Import latest videos from YouTube channels with automatic transcript and AI summary generation
 - **Memory Snippets**: Save and organize insights from AI summaries with formatting preservation and tagging
 - **Video Metadata**: Automatic extraction of titles, thumbnails, duration, and uploader info
 - **Chapter Support**: Organized transcript display by video chapters when available
@@ -44,7 +45,7 @@ pip install -r requirements.txt
 
 Or install individual packages:
 ```bash
-pip install flask youtube-transcript-api openai python-dotenv yt-dlp supabase markdown
+pip install flask youtube-transcript-api openai python-dotenv yt-dlp supabase markdown google-api-python-client
 ```
 
 ### Environment Configuration
@@ -58,6 +59,9 @@ OPENAI_API_KEY=your_openai_api_key
 # Required for database storage
 SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_anon_key
+
+# Required for importing channel videos (YouTube Data API v3)
+YOUTUBE_API_KEY=your_youtube_api_key
 
 # Optional OpenAI configuration
 OPENAI_MODEL=gpt-4.1
@@ -119,6 +123,7 @@ python3 download_transcript_manual.py "https://www.youtube.com/watch?v=VIDEO_ID"
 - **Transcript JSON**: `http://localhost:33079/api/transcript/VIDEO_ID`
 - **Summary with Data**: `POST http://localhost:33079/api/summary` (with transcript data in body)
 - **Memory Snippets**: `GET/POST/DELETE http://localhost:33079/api/memory-snippets`
+- **Channel Import**: `POST http://localhost:33079/api/channels/<channel_name>/import`
 - **Storage Stats**: `http://localhost:33079/api/storage/stats`
 
 ### Examples
@@ -144,6 +149,11 @@ curl http://localhost:33079/api/memory-snippets
 curl -X POST http://localhost:33079/api/memory-snippets \
   -H "Content-Type: application/json" \
   -d '{"video_id": "FjHtZnjNEBU", "snippet_text": "Important insight", "tags": ["key-point"]}'
+
+# Channel video import API
+curl -X POST http://localhost:33079/api/channels/TechChannel/import \
+  -H "Content-Type: application/json" \
+  -d '{"max_results": 5}'
 ```
 
 ### Supported Input Formats
@@ -182,6 +192,49 @@ The AI summarization feature provides structured summaries with the following se
 - **Specific Details & Examples** - Important statistics, case studies, and examples
 - **Warnings & Common Mistakes** - Pitfalls and errors to avoid
 - **Resources & Next Steps** - Tools, links, and recommended follow-up actions
+
+## Channel Video Import
+
+The Channel Video Import feature allows you to automatically fetch the latest videos from any YouTube channel and process them with transcripts and AI summaries.
+
+### Features
+- **Automatic Discovery**: Import up to 20 latest videos from any YouTube channel
+- **Smart Channel Matching**: Handles various channel URL formats and name variations
+- **Complete Processing**: Each imported video gets transcript extraction and AI summary generation
+- **Duplicate Prevention**: Skips videos that are already in your database
+- **Progress Tracking**: Real-time feedback showing processed, skipped, and error counts
+- **URL Decoding**: Properly handles URL-encoded channel names
+
+### Usage
+1. **Navigate to Channels page** at `/channels`
+2. **Click "Import Latest Videos"** on any existing channel card
+3. **Wait for processing** - the system will fetch and process each video
+4. **View results** - notification shows how many videos were processed/skipped/errors
+5. **Page refresh** - automatically updates to show new video counts
+
+### API Usage
+```bash
+# Import 5 latest videos from a channel
+curl -X POST http://localhost:33079/api/channels/TechChannel/import \
+  -H "Content-Type: application/json" \
+  -d '{"max_results": 5}'
+
+# Response includes detailed results
+{
+  "success": true,
+  "channel_name": "TechChannel",
+  "total_videos": 5,
+  "processed": 3,
+  "skipped": 2,
+  "errors": 0,
+  "results": [...]
+}
+```
+
+### Requirements
+- **YouTube Data API v3 Key**: Required for channel video discovery
+- **OpenAI API Key**: Optional, for AI summary generation
+- **Channel Must Exist**: The channel must have at least one video already in your database for optimal matching
 
 ## Memory Snippets
 

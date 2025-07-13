@@ -103,6 +103,9 @@ OPENAI_TEMPERATURE=0.7      # Optional, defaults to 0.7
 SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_anon_key
 
+# Required for importing channel videos (YouTube Data API v3)
+YOUTUBE_API_KEY=your_youtube_api_key
+
 # Optional proxy configuration
 YOUTUBE_PROXY=proxy_ip:8080
 
@@ -158,6 +161,7 @@ docker run -p 33079:33079 \
 - **`POST /api/memory-snippets`** - Save new memory snippet with text, context, and tags
 - **`DELETE /api/memory-snippets/<snippet_id>`** - Delete specific memory snippet
 - **`PUT /api/memory-snippets/<snippet_id>/tags`** - Update tags for specific memory snippet
+- **`POST /api/channels/<channel_name>/import`** - Import latest videos from a YouTube channel with transcripts and AI summaries
 - **`GET /api/cache/info`** - Legacy cache statistics (deprecated)
 - **`POST /api/cache/cleanup`** - Legacy cache cleanup (deprecated)
 - **`GET /api/storage/stats`** - Database storage statistics and metrics
@@ -168,6 +172,7 @@ docker run -p 33079:33079 \
 - **Persistent Storage**: Supabase database with tables for videos, transcripts, chapters, summaries, and memory_snippets
 - **Memory Snippets**: Personal knowledge base with text selection, HTML formatting preservation, and tagging system
 - **Channel Management**: Browse videos and summaries organized by YouTube channels
+- **Channel Video Import**: Import latest videos from YouTube channels with automatic transcript and AI summary generation
 - **Proxy Support**: Configurable proxy for both transcript and chapter extraction
 
 ### AI Summarization Features

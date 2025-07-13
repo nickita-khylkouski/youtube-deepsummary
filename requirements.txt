@@ -5,3 +5,4 @@ python-dotenv==1.0.0
 yt-dlp==2025.6.9
 supabase==2.15.0
 markdown==3.8.2
+google-api-python-client==2.156.0

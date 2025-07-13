@@ -9,12 +9,21 @@ import os
 from flask import Flask, request, render_template, jsonify
 from youtube_transcript_api import YouTubeTranscriptApi
 import re
+import json
+from datetime import datetime, timedelta
+from urllib.parse import unquote
 try:
     import markdown
     MARKDOWN_AVAILABLE = True
 except ImportError:
     MARKDOWN_AVAILABLE = False
     print("Warning: markdown library not available. Install with: pip install markdown")
+try:
+    from googleapiclient.discovery import build
+    YOUTUBE_API_AVAILABLE = True
+except ImportError:
+    YOUTUBE_API_AVAILABLE = False
+    print("Warning: google-api-python-client not available. Install with: pip install google-api-python-client")
 from transcript_summarizer import TranscriptSummarizer, format_transcript_for_readability, extract_video_chapters, extract_video_info
 from database_storage import database_storage
 from dotenv import load_dotenv
@@ -50,6 +59,294 @@ def extract_video_id(url_or_id):
             return match.group(1)
     
     return None
+
+def extract_channel_id_or_name(channel_url_or_name):
+    """Extract channel ID or name from YouTube channel URL"""
+    if not channel_url_or_name:
+        return None, None
+    
+    # If it's already a channel ID (starts with UC)
+    if channel_url_or_name.startswith('UC') and len(channel_url_or_name) == 24:
+        return channel_url_or_name, 'id'
+    
+    # Extract from channel URL patterns
+    patterns = [
+        r'youtube\.com\/channel\/([a-zA-Z0-9_-]{24})',  # Channel ID
+        r'youtube\.com\/c\/([a-zA-Z0-9_-]+)',          # Custom URL
+        r'youtube\.com\/@([a-zA-Z0-9_.-]+)',           # Handle format
+        r'youtube\.com\/user\/([a-zA-Z0-9_-]+)',       # Legacy username
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, channel_url_or_name)
+        if match:
+            return match.group(1), 'custom' if '/c/' in pattern or '/@' in pattern or '/user/' in pattern else 'id'
+    
+    # If no URL pattern matched, treat as custom name
+    return channel_url_or_name, 'custom'
+
+def get_youtube_service():
+    """Initialize YouTube Data API service"""
+    if not YOUTUBE_API_AVAILABLE:
+        return None
+    
+    api_key = os.getenv('YOUTUBE_API_KEY')
+    if not api_key:
+        return None
+    
+    try:
+        return build('youtube', 'v3', developerKey=api_key)
+    except Exception as e:
+        print(f"Failed to initialize YouTube API service: {e}")
+        return None
+
+def get_channel_videos(channel_name, max_results=5):
+    """Get latest videos from a channel using YouTube Data API"""
+    youtube_service = get_youtube_service()
+    if not youtube_service:
+        raise Exception("YouTube Data API not available or not configured")
+    
+    try:
+        # First, we need to get the exact channel ID from the database
+        # since the channel_name in our database is the uploader name
+        actual_channel_id = None
+        
+        # Try to find an existing video from this channel to get the channel ID
+        existing_videos = database_storage.get_videos_by_channel(channel_name)
+        if existing_videos:
+            # Use yt-dlp or video info to try to get channel ID from an existing video
+            sample_video_id = existing_videos[0]['video_id']
+            try:
+                # Try to extract channel info from existing video
+                video_request = youtube_service.videos().list(
+                    part='snippet',
+                    id=sample_video_id
+                )
+                video_response = video_request.execute()
+                if video_response.get('items'):
+                    actual_channel_id = video_response['items'][0]['snippet']['channelId']
+                    print(f"Found channel ID {actual_channel_id} from existing video {sample_video_id}")
+            except Exception as e:
+                print(f"Could not get channel ID from existing video: {e}")
+        
+        # If we still don't have channel ID, try different search approaches
+        if not actual_channel_id:
+            channel_id, name_type = extract_channel_id_or_name(channel_name)
+            
+            if name_type == 'id':
+                actual_channel_id = channel_id
+            else:
+                # Try exact channel name search first
+                search_request = youtube_service.search().list(
+                    part='snippet',
+                    q=f'"{channel_name}"',  # Use quotes for exact match
+                    type='channel',
+                    maxResults=5  # Get more results to find exact match
+                )
+                search_response = search_request.execute()
+                
+                print(f"Search returned {len(search_response.get('items', []))} results for '{channel_name}'")
+                for i, item in enumerate(search_response.get('items', [])):
+                    print(f"  {i+1}. {item['snippet']['title']} (ID: {item['id']['channelId']})")
+                
+                # Look for exact match in channel titles
+                best_match = None
+                exact_match = None
+                
+                for item in search_response.get('items', []):
+                    item_title = item['snippet']['title']
+                    
+                    # Check for exact match (case-insensitive)
+                    if item_title.lower() == channel_name.lower():
+                        exact_match = item
+                        print(f"Found exact channel match: {item_title} -> {item['id']['channelId']}")
+                        break
+                    
+                    # Check for close match (contains the search term)
+                    elif channel_name.lower() in item_title.lower() or item_title.lower() in channel_name.lower():
+                        if not best_match:
+                            best_match = item
+                            print(f"Found potential match: {item_title} -> {item['id']['channelId']}")
+                
+                if exact_match:
+                    actual_channel_id = exact_match['id']['channelId']
+                elif best_match:
+                    actual_channel_id = best_match['id']['channelId']
+                    print(f"Using best match: {best_match['snippet']['title']} -> {actual_channel_id}")
+                elif search_response.get('items'):
+                    # Fallback to first result
+                    actual_channel_id = search_response['items'][0]['id']['channelId']
+                    found_name = search_response['items'][0]['snippet']['title']
+                    print(f"Using first search result: {found_name} -> {actual_channel_id}")
+                
+                if not actual_channel_id:
+                    raise Exception(f"Channel '{channel_name}' not found")
+        
+        # Now get the latest videos from the specific channel using the channel ID
+        print(f"Fetching videos for channel ID: {actual_channel_id}")
+        
+        # Method 1: Try to get the uploads playlist for this channel
+        try:
+            channel_request = youtube_service.channels().list(
+                part='contentDetails',
+                id=actual_channel_id
+            )
+            channel_response = channel_request.execute()
+            
+            if channel_response.get('items'):
+                uploads_playlist_id = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
+                print(f"Found uploads playlist: {uploads_playlist_id}")
+                
+                # Get videos from the uploads playlist
+                playlist_request = youtube_service.playlistItems().list(
+                    part='snippet',
+                    playlistId=uploads_playlist_id,
+                    maxResults=max_results,
+                    order='date'
+                )
+                playlist_response = playlist_request.execute()
+                
+                videos = []
+                for item in playlist_response.get('items', []):
+                    video_id = item['snippet']['resourceId']['videoId']
+                    snippet = item['snippet']
+                    
+                    videos.append({
+                        'video_id': video_id,
+                        'title': snippet.get('title', ''),
+                        'description': snippet.get('description', ''),
+                        'published_at': snippet.get('publishedAt', ''),
+                        'thumbnail_url': snippet.get('thumbnails', {}).get('medium', {}).get('url', ''),
+                        'channel_name': snippet.get('channelTitle', channel_name)
+                    })
+                
+                if videos:
+                    print(f"Found {len(videos)} videos from uploads playlist")
+                    return videos
+                    
+        except Exception as e:
+            print(f"Uploads playlist method failed: {e}, trying activities API")
+        
+        # Method 2: Use the activities endpoint to get the most recent uploads
+        try:
+            activities_request = youtube_service.activities().list(
+                part='snippet,contentDetails',
+                channelId=actual_channel_id,
+                maxResults=max_results,
+                publishedAfter=(datetime.utcnow() - timedelta(days=30)).isoformat() + 'Z'  # Last 30 days
+            )
+            activities_response = activities_request.execute()
+            
+            videos = []
+            for item in activities_response.get('items', []):
+                if (item['snippet']['type'] == 'upload' and 
+                    'contentDetails' in item and 
+                    'upload' in item['contentDetails']):
+                    
+                    video_id = item['contentDetails']['upload']['videoId']
+                    snippet = item['snippet']
+                    
+                    videos.append({
+                        'video_id': video_id,
+                        'title': snippet.get('title', ''),
+                        'description': snippet.get('description', ''),
+                        'published_at': snippet.get('publishedAt', ''),
+                        'thumbnail_url': snippet.get('thumbnails', {}).get('medium', {}).get('url', ''),
+                        'channel_name': snippet.get('channelTitle', channel_name)
+                    })
+            
+            if videos:
+                print(f"Found {len(videos)} recent uploads using activities API")
+                return videos
+                
+        except Exception as e:
+            print(f"Activities API failed: {e}, falling back to search")
+        
+        # Fallback: use search API with the specific channel ID
+        search_request = youtube_service.search().list(
+            part='snippet',
+            channelId=actual_channel_id,
+            type='video',
+            order='date',
+            maxResults=max_results
+        )
+        search_response = search_request.execute()
+        
+        videos = []
+        for item in search_response.get('items', []):
+            video_id = item['id']['videoId']
+            snippet = item['snippet']
+            
+            # Double-check that this video is actually from the right channel
+            if snippet.get('channelTitle', '').lower() == channel_name.lower():
+                videos.append({
+                    'video_id': video_id,
+                    'title': snippet.get('title', ''),
+                    'description': snippet.get('description', ''),
+                    'published_at': snippet.get('publishedAt', ''),
+                    'thumbnail_url': snippet.get('thumbnails', {}).get('medium', {}).get('url', ''),
+                    'channel_name': snippet.get('channelTitle', channel_name)
+                })
+        
+        print(f"Found {len(videos)} videos using search API")
+        return videos
+        
+    except Exception as e:
+        print(f"Error fetching channel videos: {e}")
+        raise Exception(f"Failed to fetch videos from channel: {str(e)}")
+
+def process_video_complete(video_id):
+    """Process a video completely: get transcript, video info, and AI summary"""
+    try:
+        # Check if video already exists in database
+        cached_data = database_storage.get(video_id)
+        if cached_data:
+            print(f"Video {video_id} already processed, skipping")
+            return {'status': 'exists', 'video_id': video_id}
+        
+        # Get transcript
+        print(f"Getting transcript for {video_id}")
+        transcript = get_transcript(video_id)
+        
+        # Get video info
+        print(f"Getting video info for {video_id}")
+        video_info = extract_video_info(video_id)
+        
+        # Format transcript
+        formatted_transcript = format_transcript_for_readability(transcript, video_info.get('chapters'))
+        
+        # Store in database
+        database_storage.set(video_id, transcript, video_info, formatted_transcript)
+        
+        # Generate AI summary if summarizer is configured
+        summary_generated = False
+        if summarizer and summarizer.is_configured():
+            try:
+                print(f"Generating AI summary for {video_id}")
+                summary = summarizer.summarize_with_openai(formatted_transcript, 
+                                                         chapters=video_info.get('chapters'), 
+                                                         video_id=video_id, 
+                                                         video_info=video_info)
+                database_storage.save_summary(video_id, summary)
+                summary_generated = True
+                print(f"AI summary generated and saved for {video_id}")
+            except Exception as e:
+                print(f"Failed to generate summary for {video_id}: {e}")
+        
+        return {
+            'status': 'processed',
+            'video_id': video_id,
+            'title': video_info.get('title', ''),
+            'summary_generated': summary_generated
+        }
+        
+    except Exception as e:
+        print(f"Error processing video {video_id}: {e}")
+        return {
+            'status': 'error',
+            'video_id': video_id,
+            'error': str(e)
+        }
 
 def get_transcript(video_id):
     """Download transcript for given video ID using proxy from environment with language fallback"""
@@ -692,6 +989,75 @@ def snippets_channel_page(channel_name):
     except Exception as e:
         return render_template('error.html', 
                              error_message=f"Error loading channel snippets: {str(e)}"), 500
+
+@app.route('/api/channels/<channel_name>/import', methods=['POST'])
+def api_import_channel_videos(channel_name):
+    """API endpoint to import latest videos from a channel"""
+    try:
+        # Decode URL-encoded channel name
+        decoded_channel_name = unquote(channel_name)
+        print(f"Original channel name: {channel_name}")
+        print(f"Decoded channel name: {decoded_channel_name}")
+        
+        data = request.get_json() if request.content_type == 'application/json' else {}
+        max_results = int(data.get('max_results', 5))
+        
+        if max_results > 20:  # Reasonable limit
+            max_results = 20
+        
+        # Check if YouTube API is configured
+        if not YOUTUBE_API_AVAILABLE or not get_youtube_service():
+            return jsonify({
+                'success': False,
+                'error': 'YouTube Data API not configured. Please set YOUTUBE_API_KEY environment variable.'
+            }), 400
+        
+        # Get latest videos from channel using decoded name
+        print(f"Fetching {max_results} videos from channel: {decoded_channel_name}")
+        videos = get_channel_videos(decoded_channel_name, max_results)
+        
+        if not videos:
+            return jsonify({
+                'success': False,
+                'error': f'No videos found for channel: {channel_name}'
+            }), 404
+        
+        # Process each video
+        results = []
+        processed_count = 0
+        skipped_count = 0
+        error_count = 0
+        
+        for video in videos:
+            video_id = video['video_id']
+            print(f"Processing video: {video_id} - {video['title']}")
+            
+            result = process_video_complete(video_id)
+            results.append(result)
+            
+            if result['status'] == 'processed':
+                processed_count += 1
+            elif result['status'] == 'exists':
+                skipped_count += 1
+            else:
+                error_count += 1
+        
+        return jsonify({
+            'success': True,
+            'channel_name': decoded_channel_name,
+            'total_videos': len(videos),
+            'processed': processed_count,
+            'skipped': skipped_count,
+            'errors': error_count,
+            'results': results
+        })
+        
+    except Exception as e:
+        print(f"Error importing channel videos: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/favicon.ico')
 def favicon():

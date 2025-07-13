@@ -98,6 +98,10 @@
                                 🤖 View Summaries
                             </a>
                         {% endif %}
+                        <button onclick="importChannelVideos('{{ channel.name|urlencode }}')" 
+                                style="background: #4caf50; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.2s;">
+                            ⬇️ Import Latest Videos
+                        </button>
                     </div>
                 </div>
             </div>
@@ -155,4 +159,87 @@
         }
     }
 </style>
+
+<script>
+async function importChannelVideos(channelName) {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    
+    // Disable button and show loading state
+    button.disabled = true;
+    button.innerHTML = '⏳ Importing...';
+    button.style.background = '#9e9e9e';
+    
+    try {
+        console.log(`Starting import for channel: ${channelName}`);
+        
+        const response = await fetch(`/api/channels/${encodeURIComponent(channelName)}/import`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                max_results: 5  // Default to 5 videos
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Show success message
+            const message = `Successfully imported ${result.processed} new videos (${result.skipped} already existed, ${result.errors} errors)`;
+            
+            // Create and show success notification
+            showNotification(message, 'success');
+            
+            // Refresh the page after a short delay to show updated video counts
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+            
+        } else {
+            showNotification(`Error: ${result.error}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('Import error:', error);
+        showNotification(`Failed to import videos: ${error.message}`, 'error');
+    } finally {
+        // Reset button state
+        button.disabled = false;
+        button.innerHTML = originalText;
+        button.style.background = '#4caf50';
+    }
+}
+
+function showNotification(message, type) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        border-radius: 8px;
+        color: white;
+        font-weight: 500;
+        z-index: 1000;
+        max-width: 400px;
+        font-size: 14px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        background: ${type === 'success' ? '#4caf50' : '#f44336'};
+    `;
+    notification.textContent = message;
+    
+    // Add to page
+    document.body.appendChild(notification);
+    
+    // Remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 5000);
+}
+</script>
 {% endblock %}
