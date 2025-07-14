@@ -150,7 +150,7 @@ docker run -p 33079:33079 \
 - **`/channel/@handle/videos`** - View all videos from a specific channel by handle
 - **`/channel/@handle/summaries`** - View all summaries from a specific channel by handle
 - **`/snippets/channel/@handle`** - View memory snippets from a specific channel by handle
-- **`/storage`** - Database storage statistics and management
+- **`/videos`** - Videos listing and management
 - **Mobile-responsive design** with optimized padding and collapsible elements
 - **Handle-based routing**: Clean URLs using channel handles (@channelname) instead of IDs
 - **Breadcrumb navigation**: Easy navigation between channel overview and sub-pages

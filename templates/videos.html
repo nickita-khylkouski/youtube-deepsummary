@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Storage - YouTube Deep Search{% endblock %}
+{% block title %}Videos - YouTube Deep Search{% endblock %}
 
 {% block content %}
     <div style="margin-bottom: 15px; background: #f8f9fa; padding: 12px 16px; border-radius: 8px; border-left: 4px solid #ff9800;">
-        <h2 style="margin: 0; font-size: 20px; display: flex; align-items: center; gap: 8px;">💾 Storage <span style="font-size: 14px; color: #666; font-weight: normal;">• {{ cache_stats.videos_count }} videos stored</span></h2>
+        <h2 style="margin: 0; font-size: 20px; display: flex; align-items: center; gap: 8px;">🎬 Videos <span style="font-size: 14px; color: #666; font-weight: normal;">• {{ cache_stats.videos_count }} videos stored</span></h2>
     </div>
     
     {% if cached_videos %}
-        <!-- Storage Actions -->
+        <!-- Video Actions -->
         <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
             <div>
                 <button id="groupToggle" onclick="toggleGrouping()" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">📁 Group by Channel</button>
@@ -84,7 +84,7 @@
         <!-- Empty State -->
         <div style="text-align: center; padding: 60px 20px; color: #666;">
             <div style="font-size: 48px; margin-bottom: 20px;">📭</div>
-            <h3>No Videos in Storage</h3>
+            <h3>No Videos Found</h3>
             <p>Visit some videos to see them appear here.</p>
             <a href="/" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block; margin-top: 15px;">Search Videos</a>
         </div>
@@ -198,7 +198,7 @@
         }
         
         function deleteVideo(videoId, videoTitle) {
-            if (!confirm(`Are you sure you want to delete "${videoTitle}"?\n\nThis will permanently remove the video, transcript, and summary from storage.`)) {
+            if (!confirm(`Are you sure you want to delete "${videoTitle}"?\n\nThis will permanently remove the video, transcript, and summary.`)) {
                 return;
             }
             
