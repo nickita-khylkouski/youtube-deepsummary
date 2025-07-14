@@ -19,19 +19,30 @@
         {% for channel in channels %}
             <div class="channel-card" style="background: white; border: 1px solid #e0e0e0; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
-                    <div style="flex: 1;">
-                        <h3 style="margin: 0 0 8px 0; font-size: 18px; line-height: 1.3;">
-                            <a href="/channel/{{ channel.channel_id or channel.name|urlencode }}/videos" style="color: #333; text-decoration: none;">{{ channel.name }}</a>
-                        </h3>
-                        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                            <span style="background: #e3f2fd; color: #1976d2; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500;">
-                                {{ channel.video_count }} video{{ 's' if channel.video_count != 1 else '' }}
-                            </span>
-                            {% if channel.summary_count > 0 %}
-                                <span style="background: #e8f5e8; color: #2e7d32; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500;">
-                                    {{ channel.summary_count }} summarized
+                    <div style="display: flex; align-items: center; gap: 15px; flex: 1;">
+                        {% if channel.thumbnail_url %}
+                            <img src="{{ channel.thumbnail_url }}" 
+                                 alt="{{ channel.name }} thumbnail" 
+                                 style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid #f0f0f0;">
+                        {% else %}
+                            <div style="width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 20px; flex-shrink: 0;">
+                                {{ channel.name[0]|upper if channel.name else '📺' }}
+                            </div>
+                        {% endif %}
+                        <div style="flex: 1; min-width: 0;">
+                            <h3 style="margin: 0 0 8px 0; font-size: 18px; line-height: 1.3;">
+                                <a href="/channel/{{ channel.channel_id or channel.name|urlencode }}/videos" style="color: #333; text-decoration: none;">{{ channel.name }}</a>
+                            </h3>
+                            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                                <span style="background: #e3f2fd; color: #1976d2; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500;">
+                                    {{ channel.video_count }} video{{ 's' if channel.video_count != 1 else '' }}
                                 </span>
-                            {% endif %}
+                                {% if channel.summary_count > 0 %}
+                                    <span style="background: #e8f5e8; color: #2e7d32; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500;">
+                                        {{ channel.summary_count }} summarized
+                                    </span>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                     <a href="/channel/{{ channel.channel_id or channel.name|urlencode }}/videos" 
@@ -148,12 +159,18 @@
             gap: 15px !important;
         }
         
-        .channel-card > div {
+        .channel-card > div:first-child {
             flex-direction: column !important;
             align-items: flex-start !important;
         }
         
-        .channel-card > div > a {
+        .channel-card > div:first-child > div:first-child {
+            flex-direction: row !important;
+            align-items: center !important;
+            width: 100%;
+        }
+        
+        .channel-card > div:first-child > a {
             margin-top: 10px;
             align-self: center;
         }

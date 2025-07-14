@@ -144,6 +144,18 @@ class DatabaseStorage:
                 else:
                     print(f"Error checking channel description column: {e}")
         
+        # Thumbnail URL - check if column exists
+        if channel_info.get('thumbnail_url'):
+            try:
+                self.supabase.table('youtube_channels').select('thumbnail_url').limit(1).execute()
+                channel_data['thumbnail_url'] = channel_info['thumbnail_url']
+                print(f"Adding thumbnail URL for channel {channel_name}")
+            except Exception as e:
+                if 'thumbnail_url' in str(e):
+                    print(f"Thumbnail URL column doesn't exist yet, skipping thumbnail for {channel_name}")
+                else:
+                    print(f"Error checking thumbnail URL column: {e}")
+        
         # Derive channel URL from handle
         if channel_info.get('handle'):
             try:

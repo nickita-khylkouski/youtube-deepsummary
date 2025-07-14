@@ -130,7 +130,8 @@ def get_channel_info(channel_id):
             channel_info = {
                 'handle': None,
                 'title': None,
-                'description': None
+                'description': None,
+                'thumbnail_url': None
             }
             
             # Get basic info from snippet
@@ -138,6 +139,15 @@ def get_channel_info(channel_id):
                 snippet = item['snippet']
                 channel_info['title'] = snippet.get('title')
                 channel_info['description'] = snippet.get('description')
+                
+                # Get thumbnail URL (prefer high quality, fallback to medium, then default)
+                thumbnails = snippet.get('thumbnails', {})
+                if 'high' in thumbnails:
+                    channel_info['thumbnail_url'] = thumbnails['high']['url']
+                elif 'medium' in thumbnails:
+                    channel_info['thumbnail_url'] = thumbnails['medium']['url']
+                elif 'default' in thumbnails:
+                    channel_info['thumbnail_url'] = thumbnails['default']['url']
                 
                 # Try to get handle from snippet.customUrl (most common location)
                 if 'customUrl' in snippet:
