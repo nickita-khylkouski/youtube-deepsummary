@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+
+{% block title %}{{ channel_info.channel_name }} - YouTube Deep Summary{% endblock %}
+
+{% block content %}
+<!-- Channel Header -->
+<div class="channel-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 20px; border-radius: 12px; margin-bottom: 30px;">
+    <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+        {% if channel_info.thumbnail_url %}
+            <img src="{{ channel_info.thumbnail_url }}" 
+                 alt="{{ channel_info.channel_name }} thumbnail" 
+                 style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid rgba(255,255,255,0.2); flex-shrink: 0;">
+        {% else %}
+            <div style="width: 120px; height: 120px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 48px; flex-shrink: 0;">
+                {{ channel_info.channel_name[0]|upper if channel_info.channel_name else '📺' }}
+            </div>
+        {% endif %}
+        <div style="flex: 1; min-width: 0;">
+            <h1 style="margin: 0 0 10px 0; font-size: 32px; font-weight: bold;">{{ channel_info.channel_name }}</h1>
+            <p style="margin: 0 0 15px 0; font-size: 18px; opacity: 0.9;">{{ channel_handle }}</p>
+            {% if channel_info.channel_description %}
+                <p style="margin: 0; opacity: 0.8; line-height: 1.5; max-width: 600px;">
+                    {{ channel_info.channel_description[:200] }}{% if channel_info.channel_description|length > 200 %}...{% endif %}
+                </p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
+    <div class="stat-card" style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); text-align: center; border-left: 4px solid #2196f3;">
+        <div style="font-size: 36px; font-weight: bold; color: #2196f3; margin-bottom: 8px;">{{ total_videos }}</div>
+        <div style="color: #666; font-weight: 500;">Video{{ 's' if total_videos != 1 else '' }}</div>
+    </div>
+    
+    <div class="stat-card" style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); text-align: center; border-left: 4px solid #4caf50;">
+        <div style="font-size: 36px; font-weight: bold; color: #4caf50; margin-bottom: 8px;">{{ summary_count }}</div>
+        <div style="color: #666; font-weight: 500;">AI Summar{{ 'ies' if summary_count != 1 else 'y' }}</div>
+    </div>
+    
+    <div class="stat-card" style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); text-align: center; border-left: 4px solid #ff9800;">
+        <div style="font-size: 36px; font-weight: bold; color: #ff9800; margin-bottom: 8px;">{{ snippet_count }}</div>
+        <div style="color: #666; font-weight: 500;">Memory Snippet{{ 's' if snippet_count != 1 else '' }}</div>
+    </div>
+</div>
+
+<!-- Navigation Cards -->
+<div class="nav-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px;">
+    <a href="/channel/{{ channel_handle }}/videos" style="text-decoration: none; color: inherit;">
+        <div class="nav-card" style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); transition: all 0.3s ease; border: 2px solid transparent;">
+            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                <div style="width: 50px; height: 50px; background: #e3f2fd; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">📝</div>
+                <div>
+                    <h3 style="margin: 0; font-size: 20px; color: #333;">All Videos</h3>
+                    <p style="margin: 0; color: #666; font-size: 14px;">Browse transcripts and metadata</p>
+                </div>
+            </div>
+            <p style="margin: 0; color: #888; font-size: 14px;">View all {{ total_videos }} video{{ 's' if total_videos != 1 else '' }} with transcripts, chapters, and metadata from this channel.</p>
+        </div>
+    </a>
+    
+    {% if summary_count > 0 %}
+    <a href="/channel/{{ channel_handle }}/summaries" style="text-decoration: none; color: inherit;">
+        <div class="nav-card" style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); transition: all 0.3s ease; border: 2px solid transparent;">
+            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                <div style="width: 50px; height: 50px; background: #e8f5e8; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">🤖</div>
+                <div>
+                    <h3 style="margin: 0; font-size: 20px; color: #333;">AI Summaries</h3>
+                    <p style="margin: 0; color: #666; font-size: 14px;">GPT-4 generated insights</p>
+                </div>
+            </div>
+            <p style="margin: 0; color: #888; font-size: 14px;">Read AI-generated summaries for {{ summary_count }} video{{ 's' if summary_count != 1 else '' }} with key insights and takeaways.</p>
+        </div>
+    </a>
+    {% else %}
+    <div class="nav-card disabled" style="background: #f5f5f5; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); border: 2px solid transparent; opacity: 0.6;">
+        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+            <div style="width: 50px; height: 50px; background: #e0e0e0; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">🤖</div>
+            <div>
+                <h3 style="margin: 0; font-size: 20px; color: #999;">AI Summaries</h3>
+                <p style="margin: 0; color: #999; font-size: 14px;">No summaries yet</p>
+            </div>
+        </div>
+        <p style="margin: 0; color: #999; font-size: 14px;">No AI summaries available for this channel yet.</p>
+    </div>
+    {% endif %}
+    
+    {% if snippet_count > 0 %}
+    <a href="/snippets/channel/{{ channel_handle }}" style="text-decoration: none; color: inherit;">
+        <div class="nav-card" style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); transition: all 0.3s ease; border: 2px solid transparent;">
+            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                <div style="width: 50px; height: 50px; background: #fff3e0; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">💡</div>
+                <div>
+                    <h3 style="margin: 0; font-size: 20px; color: #333;">Memory Snippets</h3>
+                    <p style="margin: 0; color: #666; font-size: 14px;">Saved highlights and notes</p>
+                </div>
+            </div>
+            <p style="margin: 0; color: #888; font-size: 14px;">Access {{ snippet_count }} saved snippet{{ 's' if snippet_count != 1 else '' }} and personal notes from this channel.</p>
+        </div>
+    </a>
+    {% else %}
+    <div class="nav-card disabled" style="background: #f5f5f5; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); border: 2px solid transparent; opacity: 0.6;">
+        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+            <div style="width: 50px; height: 50px; background: #e0e0e0; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">💡</div>
+            <div>
+                <h3 style="margin: 0; font-size: 20px; color: #999;">Memory Snippets</h3>
+                <p style="margin: 0; color: #999; font-size: 14px;">No snippets yet</p>
+            </div>
+        </div>
+        <p style="margin: 0; color: #999; font-size: 14px;">No memory snippets saved for this channel yet.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Recent Videos -->
+{% if recent_videos %}
+<div class="recent-videos" style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); margin-bottom: 30px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+        <h2 style="margin: 0; font-size: 24px; color: #333;">Recent Videos</h2>
+        {% if total_videos > 6 %}
+            <a href="/channel/{{ channel_handle }}/videos" style="color: #2196f3; text-decoration: none; font-weight: 500;">View All {{ total_videos }} →</a>
+        {% endif %}
+    </div>
+    
+    <div class="videos-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+        {% for video in recent_videos %}
+            <div class="video-card" style="border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; transition: all 0.3s ease;">
+                <a href="/watch?v={{ video.video_id }}" style="text-decoration: none; color: inherit;">
+                    <img src="{{ video.thumbnail_url }}" 
+                         alt="{{ video.title }}" 
+                         style="width: 100%; height: 180px; object-fit: cover;">
+                    <div style="padding: 15px;">
+                        <h4 style="margin: 0 0 8px 0; font-size: 16px; line-height: 1.3; color: #333;">
+                            {{ video.title[:80] }}{% if video.title|length > 80 %}...{% endif %}
+                        </h4>
+                        <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                            {% if video.duration %}
+                                <span style="background: #f0f0f0; color: #666; padding: 2px 8px; border-radius: 12px; font-size: 12px;">
+                                    {{ "%.0f"|format(video.duration // 60) }}:{{ "%02.0f"|format(video.duration % 60) }}
+                                </span>
+                            {% endif %}
+                            {% if video.has_summary %}
+                                <span style="background: #e8f5e8; color: #2e7d32; padding: 2px 8px; border-radius: 12px; font-size: 12px;">
+                                    📝 Summary
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </a>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Actions -->
+<div class="actions" style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+    <h2 style="margin: 0 0 20px 0; font-size: 24px; color: #333;">Channel Actions</h2>
+    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+        <button onclick="importChannelVideos('{{ channel_handle }}')" 
+                style="background: #4caf50; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s;">
+            ⬇️ Import Latest Videos
+        </button>
+        {% if channel_info.channel_url %}
+            <a href="{{ channel_info.channel_url }}" target="_blank" 
+               style="background: #f44336; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; display: inline-block; transition: all 0.3s;">
+                🔗 Visit YouTube Channel
+            </a>
+        {% endif %}
+        <a href="/channels" 
+           style="background: #607d8b; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; display: inline-block; transition: all 0.3s;">
+            📺 Browse All Channels
+        </a>
+    </div>
+</div>
+
+<style>
+    .nav-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.12) !important;
+        border-color: #2196f3 !important;
+    }
+    
+    .video-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+        border-color: #2196f3;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    }
+    
+    button:hover, a[style*="background"]:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+    }
+    
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+        .channel-header {
+            padding: 25px 15px !important;
+        }
+        
+        .channel-header > div {
+            flex-direction: column !important;
+            text-align: center;
+        }
+        
+        .channel-header h1 {
+            font-size: 24px !important;
+        }
+        
+        .stats-grid {
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
+        }
+        
+        .nav-grid {
+            grid-template-columns: 1fr !important;
+        }
+        
+        .videos-grid {
+            grid-template-columns: 1fr !important;
+        }
+        
+        .actions > div {
+            flex-direction: column !important;
+        }
+        
+        .actions button, .actions a {
+            text-align: center;
+        }
+    }
+</style>
+
+<script>
+async function importChannelVideos(channelHandle) {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    
+    // Disable button and show loading state
+    button.disabled = true;
+    button.innerHTML = '⏳ Importing...';
+    button.style.background = '#9e9e9e';
+    
+    try {
+        console.log(`Starting import for channel: ${channelHandle}`);
+        
+        const response = await fetch(`/api/channels/${channelHandle}/import`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                max_results: 5  // Default to 5 videos
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Show success message
+            const message = `Successfully imported ${result.processed} new videos (${result.skipped} already existed, ${result.errors} errors)`;
+            
+            // Create and show success notification
+            showNotification(message, 'success');
+            
+            // Refresh the page after a short delay to show updated counts
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+            
+        } else {
+            showNotification(`Error: ${result.error}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('Import error:', error);
+        showNotification(`Failed to import videos: ${error.message}`, 'error');
+    } finally {
+        // Reset button state
+        button.disabled = false;
+        button.innerHTML = originalText;
+        button.style.background = '#4caf50';
+    }
+}
+
+function showNotification(message, type) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        border-radius: 8px;
+        color: white;
+        font-weight: 500;
+        z-index: 1000;
+        max-width: 400px;
+        font-size: 14px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        background: ${type === 'success' ? '#4caf50' : '#f44336'};
+    `;
+    notification.textContent = message;
+    
+    // Add to page
+    document.body.appendChild(notification);
+    
+    // Remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

@@ -12,7 +12,8 @@ A comprehensive toolkit for downloading YouTube transcripts with multiple implem
 ### Web Application
 - **Clean Web Interface**: Responsive UI for viewing transcripts with mobile optimization
 - **AI-Powered Summarization**: OpenAI GPT-4.1 integration for intelligent video summaries
-- **Channel Management**: Browse videos and summaries organized by YouTube channels
+- **Channel Management**: Dedicated channel overview pages with handle-based routing (@channelname)
+- **Channel Overview Pages**: Comprehensive channel hubs with statistics, navigation, and recent videos
 - **RESTful API**: JSON endpoints for programmatic access
 - **Real-time Processing**: AJAX-based summarization without page reloads
 - **Chapter Organization**: Automatic video chapter detection and structured display
@@ -114,8 +115,10 @@ python3 download_transcript_manual.py "https://www.youtube.com/watch?v=VIDEO_ID"
 - **Transcript**: `http://localhost:33079/watch?v=VIDEO_ID`
 - **Memory Snippets**: `http://localhost:33079/memory-snippets`
 - **Channels**: `http://localhost:33079/channels`
-- **Channel Videos**: `http://localhost:33079/channel/<channel_name>/videos`
-- **Channel Summaries**: `http://localhost:33079/channel/<channel_name>/summaries`
+- **Channel Overview**: `http://localhost:33079/channel/@channelhandle`
+- **Channel Videos**: `http://localhost:33079/channel/@channelhandle/videos`
+- **Channel Summaries**: `http://localhost:33079/channel/@channelhandle/summaries`
+- **Channel Snippets**: `http://localhost:33079/snippets/channel/@channelhandle`
 - **Storage Stats**: `http://localhost:33079/storage`
 
 ### API Endpoints
@@ -123,7 +126,7 @@ python3 download_transcript_manual.py "https://www.youtube.com/watch?v=VIDEO_ID"
 - **Transcript JSON**: `http://localhost:33079/api/transcript/VIDEO_ID`
 - **Summary with Data**: `POST http://localhost:33079/api/summary` (with transcript data in body)
 - **Memory Snippets**: `GET/POST/DELETE http://localhost:33079/api/memory-snippets`
-- **Channel Import**: `POST http://localhost:33079/api/channels/<channel_name>/import`
+- **Channel Import**: `POST http://localhost:33079/api/channels/@channelhandle/import`
 - **Storage Stats**: `http://localhost:33079/api/storage/stats`
 
 ### Examples
@@ -151,7 +154,7 @@ curl -X POST http://localhost:33079/api/memory-snippets \
   -d '{"video_id": "FjHtZnjNEBU", "snippet_text": "Important insight", "tags": ["key-point"]}'
 
 # Channel video import API
-curl -X POST http://localhost:33079/api/channels/TechChannel/import \
+curl -X POST http://localhost:33079/api/channels/@techchannel/import \
   -H "Content-Type: application/json" \
   -d '{"max_results": 5}'
 ```
@@ -193,6 +196,41 @@ The AI summarization feature provides structured summaries with the following se
 - **Warnings & Common Mistakes** - Pitfalls and errors to avoid
 - **Resources & Next Steps** - Tools, links, and recommended follow-up actions
 
+## Channel Overview Pages
+
+The Channel Overview feature provides dedicated pages for each YouTube channel, serving as a central hub for all channel-related content.
+
+### Features
+- **Comprehensive Channel Information**: Channel name, handle (@channelname), description, and thumbnail
+- **Statistics Dashboard**: Video count, AI summaries count, and memory snippets count with color-coded cards
+- **Navigation Hub**: Direct links to videos, summaries, and snippets with descriptions
+- **Recent Videos Grid**: Visual display of latest 6 videos with thumbnails and metadata
+- **Channel Actions**: Import latest videos and visit YouTube channel directly
+- **Handle-Based URLs**: Clean URLs using channel handles (e.g., `/channel/@markrober`)
+- **Breadcrumb Navigation**: Easy navigation back to channel overview from sub-pages
+- **Responsive Design**: Mobile-optimized layout with proper breakpoints
+
+### URL Structure
+```
+/channel/@channelhandle              → Channel Overview (main hub)
+/channel/@channelhandle/videos       → All Videos List  
+/channel/@channelhandle/summaries    → AI Summaries
+/snippets/channel/@channelhandle     → Memory Snippets
+```
+
+### Navigation Flow
+1. **Channels Page** (`/channels`) - Browse all channels
+2. **Channel Overview** (`/channel/@handle`) - Channel hub with stats and navigation
+3. **Sub-pages** - Videos, summaries, or snippets with breadcrumb navigation back to overview
+4. **Individual Content** - Specific videos, summaries, or snippets
+
+### Features by Section
+- **Header**: Gradient background with channel thumbnail, name, handle, and description
+- **Statistics Cards**: Large numbers showing video count, summaries, and snippets
+- **Navigation Cards**: Interactive cards with hover effects linking to different content types
+- **Recent Videos**: Grid layout showing latest videos with thumbnails and quick access
+- **Actions**: Import videos, visit YouTube channel, browse all channels
+
 ## Channel Video Import
 
 The Channel Video Import feature allows you to automatically fetch the latest videos from any YouTube channel and process them with transcripts and AI summaries.
@@ -215,7 +253,7 @@ The Channel Video Import feature allows you to automatically fetch the latest vi
 ### API Usage
 ```bash
 # Import 5 latest videos from a channel
-curl -X POST http://localhost:33079/api/channels/TechChannel/import \
+curl -X POST http://localhost:33079/api/channels/@techchannel/import \
   -H "Content-Type: application/json" \
   -d '{"max_results": 5}'
 

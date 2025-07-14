@@ -5,9 +5,11 @@
 {% block content %}
     <div style="margin-bottom: 30px;">
         <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
-            <a href="/channels" style="color: #666; text-decoration: none; font-size: 14px;">← Back to Channels</a>
+            <a href="/channels" style="color: #666; text-decoration: none; font-size: 14px;">← All Channels</a>
+            <span style="color: #ccc;">•</span>
+            <a href="/channel/{{ channel_info.handle if channel_info else channel_name }}" style="color: #666; text-decoration: none; font-size: 14px;">Channel Overview</a>
         </div>
-        <h2>📺 {{ channel_name }}</h2>
+        <h2>📺 {{ channel_name }} - Videos</h2>
         <p style="color: #666;">{{ total_videos }} video{{ 's' if total_videos != 1 else '' }} saved</p>
     </div>
 

@@ -31,7 +31,7 @@
                         {% endif %}
                         <div style="flex: 1; min-width: 0;">
                             <h3 style="margin: 0 0 8px 0; font-size: 18px; line-height: 1.3;">
-                                <a href="/channel/{{ channel.handle }}/videos" style="color: #333; text-decoration: none;">{{ channel.name }}</a>
+                                <a href="/channel/{{ channel.handle }}" style="color: #333; text-decoration: none;">{{ channel.name }}</a>
                             </h3>
                             <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                                 <span style="background: #e3f2fd; color: #1976d2; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500;">
@@ -45,9 +45,9 @@
                             </div>
                         </div>
                     </div>
-                    <a href="/channel/{{ channel.handle }}/videos" 
+                    <a href="/channel/{{ channel.handle }}" 
                        style="background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px; padding: 6px 12px; text-decoration: none; color: #666; font-size: 12px;">
-                        View Videos →
+                        View Channel →
                     </a>
                 </div>
                 
@@ -99,9 +99,9 @@
                 <div style="border-top: 1px solid #f0f0f0; padding-top: 15px; margin-top: 15px;">
                     <h4 style="margin: 0 0 10px 0; font-size: 14px; color: #666;">Actions:</h4>
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                        <a href="/channel/{{ channel.handle }}/videos" 
+                        <a href="/channel/{{ channel.handle }}" 
                            style="background: #f8f9fa; color: #333; text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; border: 1px solid #ddd; transition: all 0.2s;">
-                            📝 View Videos
+                            📺 View Channel
                         </a>
                         {% if channel.summary_count > 0 %}
                             <a href="/channel/{{ channel.handle }}/summaries" 

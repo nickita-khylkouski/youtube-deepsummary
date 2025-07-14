@@ -944,6 +944,51 @@ def channels_page():
         return render_template('error.html', 
                              error_message=f"Error loading channels: {str(e)}"), 500
 
+@app.route('/channel/<channel_handle>')
+def channel_overview(channel_handle):
+    """Display channel overview with stats and navigation links"""
+    try:
+        # Get channel info by handle
+        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return render_template('error.html', 
+                                 error_message=f"Channel not found: {channel_handle}"), 404
+        
+        # Get videos for this channel
+        channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
+        
+        # Get summary count
+        summary_count = 0
+        if channel_videos:
+            for video in channel_videos:
+                if database_storage.get_summary(video['video_id']):
+                    summary_count += 1
+        
+        # Get snippet count for this channel
+        snippets = database_storage.get_memory_snippets(limit=1000)
+        snippet_count = 0
+        for snippet in snippets:
+            if snippet.get('channel_id') == channel_info['channel_id']:
+                snippet_count += 1
+        
+        # Get recent videos (latest 6)
+        recent_videos = channel_videos[:6] if channel_videos else []
+        for video in recent_videos:
+            video['thumbnail_url'] = f"https://img.youtube.com/vi/{video['video_id']}/maxresdefault.jpg"
+            video['has_summary'] = database_storage.get_summary(video['video_id']) is not None
+        
+        return render_template('channel_overview.html',
+                             channel_info=channel_info,
+                             channel_handle=channel_handle,
+                             total_videos=len(channel_videos) if channel_videos else 0,
+                             summary_count=summary_count,
+                             snippet_count=snippet_count,
+                             recent_videos=recent_videos)
+        
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading channel: {str(e)}"), 500
+
 @app.route('/channel/<channel_handle>/videos')
 def channel_videos(channel_handle):
     """Display all videos from a specific channel by handle"""

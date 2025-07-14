@@ -3,6 +3,16 @@
 {% block title %}Snippets - YouTube Deep Summary{% endblock %}
 
 {% block content %}
+{% if channel_name %}
+<div style="margin-bottom: 20px;">
+    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+        <a href="/channels" style="color: #666; text-decoration: none; font-size: 14px;">← All Channels</a>
+        <span style="color: #ccc;">•</span>
+        <a href="/channel/{{ channel_info.handle if channel_info else channel_name }}" style="color: #666; text-decoration: none; font-size: 14px;">Channel Overview</a>
+    </div>
+</div>
+{% endif %}
+
 <div class="header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #f8f9fa; padding: 12px 16px; border-radius: 8px; border-left: 4px solid #9c27b0;">
     <div>
         {% if channel_name %}

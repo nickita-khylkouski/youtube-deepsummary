@@ -38,7 +38,7 @@
                             </h4>
                             <div style="color: #666; font-size: 14px; margin-bottom: 8px;">
                                 {% if video.channel_name and video.channel_name != 'Unknown Channel' and video.handle %}
-                                    <a href="/channel/{{ video.handle }}/videos" style="color: #0066cc; text-decoration: none;">{{ video.channel_name }}</a>
+                                    <a href="/channel/{{ video.handle }}" style="color: #0066cc; text-decoration: none;">{{ video.channel_name }}</a>
                                     {% if video.has_summary %}
                                         • <a href="/channel/{{ video.handle }}/summaries" style="color: #2196f3; text-decoration: none; font-size: 12px;">📝 Summaries</a>
                                     {% endif %}

@@ -146,10 +146,14 @@ docker run -p 33079:33079 \
 - **`/watch?v=VIDEO_ID`** - Display transcript with video metadata, thumbnails, and chapters
 - **`/memory-snippets`** - Personal knowledge base with saved text snippets grouped by video
 - **`/channels`** - Browse all channels with saved videos
-- **`/channel/<channel_identifier>/videos`** - View all videos from a specific channel (by channel_id or name for backward compatibility)
-- **`/channel/<channel_identifier>/summaries`** - View all summaries from a specific channel (by channel_id or name for backward compatibility)
+- **`/channel/@handle`** - Channel overview page with statistics, navigation, and recent videos
+- **`/channel/@handle/videos`** - View all videos from a specific channel by handle
+- **`/channel/@handle/summaries`** - View all summaries from a specific channel by handle
+- **`/snippets/channel/@handle`** - View memory snippets from a specific channel by handle
 - **`/storage`** - Database storage statistics and management
 - **Mobile-responsive design** with optimized padding and collapsible elements
+- **Handle-based routing**: Clean URLs using channel handles (@channelname) instead of IDs
+- **Breadcrumb navigation**: Easy navigation between channel overview and sub-pages
 - **Dual view modes**: Toggle between readable paragraphs and detailed timestamps
 - **AJAX summarization**: Generate AI summaries without page reloads
 - **Memory snippets**: Text selection from summaries and transcripts with formatting preservation
@@ -161,7 +165,7 @@ docker run -p 33079:33079 \
 - **`POST /api/memory-snippets`** - Save new memory snippet with text, context, and tags
 - **`DELETE /api/memory-snippets/<snippet_id>`** - Delete specific memory snippet
 - **`PUT /api/memory-snippets/<snippet_id>/tags`** - Update tags for specific memory snippet
-- **`POST /api/channels/<channel_name>/import`** - Import latest videos from a YouTube channel with transcripts and AI summaries
+- **`POST /api/channels/@handle/import`** - Import latest videos from a YouTube channel with transcripts and AI summaries
 - **`GET /api/cache/info`** - Legacy cache statistics (deprecated)
 - **`POST /api/cache/cleanup`** - Legacy cache cleanup (deprecated)
 - **`GET /api/storage/stats`** - Database storage statistics and metrics
@@ -171,9 +175,38 @@ docker run -p 33079:33079 \
 - **Video Metadata**: Title, thumbnail, duration, uploader information
 - **Persistent Storage**: Supabase database with tables for channels, videos, transcripts, chapters, summaries, and memory_snippets
 - **Memory Snippets**: Personal knowledge base with text selection, HTML formatting preservation, and tagging system
-- **Channel Management**: Browse videos and summaries organized by YouTube channels using proper channel_id structure
+- **Channel Overview Pages**: Dedicated channel hubs with statistics, navigation cards, and recent videos display
+- **Channel Management**: Browse videos and summaries organized by YouTube channels using handle-based routing
 - **Channel Video Import**: Import latest videos from YouTube channels with automatic transcript and AI summary generation
+- **Handle-Based URLs**: Clean, user-friendly URLs using channel handles (@channelname) instead of channel IDs
+- **Breadcrumb Navigation**: Consistent navigation flow with breadcrumbs linking back to channel overview
 - **Proxy Support**: Configurable proxy for both transcript and chapter extraction
+
+### Channel Overview Architecture
+- **Handle-Based Routing**: All channel URLs use handles (@channelname) for clean, user-friendly URLs
+- **Central Hub Design**: Each channel has a dedicated overview page serving as the main entry point
+- **Statistics Dashboard**: Real-time counts of videos, AI summaries, and memory snippets with color-coded cards
+- **Navigation Cards**: Interactive cards with hover effects linking to videos, summaries, and snippets
+- **Recent Videos Grid**: Visual display of latest 6 videos with thumbnails and metadata
+- **Channel Actions**: Import latest videos and direct links to YouTube channel
+- **Breadcrumb Navigation**: Consistent navigation flow from sub-pages back to channel overview
+- **Responsive Design**: Mobile-optimized layout with proper CSS breakpoints and transitions
+- **Conditional Display**: Disabled cards for sections with no content (summaries/snippets)
+- **Error Handling**: 404 responses for non-existent channels with proper error pages
+
+#### URL Structure
+```
+/channel/@handle              → Channel Overview (main hub)
+/channel/@handle/videos       → Videos List with breadcrumbs
+/channel/@handle/summaries    → AI Summaries with breadcrumbs  
+/snippets/channel/@handle     → Memory Snippets with breadcrumbs
+```
+
+#### Navigation Flow
+1. `/channels` - Browse all channels with overview links
+2. `/channel/@handle` - Channel hub with statistics and navigation
+3. Sub-pages with breadcrumb navigation back to overview
+4. Individual content items (videos, summaries, snippets)
 
 ### AI Summarization Features
 - **GPT-4.1 Integration**: Latest OpenAI model with improved context understanding
@@ -190,7 +223,8 @@ The application uses six main tables in Supabase:
 ### youtube_channels
 - **channel_id** (VARCHAR 24, unique) - YouTube channel identifier (UCxxxxx format)
 - **channel_name** (TEXT) - Display name of the channel
-- **channel_url, description** - Channel metadata
+- **handle** (TEXT) - Channel handle for clean URLs (@channelname format)
+- **channel_url, channel_description** - Channel metadata
 - **subscriber_count, video_count** - Channel statistics
 - **thumbnail_url** - Channel avatar/thumbnail
 - **created_at, updated_at** - Timestamps
