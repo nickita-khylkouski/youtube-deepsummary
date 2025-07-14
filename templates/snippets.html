@@ -38,7 +38,7 @@
                                 <a href="/watch?v={{ group.video_id }}" style="color: #333; text-decoration: none;">{{ group.video_info.title }}</a>
                             </h3>
                             <p style="margin: 0; color: #666; font-size: 14px;">
-                                {% if group.video_info.uploader %}{{ group.video_info.uploader }} • {% endif %}
+                                {% if group.channel_name %}{{ group.channel_name }} • {% endif %}
                                 <span style="background: #e8f5e8; color: #2e7d32; padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">{{ group.snippets|length }} snippet{{ 's' if group.snippets|length != 1 else '' }}</span>
                                 • <a href="/watch?v={{ group.video_id }}" style="color: #0066cc; text-decoration: none;">View Video</a>
                             </p>

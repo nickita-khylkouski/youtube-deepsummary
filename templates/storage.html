@@ -19,7 +19,7 @@
         <!-- Videos Grid -->
         <div id="videosContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 20px;">
             {% for video in cached_videos %}
-                <div class="video-card" data-uploader="{{ video.uploader or 'Unknown Channel' }}" style="background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); {% if not video.is_valid %}opacity: 0.6; border-left: 4px solid #dc3545;{% else %}border-left: 4px solid #28a745;{% endif %}">
+                <div class="video-card" data-channel="{{ video.channel_name or 'Unknown Channel' }}" style="background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); {% if not video.is_valid %}opacity: 0.6; border-left: 4px solid #dc3545;{% else %}border-left: 4px solid #28a745;{% endif %}">
                     <!-- Video Thumbnail and Info -->
                     <div style="display: flex; padding: 15px;">
                         <div style="flex-shrink: 0; margin-right: 15px;">
@@ -37,13 +37,17 @@
                                 {% endif %}
                             </h4>
                             <div style="color: #666; font-size: 14px; margin-bottom: 8px;">
-                                {% if video.uploader != 'Unknown' %}
-                                    <a href="https://www.youtube.com/results?search_query={{ video.uploader|urlencode }}" target="_blank" style="color: #0066cc; text-decoration: none;">{{ video.uploader }}</a>
-                                    {% if video.has_summary %}
-                                        • <a href="/channel/{{ video.uploader|urlencode }}/summaries" style="color: #2196f3; text-decoration: none; font-size: 12px;">📝 Summaries</a>
+                                {% if video.channel_name and video.channel_name != 'Unknown Channel' %}
+                                    {% if video.channel_id %}
+                                        <a href="/channel/{{ video.channel_id }}/videos" style="color: #0066cc; text-decoration: none;">{{ video.channel_name }}</a>
+                                        {% if video.has_summary %}
+                                            • <a href="/channel/{{ video.channel_id }}/summaries" style="color: #2196f3; text-decoration: none; font-size: 12px;">📝 Summaries</a>
+                                        {% endif %}
+                                    {% else %}
+                                        <a href="https://www.youtube.com/results?search_query={{ video.channel_name|urlencode }}" target="_blank" style="color: #0066cc; text-decoration: none;">{{ video.channel_name }}</a>
                                     {% endif %}
                                 {% else %}
-                                    {{ video.uploader }}
+                                    Unknown Channel
                                 {% endif %}
                             </div>
                             <div style="color: #888; font-size: 12px;">
@@ -114,11 +118,11 @@
             
             // Group videos by channel
             videoCards.forEach(card => {
-                const uploader = card.dataset.uploader || 'Unknown Channel';
-                if (!channels[uploader]) {
-                    channels[uploader] = [];
+                const channel = card.dataset.channel || 'Unknown Channel';
+                if (!channels[channel]) {
+                    channels[channel] = [];
                 }
-                channels[uploader].push(card);
+                channels[channel].push(card);
             });
             
             // Clear container

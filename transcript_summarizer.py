@@ -351,16 +351,16 @@ Here is the transcript to summarize:
         info_html = ""
         
         title = video_info.get('title')
-        uploader = video_info.get('uploader')
+        channel_name = video_info.get('channel_name', 'Unknown Channel')
         duration = video_info.get('duration')
         
         if title:
             info_html += f"🎥 **{title}**\n\n"
         
-        if uploader:
+        if channel_name and channel_name != 'Unknown Channel':
             # Create YouTube channel search URL (since we don't have direct channel URL)
-            channel_search_url = f"https://www.youtube.com/results?search_query={uploader.replace(' ', '+')}"
-            info_html += f"👤 Channel: [{uploader}]({channel_search_url})\n"
+            channel_search_url = f"https://www.youtube.com/results?search_query={channel_name.replace(' ', '+')}"
+            info_html += f"👤 Channel: [{channel_name}]({channel_search_url})\n"
         
         if duration:
             minutes = int(duration // 60)
@@ -541,8 +541,11 @@ def extract_video_info(video_id: str) -> Dict[str, any]:
                 'title': title,
                 'chapters': formatted_chapters,
                 'duration': video_info.get('duration'),
-                'uploader': video_info.get('uploader'),
-                'upload_date': video_info.get('upload_date')
+                'channel_name': video_info.get('channel_name', 'Unknown Channel'),
+                'upload_date': video_info.get('upload_date'),
+                'channel_id': video_info.get('channel_id'),
+                'channel_url': video_info.get('channel_url'),
+                'published_at': video_info.get('upload_date')
             }
         
     except (ImportError, Exception) as e:
@@ -556,8 +559,11 @@ def extract_video_info(video_id: str) -> Dict[str, any]:
         'title': None,
         'chapters': None,
         'duration': None,
-        'uploader': None,
-        'upload_date': None
+        'channel_name': 'Unknown Channel',
+        'upload_date': None,
+        'channel_id': None,
+        'channel_url': None,
+        'published_at': None
     }
 
 

@@ -146,8 +146,8 @@ docker run -p 33079:33079 \
 - **`/watch?v=VIDEO_ID`** - Display transcript with video metadata, thumbnails, and chapters
 - **`/memory-snippets`** - Personal knowledge base with saved text snippets grouped by video
 - **`/channels`** - Browse all channels with saved videos
-- **`/channel/<channel_name>/videos`** - View all videos from a specific channel
-- **`/channel/<channel_name>/summaries`** - View all summaries from a specific channel
+- **`/channel/<channel_identifier>/videos`** - View all videos from a specific channel (by channel_id or name for backward compatibility)
+- **`/channel/<channel_identifier>/summaries`** - View all summaries from a specific channel (by channel_id or name for backward compatibility)
 - **`/storage`** - Database storage statistics and management
 - **Mobile-responsive design** with optimized padding and collapsible elements
 - **Dual view modes**: Toggle between readable paragraphs and detailed timestamps
@@ -169,9 +169,9 @@ docker run -p 33079:33079 \
 ### Advanced Features
 - **Chapter Organization**: Automatic detection and display of video chapters
 - **Video Metadata**: Title, thumbnail, duration, uploader information
-- **Persistent Storage**: Supabase database with tables for videos, transcripts, chapters, summaries, and memory_snippets
+- **Persistent Storage**: Supabase database with tables for channels, videos, transcripts, chapters, summaries, and memory_snippets
 - **Memory Snippets**: Personal knowledge base with text selection, HTML formatting preservation, and tagging system
-- **Channel Management**: Browse videos and summaries organized by YouTube channels
+- **Channel Management**: Browse videos and summaries organized by YouTube channels using proper channel_id structure
 - **Channel Video Import**: Import latest videos from YouTube channels with automatic transcript and AI summary generation
 - **Proxy Support**: Configurable proxy for both transcript and chapter extraction
 
@@ -185,11 +185,21 @@ docker run -p 33079:33079 \
 
 ## Database Schema
 
-The application uses five main tables in Supabase:
+The application uses six main tables in Supabase:
+
+### youtube_channels
+- **channel_id** (VARCHAR 24, unique) - YouTube channel identifier (UCxxxxx format)
+- **channel_name** (TEXT) - Display name of the channel
+- **channel_url, description** - Channel metadata
+- **subscriber_count, video_count** - Channel statistics
+- **thumbnail_url** - Channel avatar/thumbnail
+- **created_at, updated_at** - Timestamps
 
 ### youtube_videos
 - **video_id** (VARCHAR 11, unique) - YouTube video identifier
-- **title, uploader, duration, thumbnail_url** - Video metadata
+- **channel_id** (FK to youtube_channels) - Links to channel
+- **title, uploader, duration, thumbnail_url** - Video metadata (uploader kept for backward compatibility)
+- **published_at** - When video was published on YouTube
 - **created_at, updated_at** - Timestamps
 
 ### transcripts

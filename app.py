@@ -18,6 +18,15 @@ try:
 except ImportError:
     MARKDOWN_AVAILABLE = False
     print("Warning: markdown library not available. Install with: pip install markdown")
+
+def get_channel_url_identifier(channel_info=None, channel_name=None):
+    """Get the best identifier for channel URLs - prefer channel_id over name"""
+    if channel_info and channel_info.get('channel_id'):
+        return channel_info['channel_id']
+    elif channel_name:
+        return channel_name
+    else:
+        return 'Unknown'
 try:
     from googleapiclient.discovery import build
     YOUTUBE_API_AVAILABLE = True
@@ -107,27 +116,35 @@ def get_channel_videos(channel_name, max_results=5):
         raise Exception("YouTube Data API not available or not configured")
     
     try:
-        # First, we need to get the exact channel ID from the database
-        # since the channel_name in our database is the uploader name
+        # First, try to get the channel ID from the database
         actual_channel_id = None
         
-        # Try to find an existing video from this channel to get the channel ID
-        existing_videos = database_storage.get_videos_by_channel(channel_name)
-        if existing_videos:
-            # Use yt-dlp or video info to try to get channel ID from an existing video
-            sample_video_id = existing_videos[0]['video_id']
-            try:
-                # Try to extract channel info from existing video
-                video_request = youtube_service.videos().list(
-                    part='snippet',
-                    id=sample_video_id
-                )
-                video_response = video_request.execute()
-                if video_response.get('items'):
-                    actual_channel_id = video_response['items'][0]['snippet']['channelId']
-                    print(f"Found channel ID {actual_channel_id} from existing video {sample_video_id}")
-            except Exception as e:
-                print(f"Could not get channel ID from existing video: {e}")
+        # Check if we have a channel record with this name
+        channel_info = database_storage.get_channel_by_name(channel_name)
+        if channel_info:
+            actual_channel_id = channel_info['channel_id']
+            print(f"Found channel ID {actual_channel_id} from database for channel {channel_name}")
+        else:
+            # Try to find an existing video from this channel to get the channel ID
+            existing_videos = database_storage.get_videos_by_channel(channel_name=channel_name)
+            if existing_videos:
+                # Use yt-dlp or video info to try to get channel ID from an existing video
+                sample_video_id = existing_videos[0]['video_id']
+                try:
+                    # Try to extract channel info from existing video
+                    video_request = youtube_service.videos().list(
+                        part='snippet',
+                        id=sample_video_id
+                    )
+                    video_response = video_request.execute()
+                    if video_response.get('items'):
+                        actual_channel_id = video_response['items'][0]['snippet']['channelId']
+                        print(f"Found channel ID {actual_channel_id} from existing video {sample_video_id}")
+                        
+                        # Create/update channel record
+                        database_storage._ensure_channel_exists(actual_channel_id, channel_name)
+                except Exception as e:
+                    print(f"Could not get channel ID from existing video: {e}")
         
         # If we still don't have channel ID, try different search approaches
         if not actual_channel_id:
@@ -217,7 +234,8 @@ def get_channel_videos(channel_name, max_results=5):
                         'description': snippet.get('description', ''),
                         'published_at': snippet.get('publishedAt', ''),
                         'thumbnail_url': snippet.get('thumbnails', {}).get('medium', {}).get('url', ''),
-                        'channel_name': snippet.get('channelTitle', channel_name)
+                        'channel_name': snippet.get('channelTitle', channel_name),
+                        'channel_id': actual_channel_id
                     })
                 
                 if videos:
@@ -252,7 +270,8 @@ def get_channel_videos(channel_name, max_results=5):
                         'description': snippet.get('description', ''),
                         'published_at': snippet.get('publishedAt', ''),
                         'thumbnail_url': snippet.get('thumbnails', {}).get('medium', {}).get('url', ''),
-                        'channel_name': snippet.get('channelTitle', channel_name)
+                        'channel_name': snippet.get('channelTitle', channel_name),
+                        'channel_id': actual_channel_id
                     })
             
             if videos:
@@ -285,7 +304,8 @@ def get_channel_videos(channel_name, max_results=5):
                     'description': snippet.get('description', ''),
                     'published_at': snippet.get('publishedAt', ''),
                     'thumbnail_url': snippet.get('thumbnails', {}).get('medium', {}).get('url', ''),
-                    'channel_name': snippet.get('channelTitle', channel_name)
+                    'channel_name': snippet.get('channelTitle', channel_name),
+                    'channel_id': actual_channel_id
                 })
         
         print(f"Found {len(videos)} videos using search API")
@@ -295,7 +315,7 @@ def get_channel_videos(channel_name, max_results=5):
         print(f"Error fetching channel videos: {e}")
         raise Exception(f"Failed to fetch videos from channel: {str(e)}")
 
-def process_video_complete(video_id):
+def process_video_complete(video_id, channel_id=None):
     """Process a video completely: get transcript, video info, and AI summary"""
     try:
         # Check if video already exists in database
@@ -316,7 +336,7 @@ def process_video_complete(video_id):
         formatted_transcript = format_transcript_for_readability(transcript, video_info.get('chapters'))
         
         # Store in database
-        database_storage.set(video_id, transcript, video_info, formatted_transcript)
+        database_storage.set(video_id, transcript, video_info, formatted_transcript, channel_id)
         
         # Generate AI summary if summarizer is configured
         summary_generated = False
@@ -451,7 +471,12 @@ def watch():
             video_title = video_info.get('title')
             chapters = video_info.get('chapters')
             video_duration = video_info.get('duration')
-            video_uploader = video_info.get('uploader')
+            channel_name = 'Unknown Channel'
+            
+            # Get enhanced channel information from cached data
+            channel_info = None
+            if 'youtube_channels' in cached_data.get('video_info', {}):
+                channel_info = cached_data['video_info']['youtube_channels']
         else:
             print(f"Database MISS for video: {video_id}, downloading fresh data")
             transcript = get_transcript(video_id)
@@ -463,7 +488,10 @@ def watch():
                 video_title = video_info.get('title')
                 chapters = video_info.get('chapters')
                 video_duration = video_info.get('duration')
-                video_uploader = video_info.get('uploader')
+                channel_name = 'Unknown Channel'
+                
+                # Channel info will be determined when storing in database
+                channel_info = None
                 
                 print(f"Video title: {video_title}")
                 print(f"Chapters extracted: {chapters}")
@@ -477,18 +505,23 @@ def watch():
                     'title': None,
                     'chapters': None,
                     'duration': None,
-                    'uploader': None
                 }
                 video_title = None
                 chapters = None
                 video_duration = None
-                video_uploader = None
+                channel_name = 'Unknown Channel'
+                channel_info = None
             
             # Format transcript for improved readability
             formatted_transcript_text = format_transcript_for_readability(transcript, chapters)
             
+            # Try to get channel_id from video_info (extracted by yt-dlp)
+            channel_id = video_info.get('channel_id') if video_info else None
+            if channel_id:
+                print(f"Found channel_id {channel_id} from video info for video {video_id}")
+            
             # Store the data in database for future use
-            database_storage.set(video_id, transcript, video_info, formatted_transcript_text)
+            database_storage.set(video_id, transcript, video_info, formatted_transcript_text, channel_id)
         
         proxy_used = os.getenv('YOUTUBE_PROXY', 'None')
         
@@ -515,7 +548,7 @@ def watch():
                              video_id=video_id,
                              video_title=video_title,
                              video_duration=video_duration,
-                             video_uploader=video_uploader,
+                             channel_info=channel_info,
                              transcript=transcript,
                              formatted_transcript=formatted_transcript_text,
                              chapters=chapters,
@@ -549,17 +582,29 @@ def api_transcript(video_id):
             chapters = video_info.get('chapters')
             formatted_transcript = format_transcript_for_readability(transcript, chapters)
             
+            # Try to get channel_id from video_info (extracted by yt-dlp)  
+            channel_id = video_info.get('channel_id') if video_info else None
+            if channel_id:
+                print(f"API: Found channel_id {channel_id} from video info for video {video_id}")
+            
             # Store the data in database
-            database_storage.set(video_id, transcript, video_info, formatted_transcript)
+            database_storage.set(video_id, transcript, video_info, formatted_transcript, channel_id)
         
         thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+        
+        # Get enhanced video data with channel information
+        enhanced_video_data = database_storage.get(video_id)
+        channel_info = None
+        if enhanced_video_data and 'video_info' in enhanced_video_data:
+            if 'youtube_channels' in enhanced_video_data['video_info']:
+                channel_info = enhanced_video_data['video_info']['youtube_channels']
         
         return jsonify({
             'success': True,
             'video_id': video_id,
             'video_title': video_info.get('title'),
             'video_duration': video_info.get('duration'),
-            'video_uploader': video_info.get('uploader'),
+            'channel_info': channel_info,
             'transcript': transcript,
             'formatted_transcript': formatted_transcript,
             'chapters': chapters,
@@ -816,24 +861,41 @@ def channels_page():
         return render_template('error.html', 
                              error_message=f"Error loading channels: {str(e)}"), 500
 
-@app.route('/channel/<channel_name>/videos')
-def channel_videos(channel_name):
-    """Display all videos from a specific channel"""
+@app.route('/channel/<channel_identifier>/videos')
+def channel_videos(channel_identifier):
+    """Display all videos from a specific channel (by name or ID)"""
     try:
-        # Get all videos for the channel
-        channel_videos_list = database_storage.get_videos_by_channel(channel_name)
+        # Try to get videos by channel_id first, then by name for backward compatibility
+        channel_videos_list = None
+        channel_info = None
+        
+        # Check if identifier looks like a channel ID (starts with UC)
+        if channel_identifier.startswith('UC'):
+            channel_info = database_storage.get_channel_by_id(channel_identifier)
+            if channel_info:
+                channel_videos_list = database_storage.get_videos_by_channel(channel_id=channel_identifier)
+        
+        # If not found by ID, try by name (backward compatibility)
+        if not channel_videos_list:
+            channel_videos_list = database_storage.get_videos_by_channel(channel_name=channel_identifier)
+            if not channel_info:
+                channel_info = database_storage.get_channel_by_name(channel_identifier)
         
         if not channel_videos_list:
             return render_template('error.html', 
-                                 error_message=f"No videos found for channel: {channel_name}"), 404
+                                 error_message=f"No videos found for channel: {channel_identifier}"), 404
         
         # Check which videos have summaries
         for video in channel_videos_list:
             video['has_summary'] = database_storage.get_summary(video['video_id']) is not None
             video['thumbnail_url'] = f"https://img.youtube.com/vi/{video['video_id']}/maxresdefault.jpg"
         
+        # Use channel name from channel_info if available, otherwise use identifier
+        display_name = channel_info['channel_name'] if channel_info else channel_identifier
+        
         return render_template('channel_videos.html', 
-                             channel_name=channel_name,
+                             channel_name=display_name,
+                             channel_info=channel_info,
                              videos=channel_videos_list,
                              total_videos=len(channel_videos_list))
         
@@ -841,16 +903,29 @@ def channel_videos(channel_name):
         return render_template('error.html', 
                              error_message=f"Error loading channel videos: {str(e)}"), 500
 
-@app.route('/channel/<channel_name>/summaries')
-def channel_summaries(channel_name):
-    """Display AI summaries for all videos from a specific channel"""
+@app.route('/channel/<channel_identifier>/summaries')
+def channel_summaries(channel_identifier):
+    """Display AI summaries for all videos from a specific channel (by name or ID)"""
     try:
-        # Get all videos for the channel
-        channel_videos = database_storage.get_videos_by_channel(channel_name)
+        # Try to get videos by channel_id first, then by name for backward compatibility
+        channel_videos = None
+        channel_info = None
+        
+        # Check if identifier looks like a channel ID (starts with UC)
+        if channel_identifier.startswith('UC'):
+            channel_info = database_storage.get_channel_by_id(channel_identifier)
+            if channel_info:
+                channel_videos = database_storage.get_videos_by_channel(channel_id=channel_identifier)
+        
+        # If not found by ID, try by name (backward compatibility)
+        if not channel_videos:
+            channel_videos = database_storage.get_videos_by_channel(channel_name=channel_identifier)
+            if not channel_info:
+                channel_info = database_storage.get_channel_by_name(channel_identifier)
         
         if not channel_videos:
             return render_template('error.html', 
-                                 error_message=f"No videos found for channel: {channel_name}"), 404
+                                 error_message=f"No videos found for channel: {channel_identifier}"), 404
         
         # Get summaries for each video
         summaries = []
@@ -872,15 +947,20 @@ def channel_summaries(channel_name):
                 summaries.append({
                     'video_id': video_id,
                     'title': video['title'],
-                    'uploader': video['uploader'],
+                    'channel_name': video.get('channel_name'),
+                    'channel_id': video.get('channel_id'),
                     'duration': video['duration'],
                     'thumbnail_url': f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
                     'summary': summary_html,
                     'created_at': video['created_at']
                 })
         
+        # Use channel name from channel_info if available, otherwise use identifier
+        display_name = channel_info['channel_name'] if channel_info else channel_identifier
+        
         return render_template('channel_summaries.html', 
-                             channel_name=channel_name,
+                             channel_name=display_name,
+                             channel_info=channel_info,
                              summaries=summaries,
                              total_videos=len(channel_videos),
                              summarized_videos=len(summaries))
@@ -896,39 +976,53 @@ def snippets_page():
         snippets = database_storage.get_memory_snippets(limit=1000)
         stats = database_storage.get_memory_snippets_stats()
         
-        # Group snippets by channel (uploader)
+        # Group snippets by channel (use channel information from new schema)
         channel_groups = {}
         for snippet in snippets:
-            video_info = snippet.get('youtube_videos', [{}])[0] if snippet.get('youtube_videos') else {}
-            uploader = video_info.get('uploader', 'Unknown Channel')
+            # Use the enhanced channel information from get_memory_snippets
+            channel_name = snippet.get('channel_name', 'Unknown Channel')
+            channel_id = snippet.get('channel_id')
             
-            if uploader not in channel_groups:
-                channel_groups[uploader] = {
-                    'channel_name': uploader,
+            # Use channel_id as key if available, otherwise channel_name
+            channel_key = channel_id if channel_id else channel_name
+            
+            if channel_key not in channel_groups:
+                channel_groups[channel_key] = {
+                    'channel_name': channel_name,
+                    'channel_id': channel_id,
                     'videos': {},
                     'total_snippets': 0,
                     'latest_date': ''
                 }
             
             video_id = snippet['video_id']
-            if video_id not in channel_groups[uploader]['videos']:
-                channel_groups[uploader]['videos'][video_id] = {
+            if video_id not in channel_groups[channel_key]['videos']:
+                # Get video information from snippet
+                video_info = snippet.get('youtube_videos', {})
+                if not video_info:
+                    video_info = {
+                        'title': f'Video {video_id}',
+                        'channel_name': snippet.get('channel_name', 'Unknown Channel'),
+                        'thumbnail_url': f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+                    }
+                
+                channel_groups[channel_key]['videos'][video_id] = {
                     'video_info': video_info,
                     'video_id': video_id,
                     'snippet_count': 0
                 }
             
-            channel_groups[uploader]['videos'][video_id]['snippet_count'] += 1
-            channel_groups[uploader]['total_snippets'] += 1
+            channel_groups[channel_key]['videos'][video_id]['snippet_count'] += 1
+            channel_groups[channel_key]['total_snippets'] += 1
             
             # Track latest snippet date for channel
             snippet_date = snippet.get('created_at', '')
-            if snippet_date > channel_groups[uploader]['latest_date']:
-                channel_groups[uploader]['latest_date'] = snippet_date
+            if snippet_date > channel_groups[channel_key]['latest_date']:
+                channel_groups[channel_key]['latest_date'] = snippet_date
         
         # Convert to list and sort by most recent snippet
         channels = []
-        for channel_name, group in channel_groups.items():
+        for channel_key, group in channel_groups.items():
             group['video_count'] = len(group['videos'])
             channels.append(group)
         
@@ -943,28 +1037,64 @@ def snippets_page():
         return render_template('error.html', 
                              error_message=f"Error loading snippets: {str(e)}"), 500
 
+@app.route('/test/snippets/<channel_name>')
+def test_snippets_channel(channel_name):
+    """Test route for debugging snippets"""
+    try:
+        snippets = database_storage.get_memory_snippets(limit=10)
+        return f"Channel: {channel_name}, Total snippets: {len(snippets)}, First snippet: {snippets[0] if snippets else 'None'}"
+    except Exception as e:
+        return f"Error: {e}"
+
 @app.route('/snippets/channel/<channel_name>')
 def snippets_channel_page(channel_name):
     """Display snippets for a specific channel"""
     try:
+        print(f"Loading snippets for channel: {channel_name}")
         snippets = database_storage.get_memory_snippets(limit=1000)
+        print(f"Total snippets retrieved: {len(snippets)}")
         
-        # Filter snippets by channel
+        # Filter snippets by channel (support both name and ID)
         channel_snippets = []
         for snippet in snippets:
-            video_info = snippet.get('youtube_videos', [{}])[0] if snippet.get('youtube_videos') else {}
-            uploader = video_info.get('uploader', 'Unknown Channel')
-            if uploader == channel_name:
-                channel_snippets.append(snippet)
+            snippet_channel_name = snippet.get('channel_name', 'Unknown Channel')
+            snippet_channel_id = snippet.get('channel_id')
+            
+            # Match by channel_id if channel_name starts with UC, otherwise by name
+            if channel_name.startswith('UC'):
+                if snippet_channel_id == channel_name:
+                    channel_snippets.append(snippet)
+            else:
+                if snippet_channel_name == channel_name:
+                    channel_snippets.append(snippet)
+        
+        print(f"Filtered snippets for channel {channel_name}: {len(channel_snippets)}")
+        
+        # If no snippets found, return empty page
+        if not channel_snippets:
+            return render_template('snippets.html', 
+                                 video_groups=[],
+                                 channel_name=channel_name,
+                                 stats={'total_snippets': 0})
         
         # Group snippets by video_id
         grouped_snippets = {}
         for snippet in channel_snippets:
             video_id = snippet['video_id']
             if video_id not in grouped_snippets:
+                # Use the enhanced video information
+                video_info = snippet.get('youtube_videos', {})
+                if not video_info:
+                    video_info = {
+                        'title': f'Video {video_id}',
+                        'channel_name': snippet.get('channel_name', 'Unknown Channel')
+                    }
+                
                 grouped_snippets[video_id] = {
-                    'video_info': snippet.get('youtube_videos', [{}])[0] if snippet.get('youtube_videos') else {},
+                    'video_info': video_info,
                     'video_id': video_id,
+                    'channel_name': snippet.get('channel_name'),
+                    'channel_id': snippet.get('channel_id'),
                     'snippets': []
                 }
             grouped_snippets[video_id]['snippets'].append(snippet)
@@ -987,6 +1117,10 @@ def snippets_channel_page(channel_name):
                              stats={'total_snippets': len(channel_snippets)})
         
     except Exception as e:
+        print(f"Error in snippets_channel_page for channel {channel_name}: {e}")
+        print(f"Exception type: {type(e)}")
+        import traceback
+        traceback.print_exc()
         return render_template('error.html', 
                              error_message=f"Error loading channel snippets: {str(e)}"), 500
 
@@ -1030,9 +1164,10 @@ def api_import_channel_videos(channel_name):
         
         for video in videos:
             video_id = video['video_id']
+            channel_id = video.get('channel_id')
             print(f"Processing video: {video_id} - {video['title']}")
             
-            result = process_video_complete(video_id)
+            result = process_video_complete(video_id, channel_id)
             results.append(result)
             
             if result['status'] == 'processed':

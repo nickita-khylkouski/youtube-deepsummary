@@ -15,7 +15,11 @@
                 {% if video_title %}
                     <h2>{{ video_title }}</h2>
                     <p style="color: #666; margin: 5px 0;">
-                        {% if video_uploader %}<strong><a href="https://www.youtube.com/results?search_query={{ video_uploader|urlencode }}" target="_blank" style="color: #0066cc; text-decoration: none;">{{ video_uploader }}</a></strong>{% endif %}
+                        {% if channel_info and channel_info.channel_name %}
+                            <strong><a href="/channel/{{ channel_info.channel_id }}/videos" style="color: #0066cc; text-decoration: none;">{{ channel_info.channel_name }}</a></strong>
+                        {% else %}
+                            <strong>Unknown Channel</strong>
+                        {% endif %}
                         {% if video_duration %} • {{ "%.0f"|format(video_duration // 60) }}:{{ "%02.0f"|format(video_duration % 60) }} minutes{% endif %}
                     </p>
                 {% else %}
