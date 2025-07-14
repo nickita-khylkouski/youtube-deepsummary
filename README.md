@@ -119,7 +119,7 @@ python3 download_transcript_manual.py "https://www.youtube.com/watch?v=VIDEO_ID"
 - **Channel Videos**: `http://localhost:33079/channel/@channelhandle/videos`
 - **Channel Summaries**: `http://localhost:33079/channel/@channelhandle/summaries`
 - **Channel Snippets**: `http://localhost:33079/snippets/channel/@channelhandle`
-- **Storage Stats**: `http://localhost:33079/storage`
+- **Videos**: `http://localhost:33079/videos`
 
 ### API Endpoints
 
