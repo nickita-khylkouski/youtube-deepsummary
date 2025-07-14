@@ -944,7 +944,7 @@ def channels_page():
         return render_template('error.html', 
                              error_message=f"Error loading channels: {str(e)}"), 500
 
-@app.route('/channel/<channel_handle>')
+@app.route('/@<channel_handle>')
 def channel_overview(channel_handle):
     """Display channel overview with stats and navigation links"""
     try:
@@ -989,7 +989,7 @@ def channel_overview(channel_handle):
         return render_template('error.html', 
                              error_message=f"Error loading channel: {str(e)}"), 500
 
-@app.route('/channel/<channel_handle>/videos')
+@app.route('/@<channel_handle>/videos')
 def channel_videos(channel_handle):
     """Display all videos from a specific channel by handle"""
     try:
@@ -1024,7 +1024,7 @@ def channel_videos(channel_handle):
         return render_template('error.html', 
                              error_message=f"Error loading channel videos: {str(e)}"), 500
 
-@app.route('/channel/<channel_handle>/summaries')
+@app.route('/@<channel_handle>/summaries')
 def channel_summaries(channel_handle):
     """Display AI summaries for all videos from a specific channel by handle"""
     try:
@@ -1163,7 +1163,7 @@ def test_snippets_channel(channel_name):
     except Exception as e:
         return f"Error: {e}"
 
-@app.route('/snippets/channel/<channel_handle>')
+@app.route('/snippets/<channel_handle>')
 def snippets_channel_page(channel_handle):
     """Display snippets for a specific channel by handle"""
     try:
@@ -1242,7 +1242,7 @@ def snippets_channel_page(channel_handle):
         return render_template('error.html', 
                              error_message=f"Error loading channel snippets: {str(e)}"), 500
 
-@app.route('/api/channels/<channel_handle>/import', methods=['POST'])
+@app.route('/api/<channel_handle>/import', methods=['POST'])
 def api_import_channel_videos(channel_handle):
     """API endpoint to import latest videos from a channel by handle"""
     try:

@@ -16,7 +16,7 @@
                     <h2>{{ video_title }}</h2>
                     <p style="color: #666; margin: 5px 0;">
                         {% if channel_info and channel_info.channel_name and channel_info.handle %}
-                            <strong><a href="/channel/{{ channel_info.handle }}" style="color: #0066cc; text-decoration: none;">{{ channel_info.channel_name }}</a></strong>
+                            <strong><a href="/{{ channel_info.handle }}" style="color: #0066cc; text-decoration: none;">{{ channel_info.channel_name }}</a></strong>
                         {% else %}
                             <strong>{{ channel_info.channel_name if channel_info else 'Unknown Channel' }}</strong>
                         {% endif %}

@@ -146,13 +146,15 @@ docker run -p 33079:33079 \
 - **`/watch?v=VIDEO_ID`** - Display transcript with video metadata, thumbnails, and chapters
 - **`/memory-snippets`** - Personal knowledge base with saved text snippets grouped by video
 - **`/channels`** - Browse all channels with saved videos
-- **`/channel/@handle`** - Channel overview page with statistics, navigation, and recent videos
-- **`/channel/@handle/videos`** - View all videos from a specific channel by handle
-- **`/channel/@handle/summaries`** - View all summaries from a specific channel by handle
-- **`/snippets/channel/@handle`** - View memory snippets from a specific channel by handle
+- **`/@handle`** - Channel overview page with statistics, navigation, and recent videos
+- **`/@handle/videos`** - View all videos from a specific channel by handle
+- **`/@handle/summaries`** - View all summaries from a specific channel by handle
+- **`/snippets/@handle`** - View memory snippets from a specific channel by handle
 - **`/videos`** - Videos listing and management
 - **Mobile-responsive design** with optimized padding and collapsible elements
-- **Handle-based routing**: Clean URLs using channel handles (@channelname) instead of IDs
+- **Handle-based routing**: Clean URLs using channel handles (/@channelname) instead of IDs
+
+**Routing Update**: Channel URLs have been simplified from `/channel/@handle` to `/@handle` for cleaner, more intuitive navigation. API endpoints have been updated accordingly from `/api/channels/@handle/import` to `/api/@handle/import`.
 - **Breadcrumb navigation**: Easy navigation between channel overview and sub-pages
 - **Dual view modes**: Toggle between readable paragraphs and detailed timestamps
 - **AJAX summarization**: Generate AI summaries without page reloads
@@ -165,7 +167,7 @@ docker run -p 33079:33079 \
 - **`POST /api/memory-snippets`** - Save new memory snippet with text, context, and tags
 - **`DELETE /api/memory-snippets/<snippet_id>`** - Delete specific memory snippet
 - **`PUT /api/memory-snippets/<snippet_id>/tags`** - Update tags for specific memory snippet
-- **`POST /api/channels/@handle/import`** - Import latest videos from a YouTube channel with transcripts and AI summaries
+- **`POST /api/@handle/import`** - Import latest videos from a YouTube channel with transcripts and AI summaries
 - **`GET /api/cache/info`** - Legacy cache statistics (deprecated)
 - **`POST /api/cache/cleanup`** - Legacy cache cleanup (deprecated)
 - **`GET /api/storage/stats`** - Database storage statistics and metrics
@@ -178,12 +180,12 @@ docker run -p 33079:33079 \
 - **Channel Overview Pages**: Dedicated channel hubs with statistics, navigation cards, and recent videos display
 - **Channel Management**: Browse videos and summaries organized by YouTube channels using handle-based routing
 - **Channel Video Import**: Import latest videos from YouTube channels with automatic transcript and AI summary generation
-- **Handle-Based URLs**: Clean, user-friendly URLs using channel handles (@channelname) instead of channel IDs
+- **Handle-Based URLs**: Clean, user-friendly URLs using channel handles (/@channelname) instead of channel IDs
 - **Breadcrumb Navigation**: Consistent navigation flow with breadcrumbs linking back to channel overview
 - **Proxy Support**: Configurable proxy for both transcript and chapter extraction
 
 ### Channel Overview Architecture
-- **Handle-Based Routing**: All channel URLs use handles (@channelname) for clean, user-friendly URLs
+- **Handle-Based Routing**: All channel URLs use handles (/@channelname) for clean, user-friendly URLs
 - **Central Hub Design**: Each channel has a dedicated overview page serving as the main entry point
 - **Statistics Dashboard**: Real-time counts of videos, AI summaries, and memory snippets with color-coded cards
 - **Navigation Cards**: Interactive cards with hover effects linking to videos, summaries, and snippets
@@ -196,15 +198,15 @@ docker run -p 33079:33079 \
 
 #### URL Structure
 ```
-/channel/@handle              → Channel Overview (main hub)
-/channel/@handle/videos       → Videos List with breadcrumbs
-/channel/@handle/summaries    → AI Summaries with breadcrumbs  
-/snippets/channel/@handle     → Memory Snippets with breadcrumbs
+/@handle              → Channel Overview (main hub)
+/@handle/videos       → Videos List with breadcrumbs
+/@handle/summaries    → AI Summaries with breadcrumbs  
+/snippets/@handle     → Memory Snippets with breadcrumbs
 ```
 
 #### Navigation Flow
 1. `/channels` - Browse all channels with overview links
-2. `/channel/@handle` - Channel hub with statistics and navigation
+2. `/@handle` - Channel hub with statistics and navigation
 3. Sub-pages with breadcrumb navigation back to overview
 4. Individual content items (videos, summaries, snippets)
 
