@@ -63,7 +63,7 @@ class DatabaseStorage:
                 os.environ['https_proxy'] = original_https_proxy_lower
         print("Database storage initialized with Supabase (no proxy)")
 
-    def _ensure_channel_exists(self, channel_id: str, channel_name: str):
+    def _ensure_channel_exists(self, channel_id: str, channel_name: str, handle: str = None):
         """Ensure a channel exists in the database, create if not found"""
         try:
             # Check if channel exists
@@ -77,8 +77,38 @@ class DatabaseStorage:
                     'created_at': datetime.now(timezone.utc).isoformat(),
                     'updated_at': datetime.now(timezone.utc).isoformat()
                 }
+                
+                # Add handle if provided and column exists
+                if handle:
+                    try:
+                        # Test if handle column exists by trying to select it
+                        self.supabase.table('youtube_channels').select('handle').limit(1).execute()
+                        channel_data['handle'] = handle
+                        print(f"Adding handle {handle} for new channel")
+                    except Exception as handle_error:
+                        if 'handle' in str(handle_error):
+                            print(f"Handle column doesn't exist yet, skipping handle for {channel_name}")
+                        else:
+                            print(f"Error checking handle column: {handle_error}")
+                
                 self.supabase.table('youtube_channels').insert(channel_data).execute()
                 print(f"Created new channel: {channel_name} ({channel_id})")
+            else:
+                # Update existing channel with handle if provided and column exists
+                if handle:
+                    try:
+                        # Test if handle column exists and update if it does
+                        self.supabase.table('youtube_channels').select('handle').limit(1).execute()
+                        self.supabase.table('youtube_channels').update({
+                            'handle': handle,
+                            'updated_at': datetime.now(timezone.utc).isoformat()
+                        }).eq('channel_id', channel_id).execute()
+                        print(f"Updated handle for existing channel: {channel_name} -> {handle}")
+                    except Exception as handle_error:
+                        if 'handle' in str(handle_error):
+                            print(f"Handle column doesn't exist yet, skipping handle update for {channel_name}")
+                        else:
+                            print(f"Error updating handle: {handle_error}")
             
         except Exception as e:
             print(f"Error ensuring channel exists: {e}")
@@ -94,9 +124,9 @@ class DatabaseStorage:
             Cached data dict or None if not found
         """
         try:
-            # Get video metadata with channel information
+            # Get video metadata without JOIN to avoid foreign key issues
             video_response = self.supabase.table('youtube_videos')\
-                .select('*, youtube_channels(channel_name, channel_id, thumbnail_url)')\
+                .select('*')\
                 .eq('video_id', video_id)\
                 .execute()
 
@@ -119,10 +149,21 @@ class DatabaseStorage:
             chapters_response = self.supabase.table('video_chapters').select('*').eq('video_id', video_id).execute()
             chapters = chapters_response.data[0].get('chapters_data') if chapters_response.data and len(chapters_response.data) > 0 else None
 
-            # Extract channel information
+            # Get channel information separately to avoid foreign key issues
             channel_info = None
-            if video_data.get('youtube_channels') and len(video_data['youtube_channels']) > 0:
-                channel_info = video_data['youtube_channels'][0]
+            channel_id = video_data.get('channel_id')
+            if channel_id:
+                try:
+                    channel_response = self.supabase.table('youtube_channels')\
+                        .select('channel_name, channel_id, thumbnail_url')\
+                        .eq('channel_id', channel_id)\
+                        .execute()
+                    
+                    if channel_response.data and len(channel_response.data) > 0:
+                        channel_info = channel_response.data[0]
+                except Exception as e:
+                    print(f"Warning: Could not fetch channel info for {channel_id}: {e}")
+                    channel_info = None
 
             # Reconstruct the cache format with enhanced channel information
             cached_data = {
@@ -146,7 +187,7 @@ class DatabaseStorage:
             print(f"Database read error for {video_id}: {e}")
             return None
 
-    def set(self, video_id: str, transcript: List[Dict], video_info: Dict, formatted_transcript: str, channel_id: str = None):
+    def set(self, video_id: str, transcript: List[Dict], video_info: Dict, formatted_transcript: str, channel_id: str = None, channel_handle: str = None):
         """
         Store transcript data for video ID in database
 
@@ -159,7 +200,7 @@ class DatabaseStorage:
         try:
             # Handle channel information
             if channel_id:
-                self._ensure_channel_exists(channel_id, video_info.get('channel_name', 'Unknown Channel'))
+                self._ensure_channel_exists(channel_id, video_info.get('channel_name', 'Unknown Channel'), channel_handle)
 
             # Parse published_at if available
             published_at = video_info.get('published_at') or video_info.get('upload_date')
