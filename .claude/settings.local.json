@@ -13,7 +13,9 @@
       "Bash(FLASK_PORT=33080 python3 app.py)",
       "Bash(pkill:*)",
       "Bash(git add:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "WebFetch(domain:developers.google.com)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }

@@ -109,14 +109,14 @@ def get_youtube_service():
         print(f"Failed to initialize YouTube API service: {e}")
         return None
 
-def get_channel_handle(channel_id):
-    """Get channel handle from YouTube API"""
+def get_channel_info(channel_id):
+    """Get channel information from YouTube API (handle, title, description)"""
     youtube_service = get_youtube_service()
     if not youtube_service:
         return None
     
     try:
-        # Fetch channel information including handle
+        # Fetch channel information including handle, title, and description
         channel_request = youtube_service.channels().list(
             part='snippet,brandingSettings',
             id=channel_id
@@ -126,26 +126,46 @@ def get_channel_handle(channel_id):
         if channel_response.get('items'):
             item = channel_response['items'][0]
             
-            # Try to get handle from snippet.customUrl (most common location)
-            if 'snippet' in item and 'customUrl' in item['snippet']:
-                custom_url = item['snippet']['customUrl']
-                if custom_url and custom_url.startswith('@'):
-                    return custom_url
+            # Initialize result dictionary
+            channel_info = {
+                'handle': None,
+                'title': None,
+                'description': None
+            }
+            
+            # Get basic info from snippet
+            if 'snippet' in item:
+                snippet = item['snippet']
+                channel_info['title'] = snippet.get('title')
+                channel_info['description'] = snippet.get('description')
+                
+                # Try to get handle from snippet.customUrl (most common location)
+                if 'customUrl' in snippet:
+                    custom_url = snippet['customUrl']
+                    if custom_url and custom_url.startswith('@'):
+                        channel_info['handle'] = custom_url
             
             # Check brandingSettings if no handle found
-            if 'brandingSettings' in item:
+            if not channel_info['handle'] and 'brandingSettings' in item:
                 if 'channel' in item['brandingSettings']:
                     branding_channel = item['brandingSettings']['channel']
                     if 'customUrl' in branding_channel:
                         custom_url = branding_channel['customUrl']
                         if custom_url and custom_url.startswith('@'):
-                            return custom_url
+                            channel_info['handle'] = custom_url
+            
+            return channel_info
         
         return None
         
     except Exception as e:
-        print(f"Error fetching handle for channel {channel_id}: {e}")
+        print(f"Error fetching channel info for {channel_id}: {e}")
         return None
+
+def get_channel_handle(channel_id):
+    """Get channel handle from YouTube API (backward compatibility)"""
+    channel_info = get_channel_info(channel_id)
+    return channel_info['handle'] if channel_info else None
 
 def get_channel_videos(channel_name, max_results=5):
     """Get latest videos from a channel using YouTube Data API"""
@@ -179,11 +199,11 @@ def get_channel_videos(channel_name, max_results=5):
                         actual_channel_id = video_response['items'][0]['snippet']['channelId']
                         print(f"Found channel ID {actual_channel_id} from existing video {sample_video_id}")
                         
-                        # Get handle information if available
-                        handle = get_channel_handle(actual_channel_id)
+                        # Get channel information if available
+                        channel_info = get_channel_info(actual_channel_id)
                         
                         # Create/update channel record
-                        database_storage._ensure_channel_exists(actual_channel_id, channel_name, handle)
+                        database_storage._ensure_channel_exists(actual_channel_id, channel_name, channel_info)
                 except Exception as e:
                     print(f"Could not get channel ID from existing video: {e}")
         
@@ -377,11 +397,11 @@ def process_video_complete(video_id, channel_id=None):
         formatted_transcript = format_transcript_for_readability(transcript, video_info.get('chapters'))
         
         # Store in database
-        # Get handle if channel_id is available
-        handle = None
+        # Get channel information if channel_id is available
+        channel_info = None
         if channel_id:
-            handle = get_channel_handle(channel_id)
-        database_storage.set(video_id, transcript, video_info, formatted_transcript, channel_id, handle)
+            channel_info = get_channel_info(channel_id)
+        database_storage.set(video_id, transcript, video_info, formatted_transcript, channel_id, channel_info)
         
         # Generate AI summary if summarizer is configured
         summary_generated = False
@@ -566,11 +586,11 @@ def watch():
                 print(f"Found channel_id {channel_id} from video info for video {video_id}")
             
             # Store the data in database for future use
-            # Get handle if channel_id is available
-            handle = None
+            # Get channel information if channel_id is available
+            channel_info = None
             if channel_id:
-                handle = get_channel_handle(channel_id)
-            database_storage.set(video_id, transcript, video_info, formatted_transcript_text, channel_id, handle)
+                channel_info = get_channel_info(channel_id)
+            database_storage.set(video_id, transcript, video_info, formatted_transcript_text, channel_id, channel_info)
         
         proxy_used = os.getenv('YOUTUBE_PROXY', 'None')
         
@@ -637,11 +657,11 @@ def api_transcript(video_id):
                 print(f"API: Found channel_id {channel_id} from video info for video {video_id}")
             
             # Store the data in database
-            # Get handle if channel_id is available
-            handle = None
+            # Get channel information if channel_id is available
+            channel_info = None
             if channel_id:
-                handle = get_channel_handle(channel_id)
-            database_storage.set(video_id, transcript, video_info, formatted_transcript, channel_id, handle)
+                channel_info = get_channel_info(channel_id)
+            database_storage.set(video_id, transcript, video_info, formatted_transcript, channel_id, channel_info)
         
         thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
         

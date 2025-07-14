@@ -63,7 +63,7 @@ class DatabaseStorage:
                 os.environ['https_proxy'] = original_https_proxy_lower
         print("Database storage initialized with Supabase (no proxy)")
 
-    def _ensure_channel_exists(self, channel_id: str, channel_name: str, handle: str = None):
+    def _ensure_channel_exists(self, channel_id: str, channel_name: str, channel_info: dict = None):
         """Ensure a channel exists in the database, create if not found"""
         try:
             # Check if channel exists
@@ -78,40 +78,83 @@ class DatabaseStorage:
                     'updated_at': datetime.now(timezone.utc).isoformat()
                 }
                 
-                # Add handle if provided and column exists
-                if handle:
-                    try:
-                        # Test if handle column exists by trying to select it
-                        self.supabase.table('youtube_channels').select('handle').limit(1).execute()
-                        channel_data['handle'] = handle
-                        print(f"Adding handle {handle} for new channel")
-                    except Exception as handle_error:
-                        if 'handle' in str(handle_error):
-                            print(f"Handle column doesn't exist yet, skipping handle for {channel_name}")
-                        else:
-                            print(f"Error checking handle column: {handle_error}")
+                # Add channel info if provided
+                if channel_info:
+                    self._add_channel_info_to_data(channel_data, channel_info, channel_name)
                 
                 self.supabase.table('youtube_channels').insert(channel_data).execute()
                 print(f"Created new channel: {channel_name} ({channel_id})")
             else:
-                # Update existing channel with handle if provided and column exists
-                if handle:
-                    try:
-                        # Test if handle column exists and update if it does
-                        self.supabase.table('youtube_channels').select('handle').limit(1).execute()
-                        self.supabase.table('youtube_channels').update({
-                            'handle': handle,
-                            'updated_at': datetime.now(timezone.utc).isoformat()
-                        }).eq('channel_id', channel_id).execute()
-                        print(f"Updated handle for existing channel: {channel_name} -> {handle}")
-                    except Exception as handle_error:
-                        if 'handle' in str(handle_error):
-                            print(f"Handle column doesn't exist yet, skipping handle update for {channel_name}")
-                        else:
-                            print(f"Error updating handle: {handle_error}")
+                # Update existing channel with new info if provided
+                if channel_info:
+                    update_data = {'updated_at': datetime.now(timezone.utc).isoformat()}
+                    self._add_channel_info_to_data(update_data, channel_info, channel_name)
+                    
+                    if len(update_data) > 1:  # More than just updated_at
+                        self.supabase.table('youtube_channels').update(update_data).eq('channel_id', channel_id).execute()
+                        print(f"Updated channel info for existing channel: {channel_name}")
             
         except Exception as e:
             print(f"Error ensuring channel exists: {e}")
+    
+    def _add_channel_info_to_data(self, channel_data: dict, channel_info: dict, channel_name: str):
+        """Helper method to add channel info to data dict, checking if columns exist"""
+        if not channel_info:
+            return
+            
+        # Handle - check if column exists
+        if channel_info.get('handle'):
+            try:
+                self.supabase.table('youtube_channels').select('handle').limit(1).execute()
+                channel_data['handle'] = channel_info['handle']
+                print(f"Adding handle {channel_info['handle']} for channel {channel_name}")
+            except Exception as e:
+                if 'handle' in str(e):
+                    print(f"Handle column doesn't exist yet, skipping handle for {channel_name}")
+                else:
+                    print(f"Error checking handle column: {e}")
+        
+        # Title - check if column exists and update both channel_title and channel_name
+        if channel_info.get('title'):
+            try:
+                self.supabase.table('youtube_channels').select('channel_title').limit(1).execute()
+                channel_data['channel_title'] = channel_info['title']
+                # Also update channel_name to use the proper title instead of "Unknown Channel"
+                channel_data['channel_name'] = channel_info['title']
+                print(f"Adding title '{channel_info['title']}' for channel {channel_name}")
+            except Exception as e:
+                if 'channel_title' in str(e):
+                    print(f"Channel title column doesn't exist yet, skipping title for {channel_name}")
+                    # Still update channel_name even if channel_title column doesn't exist
+                    channel_data['channel_name'] = channel_info['title']
+                else:
+                    print(f"Error checking channel title column: {e}")
+                    # Still update channel_name on other errors
+                    channel_data['channel_name'] = channel_info['title']
+        
+        # Description - check if column exists
+        if channel_info.get('description'):
+            try:
+                self.supabase.table('youtube_channels').select('channel_description').limit(1).execute()
+                channel_data['channel_description'] = channel_info['description']
+                print(f"Adding description for channel {channel_name}")
+            except Exception as e:
+                if 'channel_description' in str(e):
+                    print(f"Channel description column doesn't exist yet, skipping description for {channel_name}")
+                else:
+                    print(f"Error checking channel description column: {e}")
+        
+        # Derive channel URL from handle
+        if channel_info.get('handle'):
+            try:
+                self.supabase.table('youtube_channels').select('channel_url').limit(1).execute()
+                channel_data['channel_url'] = f"https://www.youtube.com/{channel_info['handle']}"
+                print(f"Adding URL for channel {channel_name}")
+            except Exception as e:
+                if 'channel_url' in str(e):
+                    print(f"Channel URL column doesn't exist yet, skipping URL for {channel_name}")
+                else:
+                    print(f"Error checking channel URL column: {e}")
 
     def get(self, video_id: str) -> Optional[Dict]:
         """
@@ -187,7 +230,7 @@ class DatabaseStorage:
             print(f"Database read error for {video_id}: {e}")
             return None
 
-    def set(self, video_id: str, transcript: List[Dict], video_info: Dict, formatted_transcript: str, channel_id: str = None, channel_handle: str = None):
+    def set(self, video_id: str, transcript: List[Dict], video_info: Dict, formatted_transcript: str, channel_id: str = None, channel_info: dict = None):
         """
         Store transcript data for video ID in database
 
@@ -196,11 +239,13 @@ class DatabaseStorage:
             transcript: Raw transcript data
             video_info: Video metadata (title, chapters, etc.)
             formatted_transcript: Formatted readable transcript
+            channel_id: YouTube channel ID
+            channel_info: Channel info dict with handle, title, description
         """
         try:
             # Handle channel information
             if channel_id:
-                self._ensure_channel_exists(channel_id, video_info.get('channel_name', 'Unknown Channel'), channel_handle)
+                self._ensure_channel_exists(channel_id, video_info.get('channel_name', 'Unknown Channel'), channel_info)
 
             # Parse published_at if available
             published_at = video_info.get('published_at') or video_info.get('upload_date')
