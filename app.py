@@ -829,19 +829,19 @@ def api_cache_cleanup():
             'error': str(e)
         }), 500
 
-@app.route('/storage')
-def storage_page():
+@app.route('/videos')
+def videos_page():
     """Display all saved videos"""
     try:
         cached_videos = database_storage.get_all_cached_videos()
         cache_stats = database_storage.get_cache_info()
         
-        return render_template('storage.html', 
+        return render_template('videos.html', 
                              cached_videos=cached_videos,
                              cache_stats=cache_stats)
     except Exception as e:
         return render_template('error.html', 
-                             error_message=f"Error loading storage page: {str(e)}"), 500
+                             error_message=f"Error loading videos page: {str(e)}"), 500
 
 @app.route('/api/delete/<video_id>', methods=['DELETE'])
 def api_delete_video(video_id):
