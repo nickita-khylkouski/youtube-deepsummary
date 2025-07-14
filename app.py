@@ -1073,6 +1073,7 @@ def snippets_page():
                 channel_groups[channel_key] = {
                     'channel_name': channel_name,
                     'channel_id': channel_id,
+                    'thumbnail_url': snippet.get('channel_thumbnail_url'),
                     'videos': {},
                     'total_snippets': 0,
                     'latest_date': ''
@@ -1153,11 +1154,23 @@ def snippets_channel_page(channel_name):
         
         print(f"Filtered snippets for channel {channel_name}: {len(channel_snippets)}")
         
+        # Get channel info for header display
+        channel_info = None
+        if channel_snippets:
+            # Use channel info from the first snippet
+            first_snippet = channel_snippets[0]
+            if first_snippet.get('channel_thumbnail_url'):
+                channel_info = {
+                    'thumbnail_url': first_snippet.get('channel_thumbnail_url'),
+                    'channel_id': first_snippet.get('channel_id')
+                }
+        
         # If no snippets found, return empty page
         if not channel_snippets:
             return render_template('snippets.html', 
                                  video_groups=[],
                                  channel_name=channel_name,
+                                 channel_info=channel_info,
                                  stats={'total_snippets': 0})
         
         # Group snippets by video_id
@@ -1197,6 +1210,7 @@ def snippets_channel_page(channel_name):
         return render_template('snippets.html', 
                              video_groups=video_groups,
                              channel_name=channel_name,
+                             channel_info=channel_info,
                              stats={'total_snippets': len(channel_snippets)})
         
     except Exception as e:

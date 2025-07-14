@@ -6,10 +6,23 @@
 <div class="header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #f8f9fa; padding: 12px 16px; border-radius: 8px; border-left: 4px solid #9c27b0;">
     <div>
         {% if channel_name %}
-            <h2 style="margin: 0; font-size: 20px; display: flex; align-items: center; gap: 8px;">💾 Snippets - {{ channel_name }}</h2>
-            <div style="font-size: 14px; color: #666; margin-top: 2px;">
-                <a href="/snippets" style="color: #0066cc; text-decoration: none;">← Back to all channels</a>
-                • Saved insights from this channel
+            <div style="display: flex; align-items: center; gap: 15px;">
+                {% if channel_info and channel_info.thumbnail_url %}
+                    <img src="{{ channel_info.thumbnail_url }}" 
+                         alt="{{ channel_name }} thumbnail" 
+                         style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid #e0e0e0; flex-shrink: 0;">
+                {% else %}
+                    <div style="width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 20px; flex-shrink: 0;">
+                        {{ channel_name[0]|upper if channel_name else '📺' }}
+                    </div>
+                {% endif %}
+                <div style="flex: 1; min-width: 0;">
+                    <h2 style="margin: 0; font-size: 20px; display: flex; align-items: center; gap: 8px;">💾 Snippets - {{ channel_name }}</h2>
+                    <div style="font-size: 14px; color: #666; margin-top: 2px;">
+                        <a href="/snippets" style="color: #0066cc; text-decoration: none;">← Back to all channels</a>
+                        • Saved insights from this channel
+                    </div>
+                </div>
             </div>
         {% else %}
             <h2 style="margin: 0; font-size: 20px; display: flex; align-items: center; gap: 8px;">💾 Snippets <span style="font-size: 14px; color: #666; font-weight: normal;">• Your saved insights from AI summaries</span></h2>

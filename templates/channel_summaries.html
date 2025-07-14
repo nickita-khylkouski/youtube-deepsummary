@@ -3,9 +3,23 @@
 {% block title %}{{ channel_name }} - Channel Summaries{% endblock %}
 
 {% block content %}
-<div class="header">
-    <h2>📺 {{ channel_name }} - AI Summaries</h2>
-    <p>{{ summarized_videos }} of {{ total_videos }} videos have AI summaries</p>
+<div class="header" style="display: flex; align-items: center; gap: 20px; background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+    {% if channel_info and channel_info.thumbnail_url %}
+        <img src="{{ channel_info.thumbnail_url }}" 
+             alt="{{ channel_name }} thumbnail" 
+             style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #e0e0e0; flex-shrink: 0;">
+    {% else %}
+        <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 32px; flex-shrink: 0; border: 3px solid #e0e0e0;">
+            {{ channel_name[0]|upper if channel_name else '📺' }}
+        </div>
+    {% endif %}
+    <div style="flex: 1; min-width: 0;">
+        <h2 style="margin: 0 0 8px 0; font-size: 24px; color: #333;">📺 {{ channel_name }} - AI Summaries</h2>
+        <p style="margin: 0; color: #666; font-size: 16px;">{{ summarized_videos }} of {{ total_videos }} videos have AI summaries</p>
+        {% if channel_info and channel_info.handle %}
+            <p style="margin: 4px 0 0 0; color: #888; font-size: 14px;">{{ channel_info.handle }}</p>
+        {% endif %}
+    </div>
 </div>
 
 {% if summaries %}

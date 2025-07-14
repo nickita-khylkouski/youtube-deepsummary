@@ -709,12 +709,13 @@ class DatabaseStorage:
                         if channel_id:
                             try:
                                 channel_result = self.supabase.table('youtube_channels').select(
-                                    'channel_name, channel_id'
+                                    'channel_name, channel_id, thumbnail_url'
                                 ).eq('channel_id', channel_id).execute()
                                 
                                 if channel_result.data:
                                     snippet['channel_name'] = channel_result.data[0]['channel_name']
                                     snippet['channel_id'] = channel_result.data[0]['channel_id']
+                                    snippet['channel_thumbnail_url'] = channel_result.data[0].get('thumbnail_url')
                                 else:
                                     snippet['channel_name'] = 'Unknown Channel'
                                     snippet['channel_id'] = channel_id
