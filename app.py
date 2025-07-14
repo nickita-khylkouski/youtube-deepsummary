@@ -944,37 +944,30 @@ def channels_page():
         return render_template('error.html', 
                              error_message=f"Error loading channels: {str(e)}"), 500
 
-@app.route('/channel/<channel_identifier>/videos')
-def channel_videos(channel_identifier):
-    """Display all videos from a specific channel (by name or ID)"""
+@app.route('/channel/<channel_handle>/videos')
+def channel_videos(channel_handle):
+    """Display all videos from a specific channel by handle"""
     try:
-        # Try to get videos by channel_id first, then by name for backward compatibility
-        channel_videos_list = None
-        channel_info = None
+        # Get channel info by handle
+        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return render_template('error.html', 
+                                 error_message=f"Channel not found: {channel_handle}"), 404
         
-        # Check if identifier looks like a channel ID (starts with UC)
-        if channel_identifier.startswith('UC'):
-            channel_info = database_storage.get_channel_by_id(channel_identifier)
-            if channel_info:
-                channel_videos_list = database_storage.get_videos_by_channel(channel_id=channel_identifier)
-        
-        # If not found by ID, try by name (backward compatibility)
-        if not channel_videos_list:
-            channel_videos_list = database_storage.get_videos_by_channel(channel_name=channel_identifier)
-            if not channel_info:
-                channel_info = database_storage.get_channel_by_name(channel_identifier)
+        # Get videos for this channel
+        channel_videos_list = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
         
         if not channel_videos_list:
             return render_template('error.html', 
-                                 error_message=f"No videos found for channel: {channel_identifier}"), 404
+                                 error_message=f"No videos found for channel: {channel_handle}"), 404
         
         # Check which videos have summaries
         for video in channel_videos_list:
             video['has_summary'] = database_storage.get_summary(video['video_id']) is not None
             video['thumbnail_url'] = f"https://img.youtube.com/vi/{video['video_id']}/maxresdefault.jpg"
         
-        # Use channel name from channel_info if available, otherwise use identifier
-        display_name = channel_info['channel_name'] if channel_info else channel_identifier
+        # Use channel name from channel_info
+        display_name = channel_info['channel_name']
         
         return render_template('channel_videos.html', 
                              channel_name=display_name,
@@ -986,29 +979,22 @@ def channel_videos(channel_identifier):
         return render_template('error.html', 
                              error_message=f"Error loading channel videos: {str(e)}"), 500
 
-@app.route('/channel/<channel_identifier>/summaries')
-def channel_summaries(channel_identifier):
-    """Display AI summaries for all videos from a specific channel (by name or ID)"""
+@app.route('/channel/<channel_handle>/summaries')
+def channel_summaries(channel_handle):
+    """Display AI summaries for all videos from a specific channel by handle"""
     try:
-        # Try to get videos by channel_id first, then by name for backward compatibility
-        channel_videos = None
-        channel_info = None
+        # Get channel info by handle
+        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return render_template('error.html', 
+                                 error_message=f"Channel not found: {channel_handle}"), 404
         
-        # Check if identifier looks like a channel ID (starts with UC)
-        if channel_identifier.startswith('UC'):
-            channel_info = database_storage.get_channel_by_id(channel_identifier)
-            if channel_info:
-                channel_videos = database_storage.get_videos_by_channel(channel_id=channel_identifier)
-        
-        # If not found by ID, try by name (backward compatibility)
-        if not channel_videos:
-            channel_videos = database_storage.get_videos_by_channel(channel_name=channel_identifier)
-            if not channel_info:
-                channel_info = database_storage.get_channel_by_name(channel_identifier)
+        # Get videos for this channel
+        channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
         
         if not channel_videos:
             return render_template('error.html', 
-                                 error_message=f"No videos found for channel: {channel_identifier}"), 404
+                                 error_message=f"No videos found for channel: {channel_handle}"), 404
         
         # Get summaries for each video
         summaries = []
@@ -1038,8 +1024,8 @@ def channel_summaries(channel_identifier):
                     'created_at': video['created_at']
                 })
         
-        # Use channel name from channel_info if available, otherwise use identifier
-        display_name = channel_info['channel_name'] if channel_info else channel_identifier
+        # Use channel name from channel_info
+        display_name = channel_info['channel_name']
         
         return render_template('channel_summaries.html', 
                              channel_name=display_name,
@@ -1065,6 +1051,7 @@ def snippets_page():
             # Use the enhanced channel information from get_memory_snippets
             channel_name = snippet.get('channel_name', 'Unknown Channel')
             channel_id = snippet.get('channel_id')
+            handle = snippet.get('handle')
             
             # Use channel_id as key if available, otherwise channel_name
             channel_key = channel_id if channel_id else channel_name
@@ -1073,6 +1060,7 @@ def snippets_page():
                 channel_groups[channel_key] = {
                     'channel_name': channel_name,
                     'channel_id': channel_id,
+                    'handle': handle,
                     'thumbnail_url': snippet.get('channel_thumbnail_url'),
                     'videos': {},
                     'total_snippets': 0,
@@ -1130,46 +1118,34 @@ def test_snippets_channel(channel_name):
     except Exception as e:
         return f"Error: {e}"
 
-@app.route('/snippets/channel/<channel_name>')
-def snippets_channel_page(channel_name):
-    """Display snippets for a specific channel"""
+@app.route('/snippets/channel/<channel_handle>')
+def snippets_channel_page(channel_handle):
+    """Display snippets for a specific channel by handle"""
     try:
-        print(f"Loading snippets for channel: {channel_name}")
+        print(f"Loading snippets for channel: {channel_handle}")
+        
+        # Get channel info by handle
+        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return render_template('error.html', 
+                                 error_message=f"Channel not found: {channel_handle}"), 404
+        
+        # Get all snippets and filter by channel_id
         snippets = database_storage.get_memory_snippets(limit=1000)
         print(f"Total snippets retrieved: {len(snippets)}")
         
-        # Filter snippets by channel (support both name and ID)
         channel_snippets = []
         for snippet in snippets:
-            snippet_channel_name = snippet.get('channel_name', 'Unknown Channel')
-            snippet_channel_id = snippet.get('channel_id')
-            
-            # Match by channel_id if channel_name starts with UC, otherwise by name
-            if channel_name.startswith('UC'):
-                if snippet_channel_id == channel_name:
-                    channel_snippets.append(snippet)
-            else:
-                if snippet_channel_name == channel_name:
-                    channel_snippets.append(snippet)
+            if snippet.get('channel_id') == channel_info['channel_id']:
+                channel_snippets.append(snippet)
         
-        print(f"Filtered snippets for channel {channel_name}: {len(channel_snippets)}")
-        
-        # Get channel info for header display
-        channel_info = None
-        if channel_snippets:
-            # Use channel info from the first snippet
-            first_snippet = channel_snippets[0]
-            if first_snippet.get('channel_thumbnail_url'):
-                channel_info = {
-                    'thumbnail_url': first_snippet.get('channel_thumbnail_url'),
-                    'channel_id': first_snippet.get('channel_id')
-                }
+        print(f"Filtered snippets for channel {channel_handle}: {len(channel_snippets)}")
         
         # If no snippets found, return empty page
         if not channel_snippets:
             return render_template('snippets.html', 
                                  video_groups=[],
-                                 channel_name=channel_name,
+                                 channel_name=channel_info['channel_name'],
                                  channel_info=channel_info,
                                  stats={'total_snippets': 0})
         
@@ -1209,26 +1185,35 @@ def snippets_channel_page(channel_name):
         
         return render_template('snippets.html', 
                              video_groups=video_groups,
-                             channel_name=channel_name,
+                             channel_name=channel_info['channel_name'],
                              channel_info=channel_info,
                              stats={'total_snippets': len(channel_snippets)})
         
     except Exception as e:
-        print(f"Error in snippets_channel_page for channel {channel_name}: {e}")
+        print(f"Error in snippets_channel_page for channel {channel_handle}: {e}")
         print(f"Exception type: {type(e)}")
         import traceback
         traceback.print_exc()
         return render_template('error.html', 
                              error_message=f"Error loading channel snippets: {str(e)}"), 500
 
-@app.route('/api/channels/<channel_name>/import', methods=['POST'])
-def api_import_channel_videos(channel_name):
-    """API endpoint to import latest videos from a channel"""
+@app.route('/api/channels/<channel_handle>/import', methods=['POST'])
+def api_import_channel_videos(channel_handle):
+    """API endpoint to import latest videos from a channel by handle"""
     try:
-        # Decode URL-encoded channel name
-        decoded_channel_name = unquote(channel_name)
-        print(f"Original channel name: {channel_name}")
-        print(f"Decoded channel name: {decoded_channel_name}")
+        # Get channel info by handle
+        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return jsonify({
+                'success': False,
+                'error': f'Channel not found: {channel_handle}'
+            }), 404
+        
+        # Decode URL-encoded channel handle
+        decoded_channel_handle = unquote(channel_handle)
+        print(f"Original channel handle: {channel_handle}")
+        print(f"Decoded channel handle: {decoded_channel_handle}")
+        print(f"Channel name: {channel_info['channel_name']}")
         
         data = request.get_json() if request.content_type == 'application/json' else {}
         max_results = int(data.get('max_results', 5))
@@ -1243,14 +1228,14 @@ def api_import_channel_videos(channel_name):
                 'error': 'YouTube Data API not configured. Please set YOUTUBE_API_KEY environment variable.'
             }), 400
         
-        # Get latest videos from channel using decoded name
-        print(f"Fetching {max_results} videos from channel: {decoded_channel_name}")
-        videos = get_channel_videos(decoded_channel_name, max_results)
+        # Get latest videos from channel using channel name for the YouTube API
+        print(f"Fetching {max_results} videos from channel: {channel_info['channel_name']}")
+        videos = get_channel_videos(channel_info['channel_name'], max_results)
         
         if not videos:
             return jsonify({
                 'success': False,
-                'error': f'No videos found for channel: {channel_name}'
+                'error': f'No videos found for channel: {channel_handle}'
             }), 404
         
         # Process each video
@@ -1276,7 +1261,7 @@ def api_import_channel_videos(channel_name):
         
         return jsonify({
             'success': True,
-            'channel_name': decoded_channel_name,
+            'channel_name': channel_info['channel_name'],
             'total_videos': len(videos),
             'processed': processed_count,
             'skipped': skipped_count,

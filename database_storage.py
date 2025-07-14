@@ -450,17 +450,20 @@ class DatabaseStorage:
                 # Get channel information (manually fetch if channel_id exists)
                 channel_name = 'Unknown Channel'
                 channel_id = video.get('channel_id')
+                handle = None
                 
                 if channel_id:
                     try:
                         # Fetch channel information from youtube_channels table
                         channel_response = self.supabase.table('youtube_channels')\
-                            .select('channel_name, channel_id')\
+                            .select('channel_name, channel_id, handle')\
                             .eq('channel_id', channel_id)\
                             .execute()
                         
                         if channel_response.data and len(channel_response.data) > 0:
-                            channel_name = channel_response.data[0]['channel_name']
+                            channel_info = channel_response.data[0]
+                            channel_name = channel_info['channel_name']
+                            handle = channel_info.get('handle')
                     except Exception as e:
                         print(f"Warning: Could not fetch channel info for {channel_id}: {e}")
 
@@ -469,6 +472,7 @@ class DatabaseStorage:
                     'title': video['title'] or 'Unknown Title',
                     'channel_name': channel_name,
                     'channel_id': channel_id,
+                    'handle': handle,
                     'duration': video['duration'],
                     'chapters_count': chapters_count,
                     'transcript_entries': transcript_entries,
@@ -607,14 +611,16 @@ class DatabaseStorage:
                     channels.append({
                         'channel_id': channel_id,
                         'name': channel_name,
+                        'handle': channel.get('handle'),
                         'video_count': len(channel_videos),
                         'summary_count': summary_count,
                         'thumbnail_url': channel.get('thumbnail_url'),
                         'recent_videos': recent_videos
                     })
                 
-                # Sort by video count
-                return sorted(channels, key=lambda x: x['video_count'], reverse=True)
+                # Filter out channels without handles and sort by video count
+                channels_with_handles = [c for c in channels if c.get('handle')]
+                return sorted(channels_with_handles, key=lambda x: x['video_count'], reverse=True)
                 
         except Exception as e:
             print(f"Error getting all channels: {e}")
@@ -709,13 +715,15 @@ class DatabaseStorage:
                         if channel_id:
                             try:
                                 channel_result = self.supabase.table('youtube_channels').select(
-                                    'channel_name, channel_id, thumbnail_url'
+                                    'channel_name, channel_id, thumbnail_url, handle'
                                 ).eq('channel_id', channel_id).execute()
                                 
                                 if channel_result.data:
-                                    snippet['channel_name'] = channel_result.data[0]['channel_name']
-                                    snippet['channel_id'] = channel_result.data[0]['channel_id']
-                                    snippet['channel_thumbnail_url'] = channel_result.data[0].get('thumbnail_url')
+                                    channel_data = channel_result.data[0]
+                                    snippet['channel_name'] = channel_data['channel_name']
+                                    snippet['channel_id'] = channel_data['channel_id']
+                                    snippet['channel_thumbnail_url'] = channel_data.get('thumbnail_url')
+                                    snippet['handle'] = channel_data.get('handle')
                                 else:
                                     snippet['channel_name'] = 'Unknown Channel'
                                     snippet['channel_id'] = channel_id
@@ -839,6 +847,24 @@ class DatabaseStorage:
             
         except Exception as e:
             print(f"Error getting channel by ID {channel_id}: {e}")
+            return None
+
+    def get_channel_by_handle(self, handle: str) -> Optional[Dict]:
+        """Get channel by handle (e.g., @channelname)"""
+        try:
+            # Ensure handle starts with @
+            if not handle.startswith('@'):
+                handle = f"@{handle}"
+            
+            result = self.supabase.table('youtube_channels')\
+                .select('*')\
+                .eq('handle', handle)\
+                .execute()
+            
+            return result.data[0] if result.data else None
+            
+        except Exception as e:
+            print(f"Error getting channel by handle {handle}: {e}")
             return None
 
     def update_channel_info(self, channel_id: str, **kwargs):
