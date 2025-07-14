@@ -11,7 +11,8 @@
       "Bash(mv:*)",
       "Bash(rg:*)",
       "Bash(FLASK_PORT=33080 python3 app.py)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }
