@@ -149,7 +149,7 @@ docker run -p 33079:33079 \
 - **`/@handle`** - Channel overview page with statistics, navigation, and recent videos
 - **`/@handle/videos`** - View all videos from a specific channel by handle
 - **`/@handle/summaries`** - View all summaries from a specific channel by handle
-- **`/snippets/@handle`** - View memory snippets from a specific channel by handle
+- **`/@handle/snippets`** - View memory snippets from a specific channel by handle
 - **`/videos`** - Videos listing and management
 - **Mobile-responsive design** with optimized padding and collapsible elements
 - **Handle-based routing**: Clean URLs using channel handles (/@channelname) instead of IDs
@@ -201,7 +201,7 @@ docker run -p 33079:33079 \
 /@handle              → Channel Overview (main hub)
 /@handle/videos       → Videos List with breadcrumbs
 /@handle/summaries    → AI Summaries with breadcrumbs  
-/snippets/@handle     → Memory Snippets with breadcrumbs
+/@handle/snippets     → Memory Snippets with breadcrumbs
 ```
 
 #### Navigation Flow

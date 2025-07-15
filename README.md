@@ -118,7 +118,7 @@ python3 download_transcript_manual.py "https://www.youtube.com/watch?v=VIDEO_ID"
 - **Channel Overview**: `http://localhost:33079/@channelhandle`
 - **Channel Videos**: `http://localhost:33079/@channelhandle/videos`
 - **Channel Summaries**: `http://localhost:33079/@channelhandle/summaries`
-- **Channel Snippets**: `http://localhost:33079/snippets/@channelhandle`
+- **Channel Snippets**: `http://localhost:33079/@channelhandle/snippets`
 - **Videos**: `http://localhost:33079/videos`
 
 **Note**: Channel URLs have been updated to use cleaner routing. The previous `/channel/@handle` format has been simplified to `/@handle` for all channel sub-pages.
@@ -217,7 +217,7 @@ The Channel Overview feature provides dedicated pages for each YouTube channel, 
 /@channelhandle              → Channel Overview (main hub)
 /@channelhandle/videos       → All Videos List  
 /@channelhandle/summaries    → AI Summaries
-/snippets/@channelhandle     → Memory Snippets
+/@channelhandle/snippets     → Memory Snippets
 ```
 
 ### Navigation Flow

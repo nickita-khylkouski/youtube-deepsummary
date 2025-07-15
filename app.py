@@ -1163,7 +1163,7 @@ def test_snippets_channel(channel_name):
     except Exception as e:
         return f"Error: {e}"
 
-@app.route('/snippets/<channel_handle>')
+@app.route('/@<channel_handle>/snippets')
 def snippets_channel_page(channel_handle):
     """Display snippets for a specific channel by handle"""
     try:
