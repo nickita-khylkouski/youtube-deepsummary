@@ -139,6 +139,10 @@
            style="background: #607d8b; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; display: inline-block; transition: all 0.3s;">
             📺 Browse All Channels
         </a>
+        <button onclick="deleteChannel('{{ channel_info.handle }}', '{{ channel_info.channel_name }}')" 
+                style="background: #d32f2f; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s;">
+            🗑️ Delete Channel
+        </button>
     </div>
 </div>
 
@@ -245,6 +249,69 @@ async function importChannelVideos(channelHandle) {
         button.disabled = false;
         button.innerHTML = originalText;
         button.style.background = '#4caf50';
+    }
+}
+
+async function deleteChannel(channelHandle, channelName) {
+    // Show confirmation dialog
+    const confirmed = confirm(
+        `⚠️ WARNING: This will permanently delete the channel "${channelName}" and ALL associated data including:\n\n` +
+        `• All videos from this channel\n` +
+        `• All transcripts\n` +
+        `• All AI summaries\n` +
+        `• All memory snippets\n` +
+        `• Channel information\n\n` +
+        `This action CANNOT be undone!\n\n` +
+        `Are you sure you want to proceed?`
+    );
+    
+    if (!confirmed) {
+        return;
+    }
+    
+    const button = event.target;
+    const originalText = button.innerHTML;
+    
+    // Disable button and show loading state
+    button.disabled = true;
+    button.innerHTML = '⏳ Deleting...';
+    button.style.background = '#9e9e9e';
+    
+    try {
+        console.log(`Starting deletion for channel: ${channelHandle}`);
+        
+        const response = await fetch(`/api/delete-channel/${channelHandle}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification(result.message, 'success');
+            
+            // Redirect to channels page after successful deletion
+            setTimeout(() => {
+                window.location.href = '/channels';
+            }, 2000);
+            
+        } else {
+            showNotification(`Error: ${result.message}`, 'error');
+            // Reset button state on error
+            button.disabled = false;
+            button.innerHTML = originalText;
+            button.style.background = '#d32f2f';
+        }
+        
+    } catch (error) {
+        console.error('Delete error:', error);
+        showNotification(`Failed to delete channel: ${error.message}`, 'error');
+        // Reset button state on error
+        button.disabled = false;
+        button.innerHTML = originalText;
+        button.style.background = '#d32f2f';
     }
 }
 

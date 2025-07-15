@@ -1364,6 +1364,49 @@ class DatabaseStorage:
             print(f"Error updating channel {channel_id}: {e}")
             return False
 
+    def delete_channel(self, channel_id: str) -> bool:
+        """Delete a channel and all its associated data (videos, transcripts, summaries, snippets)"""
+        try:
+            print(f"Deleting channel {channel_id} and all associated data...")
+
+            # First, get all videos for this channel
+            videos_result = self.supabase.table('youtube_videos')\
+                .select('video_id')\
+                .eq('channel_id', channel_id)\
+                .execute()
+            
+            video_ids = [video['video_id'] for video in videos_result.data] if videos_result.data else []
+            
+            if video_ids:
+                print(f"Found {len(video_ids)} videos to delete for channel {channel_id}")
+                
+                # Delete all videos (this will cascade to transcripts, chapters, summaries, and snippets)
+                for video_id in video_ids:
+                    # Use the existing delete method which handles all cascading deletes
+                    success = self.delete(video_id)
+                    if not success:
+                        print(f"Warning: Failed to delete video {video_id}")
+                        # Continue with other videos even if one fails
+            
+            # Finally, delete the channel itself
+            channel_response = self.supabase.table('youtube_channels')\
+                .delete()\
+                .eq('channel_id', channel_id)\
+                .execute()
+            
+            if channel_response.data:
+                print(f"Successfully deleted channel {channel_id}")
+                return True
+            else:
+                print(f"No channel found with ID {channel_id}")
+                return False
+
+        except Exception as e:
+            print(f"Error deleting channel {channel_id}: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
 
 # Global database storage instance
 database_storage = DatabaseStorage()

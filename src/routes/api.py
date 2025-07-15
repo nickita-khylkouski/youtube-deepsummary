@@ -199,6 +199,32 @@ def delete_video(video_id):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+@api_bp.route('/delete-channel/<channel_handle>', methods=['DELETE'])
+def delete_channel(channel_handle):
+    """API endpoint to delete a channel and all its associated data"""
+    try:
+        # Get channel by handle
+        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return jsonify({'success': False, 'message': f'Channel not found: {channel_handle}'}), 404
+        
+        channel_id = channel_info['channel_id']
+        channel_name = channel_info['channel_name']
+        
+        # Delete the channel and all associated data
+        success = database_storage.delete_channel(channel_id)
+        if success:
+            return jsonify({
+                'success': True, 
+                'message': f'Channel "{channel_name}" and all associated data deleted successfully'
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Failed to delete channel'}), 500
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 # Snippets API endpoints
 @api_bp.route('/snippets', methods=['POST'])
 def save_snippet():
