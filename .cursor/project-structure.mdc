@@ -1,0 +1,268 @@
+# YouTube Deep Summary - Project Structure
+
+## Overview
+YouTube Deep Summary is a comprehensive toolkit for downloading YouTube transcripts with AI-powered summarization using GPT-4.1, and a responsive web interface with Supabase database integration.
+
+## Project Architecture
+
+The project follows a clean modular architecture with clear separation of concerns:
+
+```
+youtube-deepsearch/
+├── app.py                          # Main Flask application entry point
+├── .cursor/                        # IDE-specific files and documentation
+│   └── project-structure.mdc       # This file - comprehensive project structure
+├── src/                            # Source code modules (modular architecture)
+│   ├── __init__.py                 # Package initialization
+│   ├── config.py                   # Configuration management with environment variables
+│   ├── database_storage.py         # Supabase database integration for persistent storage
+│   ├── legacy_file_storage.py      # Legacy file-based storage (deprecated)
+│   ├── transcript_summarizer.py    # OpenAI GPT-4.1 powered summarization
+│   ├── video_processing.py         # Video processing pipeline (transcript extraction, AI summarization)
+│   ├── youtube_api.py              # YouTube Data API integration
+│   ├── routes/                     # Flask blueprints for web interface
+│   │   ├── __init__.py
+│   │   ├── api.py                  # RESTful API endpoints
+│   │   ├── channels.py             # Channel management routes
+│   │   ├── main.py                 # Main routes (home, redirects, favicon)
+│   │   ├── snippets.py             # Memory snippets management
+│   │   └── videos.py               # Video display and transcript viewing
+│   └── utils/                      # Utility functions and helpers
+│       ├── __init__.py
+│       └── helpers.py              # Video ID extraction, markdown conversion, URL parsing
+├── tools/                          # Command-line tools
+│   ├── download_transcript.py      # Main CLI tool using youtube-transcript-api
+│   ├── simple_transcript.py        # Alternative CLI tool using yt-dlp
+│   └── download_transcript_manual.py # Manual web scraping CLI tool
+├── scripts/                        # Utility scripts for maintenance
+│   └── update_channel_handles.py   # Update YouTube channel handles in database
+├── tests/                          # Test files and debugging scripts
+│   └── test_chapters.py            # Test script for debugging chapter extraction
+├── sql/                            # Database SQL files and migrations
+│   ├── create_tables.sql           # Main database schema for Supabase
+│   ├── create_memory_snippets_table.sql # Memory snippets table
+│   ├── migration_steps.sql         # Migration instructions
+│   ├── migration_fixed.sql         # Fixed migration script
+│   ├── add_handle_column.sql       # Add handle column migration
+│   ├── add_title_description_columns.sql # Add title/description columns
+│   ├── remove_uploader_column.sql  # Remove uploader column migration
+│   ├── migrate_channels.sql        # Channel migration script
+│   └── fix_foreign_key_relationship.sql # Foreign key fixes
+├── templates/                      # HTML templates for web interface
+│   ├── base.html                   # Base template with common layout
+│   ├── index.html                  # Home page template
+│   ├── transcript.html             # Video transcript display
+│   ├── videos.html                 # Videos listing page
+│   ├── channels.html               # Channels listing page
+│   ├── channel_overview.html       # Channel overview hub
+│   ├── channel_videos.html         # Channel-specific videos
+│   ├── channel_summaries.html      # Channel-specific summaries
+│   ├── snippets.html               # Memory snippets display
+│   ├── snippet_channels.html       # Snippets grouped by channel
+│   └── error.html                  # Error page template
+├── static/                         # Static assets
+│   ├── favicon.svg                 # Main favicon
+│   ├── favicon-16x16.png          # Small favicon
+│   ├── favicon-32x32.png          # Medium favicon
+│   └── favicon_old_backup.ico     # Backup favicon
+├── .env                           # Environment variables (not in repo)
+├── requirements.txt               # Python dependencies
+├── Dockerfile                     # Docker containerization
+├── start_server.sh               # Server startup script
+├── README.md                      # Project documentation
+├── CLAUDE.md                      # Development guidelines
+└── URL_PATH_FEATURE.md           # Feature documentation
+```
+
+## Directory Purposes
+
+### `/src` - Source Code Modules
+**Purpose**: Contains all the core application logic organized into logical modules.
+
+**Architecture Pattern**: Modular design with Flask blueprints for clean separation of concerns.
+
+**Key Components**:
+- **Configuration Layer**: `config.py` - Centralized environment management
+- **Data Layer**: `utils/helpers.py` - Video ID extraction, URL parsing
+- **Storage Layer**: `database_storage.py` - Supabase database operations
+- **Business Logic Layer**: `video_processing.py`, `youtube_api.py`, `transcript_summarizer.py`
+- **Presentation Layer**: `routes/` - Flask blueprints for web interface
+
+### `/tools` - Command-Line Tools
+**Purpose**: Standalone command-line utilities for transcript extraction.
+
+**Usage Examples**:
+```bash
+# Main implementation with proxy support
+python3 tools/download_transcript.py "https://www.youtube.com/watch?v=VIDEO_ID" [proxy_ip]
+
+# yt-dlp alternative
+python3 tools/simple_transcript.py "https://www.youtube.com/watch?v=VIDEO_ID"
+
+# Manual web scraping fallback
+python3 tools/download_transcript_manual.py "https://www.youtube.com/watch?v=VIDEO_ID"
+```
+
+### `/scripts` - Utility Scripts
+**Purpose**: Maintenance and administrative scripts for database operations.
+
+**Examples**:
+- `update_channel_handles.py` - Updates YouTube channel handles using YouTube Data API
+
+### `/tests` - Testing
+**Purpose**: Test files and debugging utilities.
+
+**Usage**:
+```bash
+# Test chapter extraction functionality
+python3 tests/test_chapters.py
+```
+
+### `/sql` - Database Schema and Migrations
+**Purpose**: Database schema definitions and migration scripts for Supabase.
+
+**File Categories**:
+- **Schema**: `create_tables.sql` - Main database schema
+- **Features**: `create_memory_snippets_table.sql` - Feature-specific tables
+- **Migrations**: `migration_*.sql` - Schema evolution scripts
+- **Modifications**: `add_*.sql` - Column additions
+- **Fixes**: `fix_*.sql` - Database corrections
+
+### `/templates` - HTML Templates
+**Purpose**: Jinja2 templates for the responsive web interface.
+
+**Template Structure**:
+- `base.html` - Common layout and styling
+- Page-specific templates for different features
+- Mobile-responsive design with proper navigation
+
+### `/static` - Static Assets
+**Purpose**: CSS, JavaScript, images, and other static files.
+
+**Contents**:
+- Favicon files in multiple formats
+- Static assets for web interface
+
+## Module Dependencies
+
+```
+app.py
+├── src/config.py
+├── src/database_storage.py
+└── src/routes/
+    ├── main.py
+    ├── api.py
+    ├── channels.py
+    ├── videos.py
+    └── snippets.py
+        ├── src/video_processing.py
+        ├── src/youtube_api.py
+        ├── src/transcript_summarizer.py
+        └── src/utils/helpers.py
+```
+
+## Key Features by Module
+
+### Core Business Logic
+- **Video Processing**: Complete pipeline from URL to AI summary
+- **YouTube API Integration**: Channel information and video metadata
+- **AI Summarization**: GPT-4.1 powered structured summaries
+- **Database Operations**: Persistent storage with Supabase
+
+### Web Interface
+- **RESTful API**: JSON endpoints for programmatic access
+- **Responsive UI**: Mobile-optimized interface
+- **Channel Management**: Handle-based routing with SEO-friendly URLs
+- **Memory Snippets**: Personal knowledge base with tagging
+
+### Command-Line Tools
+- **Multiple Methods**: youtube-transcript-api, yt-dlp, manual scraping
+- **Proxy Support**: Network restrictions handling
+- **Error Handling**: Graceful fallbacks and comprehensive error messages
+
+## Development Workflow
+
+### Adding New Features
+1. **Routes**: Add to appropriate blueprint in `src/routes/`
+2. **Business Logic**: Create modules in `src/` or extend existing ones
+3. **Utilities**: Add helper functions to `src/utils/helpers.py`
+4. **Configuration**: Add environment variables to `src/config.py`
+5. **Database**: Add SQL migrations to `sql/`
+6. **Templates**: Add HTML templates to `templates/`
+
+### Testing
+```bash
+# Test module imports
+python3 -c "from app import create_app; app = create_app(); print('✓ App created successfully')"
+
+# Test specific modules
+python3 -c "from src.video_processing import video_processor; print('✓ Video processor available')"
+python3 -c "from src.youtube_api import youtube_api; print('✓ YouTube API available')"
+```
+
+## Configuration
+
+### Environment Variables
+```bash
+# OpenAI Configuration
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_MODEL=gpt-4.1
+OPENAI_MAX_TOKENS=100000
+OPENAI_TEMPERATURE=0.7
+
+# Supabase Configuration
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_anon_key
+
+# YouTube Data API
+YOUTUBE_API_KEY=your_youtube_api_key
+
+# Optional Proxy
+YOUTUBE_PROXY=proxy_ip:8080
+
+# Flask Configuration
+FLASK_HOST=0.0.0.0
+FLASK_PORT=33079
+FLASK_DEBUG=True
+```
+
+### Database Setup
+```bash
+# Run database schema in Supabase SQL editor
+sql/create_tables.sql
+```
+
+## Deployment
+
+### Development
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Setup environment
+cp .env.example .env
+# Edit .env with your API keys
+
+# Run application
+python3 app.py
+```
+
+### Docker
+```bash
+# Build image
+docker build -t youtube-deep-summary .
+
+# Run container
+docker run -p 33079:33079 -e OPENAI_API_KEY=your_key youtube-deep-summary
+```
+
+## Architecture Benefits
+
+✅ **Modular Design**: Clean separation of concerns with Flask blueprints  
+✅ **Scalable Structure**: Easy to add new features and maintain existing code  
+✅ **Industry Standards**: Follows Python project conventions  
+✅ **Developer Friendly**: Clear file organization and comprehensive documentation  
+✅ **Testable**: Isolated modules for easier testing and debugging  
+✅ **Maintainable**: Logical grouping of related functionality  
+
+This structure provides a solid foundation for continued development and maintenance of the YouTube Deep Summary application.
