@@ -15,7 +15,7 @@
 </div>
 
 {% if channels %}
-    <div class="channels-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 16px;">
+    <div class="channels-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
         {% for channel in channels %}
             <div class="channel-card" style="background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
@@ -97,7 +97,7 @@
                 
                 <!-- Actions -->
                 <div style="border-top: 1px solid #f0f0f0; padding-top: 12px; margin-top: 12px;">
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <div class="actions-section" style="display: flex; gap: 8px; flex-wrap: wrap;">
                         <a href="/{{ channel.handle }}" 
                            style="background: #f8f9fa; color: #333; text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; border: 1px solid #ddd; transition: all 0.2s;">
                             📺 View Channel
@@ -144,34 +144,92 @@
             flex-direction: column !important;
             text-align: center;
             gap: 10px;
+            margin: 0 -10px 15px -10px !important;
+            padding: 12px !important;
+        }
+        
+        .header h2 {
+            font-size: 18px !important;
         }
         
         .header h2 span {
             display: none;
         }
         
-        .channel-card {
-            padding: 15px !important;
+        .channels-grid {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+            margin: 0 -10px !important;
         }
         
-        .channels-grid {
-            gap: 15px !important;
+        .channel-card {
+            padding: 14px !important;
+            margin: 0 10px !important;
+            border-radius: 6px !important;
         }
         
         .channel-card > div:first-child {
             flex-direction: column !important;
             align-items: flex-start !important;
+            gap: 8px !important;
         }
         
         .channel-card > div:first-child > div:first-child {
             flex-direction: row !important;
             align-items: center !important;
             width: 100%;
+            gap: 10px !important;
         }
         
         .channel-card > div:first-child > a {
-            margin-top: 10px;
-            align-self: center;
+            margin-top: 0 !important;
+            align-self: stretch !important;
+            text-align: center;
+            font-size: 11px !important;
+            padding: 5px 8px !important;
+        }
+        
+        /* Make action buttons stack better on mobile */
+        .channel-card .actions-section {
+            flex-direction: column !important;
+            gap: 6px !important;
+        }
+        
+        .channel-card .actions-section > * {
+            flex: 1 !important;
+            text-align: center !important;
+            font-size: 11px !important;
+            padding: 5px 8px !important;
+        }
+    }
+    
+    /* Very small mobile screens */
+    @media (max-width: 480px) {
+        .channels-grid {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+            margin: 0 -5px !important;
+        }
+        
+        .channel-card {
+            margin: 0 5px !important;
+            padding: 12px !important;
+        }
+        
+        .header {
+            margin: 0 -5px 15px -5px !important;
+            padding: 10px !important;
+        }
+        
+        .channel-card h3 {
+            font-size: 14px !important;
+        }
+    }
+    
+    /* Tablet responsive */
+    @media (max-width: 1024px) and (min-width: 769px) {
+        .channels-grid {
+            grid-template-columns: 1fr !important;
         }
     }
 </style>
