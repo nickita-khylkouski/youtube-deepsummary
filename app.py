@@ -19,6 +19,19 @@ except ImportError:
     MARKDOWN_AVAILABLE = False
     print("Warning: markdown library not available. Install with: pip install markdown")
 
+def convert_markdown_to_html(text):
+    """Convert markdown text to HTML for display"""
+    if not text or not MARKDOWN_AVAILABLE:
+        return text
+    
+    try:
+        # Convert markdown to HTML with extensions for better formatting
+        html = markdown.markdown(text, extensions=['extra', 'codehilite', 'toc'])
+        return html
+    except Exception as e:
+        print(f"Error converting markdown to HTML: {e}")
+        return text
+
 def get_channel_url_identifier(channel_info=None, channel_name=None):
     """Get the best identifier for channel URLs - prefer channel_id over name"""
     if channel_info and channel_info.get('channel_id'):
@@ -1244,8 +1257,15 @@ def video_by_url_path(channel_handle, url_path):
         if 'youtube_channels' in cached_data.get('video_info', {}):
             channel_info = cached_data['video_info']['youtube_channels']
         
-        # Get summary from database
+        # Get summary from database and convert markdown to HTML
         summary = database_storage.get_summary(video_id)
+        if summary and MARKDOWN_AVAILABLE:
+            # Pre-process bullet points to proper markdown lists (consistent with channel summaries)
+            processed_summary = summary.replace('• ', '* ')
+            summary = markdown.markdown(processed_summary, extensions=['nl2br', 'tables'])
+        elif summary:
+            # Fallback if markdown library not available
+            summary = summary.replace('\n', '<br>').replace('• ', '• ')
         
         # Get memory snippets for this video
         snippets = database_storage.get_memory_snippets(video_id=video_id)
