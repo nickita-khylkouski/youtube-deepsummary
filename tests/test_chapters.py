@@ -61,26 +61,29 @@ def test_environment():
         traceback.print_exc()
         return False
 
-def test_transcript_summarizer():
-    """Test the transcript_summarizer module"""
-    print("\n=== Testing transcript_summarizer module ===")
+def test_chapter_extractor():
+    """Test the chapter_extractor module"""
+    print("\n=== Testing chapter_extractor module ===")
     
     try:
-        from transcript_summarizer import extract_video_chapters
-        print("✅ transcript_summarizer imported successfully")
+        import sys
+        import os
+        sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+        from src.chapter_extractor import extract_video_chapters
+        print("✅ chapter_extractor imported successfully")
         
         test_video_id = "Dp75wqOrtBs"
         chapters = extract_video_chapters(test_video_id)
         
         if chapters:
-            print(f"✅ Found {len(chapters)} chapters via transcript_summarizer")
+            print(f"✅ Found {len(chapters)} chapters via chapter_extractor")
         else:
-            print("❌ No chapters found via transcript_summarizer")
+            print("❌ No chapters found via chapter_extractor")
             
         return chapters is not None
         
     except Exception as e:
-        print(f"❌ transcript_summarizer test failed: {e}")
+        print(f"❌ chapter_extractor test failed: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -90,7 +93,7 @@ if __name__ == "__main__":
     print("=" * 40)
     
     env_ok = test_environment()
-    module_ok = test_transcript_summarizer()
+    module_ok = test_chapter_extractor()
     
     print(f"\n=== Results ===")
     print(f"Environment test: {'✅ PASS' if env_ok else '❌ FAIL'}")

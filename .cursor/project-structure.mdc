@@ -17,8 +17,12 @@ youtube-deepsearch/
 │   ├── config.py                   # Configuration management with environment variables
 │   ├── database_storage.py         # Supabase database integration for persistent storage
 │   ├── legacy_file_storage.py      # Legacy file-based storage (deprecated)
-│   ├── transcript_summarizer.py    # OpenAI GPT-4.1 powered summarization
-│   ├── video_processing.py         # Video processing pipeline (transcript extraction, AI summarization)
+│   ├── transcript_extractor.py     # YouTube transcript extraction with multiple methods
+│   ├── chapter_extractor.py        # YouTube chapter extraction using yt-dlp
+│   ├── summarizer.py               # OpenAI GPT-4.1 powered AI summarization
+│   ├── transcript_formatter.py     # Transcript formatting (readability, timestamps, SRT)
+│   ├── transcript_summarizer.py    # Legacy summarization module (partially deprecated)
+│   ├── video_processing.py         # Video processing pipeline orchestration
 │   ├── youtube_api.py              # YouTube Data API integration
 │   ├── routes/                     # Flask blueprints for web interface
 │   │   ├── __init__.py
@@ -85,7 +89,12 @@ youtube-deepsearch/
 - **Configuration Layer**: `config.py` - Centralized environment management
 - **Data Layer**: `utils/helpers.py` - Video ID extraction, URL parsing
 - **Storage Layer**: `database_storage.py` - Supabase database operations
-- **Business Logic Layer**: `video_processing.py`, `youtube_api.py`, `transcript_summarizer.py`
+- **Core Processing Layer**: 
+  - `transcript_extractor.py` - YouTube transcript extraction with language fallback
+  - `chapter_extractor.py` - Video chapter extraction using yt-dlp
+  - `summarizer.py` - AI-powered summarization with OpenAI GPT-4.1
+  - `transcript_formatter.py` - Multiple transcript formatting options
+- **Business Logic Layer**: `video_processing.py`, `youtube_api.py`
 - **Presentation Layer**: `routes/` - Flask blueprints for web interface
 
 ### `/tools` - Command-Line Tools
@@ -116,6 +125,21 @@ python3 tools/download_transcript_manual.py "https://www.youtube.com/watch?v=VID
 ```bash
 # Test chapter extraction functionality
 python3 tests/test_chapters.py
+
+# Test modular components
+python3 -c "from src.transcript_extractor import extract_transcript; print('✓ Transcript extraction function available')"
+python3 -c "from src.chapter_extractor import extract_video_info; print('✓ Video info extraction function available')"
+python3 -c "from src.summarizer import summarize_transcript_with_chapters; print('✓ Chapter-aware summarization available')"
+
+# Test all new components together
+python3 -c "
+from src.transcript_extractor import transcript_extractor
+from src.chapter_extractor import chapter_extractor
+from src.summarizer import summarizer
+from src.transcript_formatter import transcript_formatter
+print('✓ All modular components imported successfully')
+print(f'OpenAI configured: {summarizer.is_configured()}')
+"
 ```
 
 ### `/sql` - Database Schema and Migrations
@@ -155,18 +179,24 @@ app.py
     ├── channels.py
     ├── videos.py
     └── snippets.py
-        ├── src/video_processing.py
+        ├── src/video_processing.py (orchestrates)
+        │   ├── src/transcript_extractor.py
+        │   ├── src/chapter_extractor.py
+        │   ├── src/summarizer.py
+        │   └── src/transcript_formatter.py
         ├── src/youtube_api.py
-        ├── src/transcript_summarizer.py
         └── src/utils/helpers.py
 ```
 
 ## Key Features by Module
 
 ### Core Business Logic
-- **Video Processing**: Complete pipeline from URL to AI summary
+- **Video Processing**: Complete pipeline orchestration from URL to AI summary
+- **Transcript Extraction**: Multiple methods (youtube-transcript-api, yt-dlp, manual)
+- **Chapter Extraction**: Video chapter detection and metadata extraction
+- **AI Summarization**: GPT-4.1 powered structured summaries with chapter awareness
+- **Transcript Formatting**: Multiple output formats (readability, timestamps, SRT)
 - **YouTube API Integration**: Channel information and video metadata
-- **AI Summarization**: GPT-4.1 powered structured summaries
 - **Database Operations**: Persistent storage with Supabase
 
 ### Web Interface
@@ -198,6 +228,12 @@ python3 -c "from app import create_app; app = create_app(); print('✓ App creat
 # Test specific modules
 python3 -c "from src.video_processing import video_processor; print('✓ Video processor available')"
 python3 -c "from src.youtube_api import youtube_api; print('✓ YouTube API available')"
+
+# Test new modular components
+python3 -c "from src.transcript_extractor import transcript_extractor; print('✓ Transcript extractor available')"
+python3 -c "from src.chapter_extractor import chapter_extractor; print('✓ Chapter extractor available')"
+python3 -c "from src.summarizer import summarizer; print('✓ AI summarizer available')"
+python3 -c "from src.transcript_formatter import transcript_formatter; print('✓ Transcript formatter available')"
 ```
 
 ## Configuration
@@ -258,11 +294,170 @@ docker run -p 33079:33079 -e OPENAI_API_KEY=your_key youtube-deep-summary
 
 ## Architecture Benefits
 
-✅ **Modular Design**: Clean separation of concerns with Flask blueprints  
+✅ **Modular Design**: Clean separation of concerns with Flask blueprints and isolated components  
 ✅ **Scalable Structure**: Easy to add new features and maintain existing code  
 ✅ **Industry Standards**: Follows Python project conventions  
 ✅ **Developer Friendly**: Clear file organization and comprehensive documentation  
 ✅ **Testable**: Isolated modules for easier testing and debugging  
 ✅ **Maintainable**: Logical grouping of related functionality  
+✅ **Reusable Components**: Independent modules for transcript extraction, chapter extraction, and summarization  
+✅ **Separation of Concerns**: Each module has a single, well-defined responsibility  
+✅ **Easy to Extend**: New processing methods can be added without affecting existing functionality  
+
+## New Modular Components Architecture
+
+### Separated Core Components
+
+The application now features a clean modular architecture with separated components:
+
+#### `src/transcript_extractor.py`
+**Purpose**: Handles YouTube transcript extraction with multiple methods and language fallback.
+
+**Key Features**:
+- Uses `youtube-transcript-api` with proxy support
+- Automatic language detection and fallback
+- Multiple language support with preference for English
+- Comprehensive error handling and logging
+
+**Usage Example**:
+```python
+from src.transcript_extractor import transcript_extractor
+
+# Extract transcript with automatic language detection
+transcript = transcript_extractor.extract_transcript('VIDEO_ID')
+
+# Get available languages
+languages = transcript_extractor.get_available_languages('VIDEO_ID')
+
+# Extract in specific language
+transcript = transcript_extractor.extract_transcript_in_language('VIDEO_ID', 'es')
+```
+
+#### `src/chapter_extractor.py`
+**Purpose**: Extracts video chapters and metadata using yt-dlp.
+
+**Key Features**:
+- Comprehensive video information extraction
+- Chapter detection and formatting
+- Proxy support for restricted environments
+- Fallback methods for chapter parsing
+- Video metadata extraction (title, duration, channel info)
+
+**Usage Example**:
+```python
+from src.chapter_extractor import chapter_extractor
+
+# Extract complete video information
+video_info = chapter_extractor.extract_video_info('VIDEO_ID')
+
+# Extract only chapters
+chapters = chapter_extractor.extract_chapters_only('VIDEO_ID')
+
+# Parse chapters from description
+chapters = chapter_extractor.parse_chapters_from_description(description_text)
+```
+
+#### `src/summarizer.py`
+**Purpose**: AI-powered transcript summarization using OpenAI GPT-4.1.
+
+**Key Features**:
+- Chapter-aware summarization with enhanced prompts
+- Multiple output formats and styles
+- Clickable chapter links generation
+- Video metadata integration
+- Efficient token usage and context management
+
+**Usage Example**:
+```python
+from src.summarizer import summarizer
+
+# Basic summarization
+summary = summarizer.summarize_with_openai(transcript_content)
+
+# Chapter-aware summarization
+summary = summarizer.summarize_with_openai(
+    transcript_content, 
+    chapters=chapters, 
+    video_id='VIDEO_ID',
+    video_info=video_info
+)
+
+# Check if configured
+if summarizer.is_configured():
+    print("OpenAI API available")
+```
+
+#### `src/transcript_formatter.py`
+**Purpose**: Multiple transcript formatting options for different use cases.
+
+**Key Features**:
+- Readability formatting with paragraph grouping
+- Chapter-organized transcript display
+- SRT subtitle format generation
+- Timestamp formatting options
+- Chapter navigation generation
+
+**Usage Example**:
+```python
+from src.transcript_formatter import transcript_formatter
+
+# Format for readability
+readable = transcript_formatter.format_for_readability(transcript, chapters)
+
+# Format with regular timestamps
+timestamped = transcript_formatter.format_with_timestamps(transcript, interval_seconds=30)
+
+# Generate SRT format
+srt_content = transcript_formatter.format_as_srt(transcript)
+
+# Create chapter navigation
+chapter_nav = transcript_formatter.create_chapter_navigation(chapters, video_id)
+```
+
+### Component Integration
+
+The modular components work together through the orchestration layer:
+
+```python
+# In src/video_processing.py
+class VideoProcessor:
+    def __init__(self):
+        self.transcript_extractor = transcript_extractor
+        self.chapter_extractor = chapter_extractor
+        self.summarizer = summarizer
+        self.transcript_formatter = transcript_formatter
+    
+    def process_video_complete(self, video_id, channel_id=None):
+        # Extract transcript
+        transcript = self.transcript_extractor.extract_transcript(video_id)
+        
+        # Extract video info and chapters
+        video_info = self.chapter_extractor.extract_video_info(video_id)
+        
+        # Format transcript
+        formatted_transcript = self.transcript_formatter.format_for_readability(
+            transcript, video_info.get('chapters')
+        )
+        
+        # Generate summary if configured
+        if self.summarizer.is_configured():
+            summary = self.summarizer.summarize_with_openai(
+                formatted_transcript, 
+                chapters=video_info.get('chapters'),
+                video_id=video_id,
+                video_info=video_info
+            )
+        
+        return result
+```
+
+### Benefits of Modular Architecture
+
+✅ **Single Responsibility**: Each module has one clear purpose  
+✅ **Reusability**: Components can be used independently  
+✅ **Testability**: Isolated testing of individual components  
+✅ **Maintainability**: Easier to update and extend functionality  
+✅ **Flexibility**: Easy to swap implementations or add new methods  
+✅ **Clean Dependencies**: Clear separation between different concerns  
 
 This structure provides a solid foundation for continued development and maintenance of the YouTube Deep Summary application.

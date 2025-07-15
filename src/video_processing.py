@@ -1,8 +1,10 @@
 """
 Video processing module for transcript extraction and summarization
 """
-from youtube_transcript_api import YouTubeTranscriptApi
-from .transcript_summarizer import TranscriptSummarizer, format_transcript_for_readability, extract_video_info
+from .transcript_extractor import transcript_extractor
+from .chapter_extractor import chapter_extractor
+from .summarizer import summarizer
+from .transcript_formatter import transcript_formatter
 from .database_storage import database_storage
 from .youtube_api import youtube_api
 from .config import Config
@@ -12,76 +14,16 @@ class VideoProcessor:
     """Handles video processing including transcript extraction and AI summarization"""
     
     def __init__(self):
-        # Initialize summarizer with error handling
-        try:
-            self.summarizer = TranscriptSummarizer()
-            print(f"Summarizer initialized. OpenAI configured: {self.summarizer.is_configured()}")
-        except Exception as e:
-            print(f"Warning: Failed to initialize summarizer: {e}")
-            self.summarizer = None
+        # Use global instances of the separated components
+        self.transcript_extractor = transcript_extractor
+        self.chapter_extractor = chapter_extractor
+        self.summarizer = summarizer
+        self.transcript_formatter = transcript_formatter
+        print(f"VideoProcessor initialized. OpenAI configured: {self.summarizer.is_configured()}")
     
     def get_transcript(self, video_id):
-        """Download transcript for given video ID using proxy from environment with language fallback"""
-        try:
-            proxies = Config.get_proxy_config()
-            
-            if proxies:
-                print(f"Using proxy: {Config.YOUTUBE_PROXY}")
-            else:
-                print("No proxy configured")
-            
-            print(f"Fetching transcript for video ID: {video_id}")
-            
-            # First try to get English transcript directly
-            try:
-                transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=['en'], proxies=proxies)
-                print(f"Successfully fetched English transcript with {len(transcript_list)} entries")
-                language_used = "en (English)"
-            except Exception as e:
-                print(f"English transcript not available: {str(e)}")
-                
-                # If English not available, get the first available transcript
-                try:
-                    print("Attempting to find available transcripts...")
-                    transcript_list_data = YouTubeTranscriptApi.list_transcripts(video_id, proxies=proxies)
-                    
-                    # Get list of available language codes
-                    available_languages = []
-                    for transcript in transcript_list_data:
-                        available_languages.append(transcript.language_code)
-                        print(f"Available: {transcript.language} ({transcript.language_code})")
-                    
-                    if available_languages:
-                        # Use the first available language code with the standard get_transcript method
-                        first_lang = available_languages[0]
-                        transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=[first_lang], proxies=proxies)
-                        
-                        # Get language name for logging
-                        first_transcript = next(iter(transcript_list_data))
-                        language_used = f"{first_transcript.language} ({first_transcript.language_code})"
-                        print(f"Successfully fetched {language_used} transcript with {len(transcript_list)} entries")
-                    else:
-                        raise Exception("No transcripts found")
-                        
-                except Exception as fallback_error:
-                    print(f"Fallback transcript fetch failed: {str(fallback_error)}")
-                    raise Exception(f"No transcripts available for this video: {str(fallback_error)}")
-            
-            # Format the transcript
-            formatted_transcript = []
-            for entry in transcript_list:
-                formatted_transcript.append({
-                    'time': entry['start'],
-                    'text': entry['text'],
-                    'formatted_time': f"{int(entry['start'] // 60):02d}:{int(entry['start'] % 60):02d}"
-                })
-            
-            print(f"Transcript language used: {language_used}")
-            return formatted_transcript
-            
-        except Exception as e:
-            print(f"Error in get_transcript: {str(e)}")
-            raise Exception(f"Error downloading transcript: {str(e)}")
+        """Download transcript for given video ID using transcript extractor"""
+        return self.transcript_extractor.extract_transcript(video_id)
     
     def process_video_complete(self, video_id, channel_id=None):
         """Process a video completely: get transcript, video info, and AI summary"""
@@ -96,12 +38,12 @@ class VideoProcessor:
             print(f"Getting transcript for {video_id}")
             transcript = self.get_transcript(video_id)
             
-            # Get video info
+            # Get video info and chapters
             print(f"Getting video info for {video_id}")
-            video_info = extract_video_info(video_id)
+            video_info = self.chapter_extractor.extract_video_info(video_id)
             
             # Format transcript
-            formatted_transcript = format_transcript_for_readability(transcript, video_info.get('chapters'))
+            formatted_transcript = self.transcript_formatter.format_for_readability(transcript, video_info.get('chapters'))
             
             # Store in database
             # Get channel information if channel_id is available

@@ -6,7 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 YouTube Deep Summary is a comprehensive toolkit for downloading YouTube transcripts with multiple implementation approaches, AI-powered summarization using GPT-4.1, and a responsive web interface with Supabase database integration. The project handles various network restrictions and provides both command-line tools and a web application with persistent storage for transcripts, summaries, memory snippets, and channel management.
 
-## Project Structure
+## 📁 Project Structure & Documentation
+
+**For detailed project structure and architecture documentation, see:**
+- **[`.cursor/project-structure.mdc`](.cursor/project-structure.mdc)** - Comprehensive project structure with module descriptions, dependencies, and usage examples
+
+### Quick Structure Overview
 
 ### Command-Line Tools (`/tools`)
 - **`tools/download_transcript.py`** - Main implementation using `youtube-transcript-api` library with proxy support
@@ -24,9 +29,13 @@ The application follows a modular architecture with all source code organized in
 - **`src/database_storage.py`** - Supabase database integration for persistent storage
 - **`src/legacy_file_storage.py`** - Legacy file-based storage system (deprecated, replaced by database storage)
 
-#### Business Logic
-- **`src/transcript_summarizer.py`** - OpenAI GPT-4.1 powered summarization with chapter support
-- **`src/video_processing.py`** - Video processing pipeline: transcript extraction, formatting, and AI summarization
+#### Core Processing Components (Modular Architecture)
+- **`src/transcript_extractor.py`** - YouTube transcript extraction with multiple methods and language fallback
+- **`src/chapter_extractor.py`** - Video chapter extraction and metadata using yt-dlp
+- **`src/summarizer.py`** - OpenAI GPT-4.1 powered AI summarization with chapter awareness
+- **`src/transcript_formatter.py`** - Multiple transcript formatting options (readability, timestamps, SRT)
+- **`src/video_processing.py`** - Video processing pipeline orchestration using the above components
+- **`src/transcript_summarizer.py`** - Legacy summarization module (partially deprecated)
 - **`src/youtube_api.py`** - YouTube Data API integration for channel and video information
 
 #### Web Interface (`/src/routes`)
@@ -53,23 +62,73 @@ The application follows a modular architecture with all source code organized in
 - **`tests/test_chapters.py`** - Test script for debugging chapter extraction functionality
 
 ### Architecture
-The system follows a modular layered architecture with clear separation of concerns:
+The system follows a **modular layered architecture** with clear separation of concerns and independent components:
 
 #### Layer Structure
 1. **Configuration Layer** (`src/config.py`): Environment variables and application settings
 2. **Data Layer** (`src/utils/helpers.py`): Extract video ID from YouTube URLs using regex patterns
 3. **Storage Layer** (`src/database_storage.py`): Supabase database with tables for videos, transcripts, chapters, summaries, and memory_snippets
-4. **Acquisition Layer** (`src/youtube_api.py`): Download transcript and video metadata using multiple methods
-5. **Processing Layer** (`src/video_processing.py`): Format transcript into readable paragraphs with chapter organization
-6. **AI Layer** (`src/transcript_summarizer.py`): Generate structured summaries using GPT-4.1 via AJAX
+4. **Core Processing Components** (New Modular Architecture):
+   - **Transcript Extraction** (`src/transcript_extractor.py`): YouTube transcript extraction with multiple methods
+   - **Chapter Extraction** (`src/chapter_extractor.py`): Video chapter extraction and metadata using yt-dlp
+   - **AI Summarization** (`src/summarizer.py`): OpenAI GPT-4.1 powered summarization with chapter awareness
+   - **Transcript Formatting** (`src/transcript_formatter.py`): Multiple formatting options (readability, timestamps, SRT)
+5. **Orchestration Layer** (`src/video_processing.py`): Coordinates the core processing components
+6. **Integration Layer** (`src/youtube_api.py`): YouTube Data API integration for channel and video information
 7. **Knowledge Layer** (database + snippets routes): Memory snippets with text selection, formatting preservation, and tagging
 8. **Presentation Layer** (`src/routes/`): Responsive web interface with mobile optimization, channel management, and personal knowledge base
 
+#### Modular Architecture Benefits
+
+**✅ Separation of Concerns**: Each module has a single, well-defined responsibility
+- `transcript_extractor.py` → Only handles transcript extraction
+- `chapter_extractor.py` → Only handles chapter extraction
+- `summarizer.py` → Only handles AI summarization
+- `transcript_formatter.py` → Only handles formatting
+
+**✅ Independent Components**: Modules can be used independently without dependencies
+```python
+# Use components independently
+from src.transcript_extractor import transcript_extractor
+from src.chapter_extractor import chapter_extractor
+from src.summarizer import summarizer
+```
+
+**✅ Easy to Test**: Each module can be tested in isolation
+```python
+# Test transcript extraction independently
+python3 -c "from src.transcript_extractor import extract_transcript; print('✓ Available')"
+
+# Test chapter extraction independently
+python3 tests/test_chapters.py
+```
+
+**✅ Easy to Extend**: New methods can be added without affecting existing functionality
+- Add new transcript extraction methods to `transcript_extractor.py`
+- Add new formatting options to `transcript_formatter.py`
+- Add new summarization models to `summarizer.py`
+
+**✅ Maintainable**: Clear boundaries make code easier to understand and modify
+- Bug fixes are isolated to specific modules
+- Updates to one component don't affect others
+- Code is easier to review and understand
+
+**✅ Reusable**: Components can be used across different parts of the application
+- API endpoints can use components directly
+- Command-line tools can import and use components
+- Future features can reuse existing components
+
 #### Module Dependencies
 - **`app.py`** → Imports all route blueprints and initializes Flask application
-- **Route modules** → Import business logic modules and utilities
-- **Business logic modules** → Import configuration, storage, and utilities
+- **Route modules** → Import orchestration layer and utilities
+- **Orchestration layer** (`video_processing.py`) → Coordinates core processing components
+- **Core processing components** → Independent modules with minimal dependencies
 - **Utilities** → Self-contained helper functions with minimal dependencies
+
+**Key Design Principle**: **Depend on abstractions, not concretions**
+- Routes depend on the orchestration layer, not individual components
+- Components can be swapped or extended without changing dependent code
+- Clear interfaces between modules enable easy testing and modification
 
 ## Common Development Commands
 
@@ -101,6 +160,12 @@ python3 app.py
 
 # Testing chapter extraction
 python3 tests/test_chapters.py
+
+# Testing modular components independently
+python3 -c "from src.transcript_extractor import transcript_extractor; print('✓ Transcript extractor available')"
+python3 -c "from src.chapter_extractor import chapter_extractor; print('✓ Chapter extractor available')"
+python3 -c "from src.summarizer import summarizer; print('✓ AI summarizer available')"
+python3 -c "from src.transcript_formatter import transcript_formatter; print('✓ Transcript formatter available')"
 ```
 
 ## Network Considerations
@@ -112,11 +177,13 @@ python3 tests/test_chapters.py
 
 ## Key Implementation Details
 
-### Data Processing
-- All scripts extract 11-character YouTube video IDs from various URL formats
-- Dual transcript format: detailed timestamps `[MM:SS] text` and readable paragraphs
-- Chapter-aware formatting with automatic organization by video sections
-- **Consolidated import logic**: Single `process_video_complete()` function handles all video imports
+### Data Processing (Modular Architecture)
+- **Video ID Extraction** (`src/utils/helpers.py`): Extract 11-character YouTube video IDs from various URL formats
+- **Transcript Extraction** (`src/transcript_extractor.py`): Multiple methods with language fallback
+- **Chapter Extraction** (`src/chapter_extractor.py`): Video chapters and metadata using yt-dlp
+- **Transcript Formatting** (`src/transcript_formatter.py`): Multiple formats (readable paragraphs, timestamps, SRT)
+- **AI Summarization** (`src/summarizer.py`): Chapter-aware GPT-4.1 summaries with proper formatting
+- **Orchestration** (`src/video_processing.py`): Coordinates all components in `process_video_complete()`
 - **Automatic video import**: `/watch?v=VIDEO_ID` URLs automatically import videos if not found in database
 
 ### Performance Optimizations
@@ -126,12 +193,13 @@ python3 tests/test_chapters.py
 - Efficient transcript processing using pre-formatted text for AI
 - **Server-side markdown rendering**: AI summaries properly formatted with HTML conversion
 
-### Error Handling & Reliability
-- Graceful fallbacks for network connectivity issues
-- Multiple transcript acquisition methods (youtube-transcript-api, yt-dlp, manual)
-- Proxy support for restricted network environments
-- Comprehensive error messaging and cache failure recovery
-- **Unified import function**: Consistent error handling across all import operations
+### Error Handling & Reliability (Modular Benefits)
+- **Isolated Error Handling**: Each module handles its own errors without affecting others
+- **Graceful Fallbacks**: Multiple transcript acquisition methods in `transcript_extractor.py`
+- **Proxy Support**: Consistent proxy handling across `transcript_extractor.py` and `chapter_extractor.py`
+- **Component-Level Recovery**: Failures in one component don't break the entire pipeline
+- **Comprehensive Logging**: Each module provides detailed error messages for debugging
+- **Unified Import Function**: `video_processing.py` orchestrates all components with consistent error handling
 
 ## Environment Configuration
 
@@ -318,8 +386,150 @@ The application uses six main tables in Supabase:
 
 ```bash
 # Test chapter extraction functionality
-python3 test_chapters.py
+python3 tests/test_chapters.py
 
 # Test basic transcript functionality
-python3 download_transcript.py "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+python3 tools/download_transcript.py "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
+# Test modular components
+python3 -c "from src.transcript_extractor import transcript_extractor; print('✓ Transcript extractor available')"
+python3 -c "from src.chapter_extractor import chapter_extractor; print('✓ Chapter extractor available')"
+python3 -c "from src.summarizer import summarizer; print('✓ AI summarizer available')"
+python3 -c "from src.transcript_formatter import transcript_formatter; print('✓ Transcript formatter available')"
+
+# Test all components together
+python3 -c "from src.video_processing import video_processor; print('✓ Video processor with modular components available')"
 ```
+
+## Development Best Practices (Modular Architecture)
+
+### When Adding New Features
+
+**✅ Follow the modular architecture principles:**
+
+1. **Single Responsibility**: Each module should have one clear purpose
+2. **Dependency Injection**: Components should be injected, not directly instantiated
+3. **Interface Segregation**: Modules should depend on abstractions, not concrete implementations
+4. **Open/Closed Principle**: Modules should be open for extension, closed for modification
+
+### Code Organization Guidelines
+
+**✅ Adding New Processing Methods:**
+- **Transcript extraction methods** → Add to `src/transcript_extractor.py`
+- **Chapter extraction methods** → Add to `src/chapter_extractor.py`
+- **Summarization models** → Add to `src/summarizer.py`
+- **Formatting options** → Add to `src/transcript_formatter.py`
+
+**✅ Adding New API Endpoints:**
+- RESTful endpoints → Add to appropriate blueprint in `src/routes/`
+- Use the orchestration layer (`video_processing.py`) for complex operations
+- Don't call individual components directly from routes
+
+**✅ Adding New Utilities:**
+- Helper functions → Add to `src/utils/helpers.py`
+- Configuration options → Add to `src/config.py`
+- Database operations → Add to `src/database_storage.py`
+
+### Testing Strategy
+
+**✅ Unit Testing:**
+```python
+# Test individual components in isolation
+from src.transcript_extractor import TranscriptExtractor
+from src.chapter_extractor import ChapterExtractor
+from src.summarizer import TranscriptSummarizer
+from src.transcript_formatter import TranscriptFormatter
+
+# Each component can be tested independently
+extractor = TranscriptExtractor()
+chapters = ChapterExtractor()
+summarizer = TranscriptSummarizer()
+formatter = TranscriptFormatter()
+```
+
+**✅ Integration Testing:**
+```python
+# Test component interactions through the orchestration layer
+from src.video_processing import VideoProcessor
+
+processor = VideoProcessor()
+result = processor.process_video_complete('VIDEO_ID')
+```
+
+### Error Handling Best Practices
+
+**✅ Component-Level Error Handling:**
+- Each module handles its own errors and provides meaningful error messages
+- Use try-catch blocks within components to handle specific error scenarios
+- Log errors with sufficient context for debugging
+
+**✅ Graceful Degradation:**
+- If one component fails, the system should continue with available functionality
+- Provide fallback options when possible (e.g., multiple transcript extraction methods)
+- Return meaningful error responses to users
+
+### Extending the System
+
+**✅ Adding New Transcript Sources:**
+```python
+# Add new methods to src/transcript_extractor.py
+class TranscriptExtractor:
+    def extract_transcript_from_new_source(self, video_id: str) -> List[Dict]:
+        # Implementation for new source
+        pass
+```
+
+**✅ Adding New Summarization Models:**
+```python
+# Add new methods to src/summarizer.py
+class TranscriptSummarizer:
+    def summarize_with_new_model(self, transcript_content: str) -> str:
+        # Implementation for new model
+        pass
+```
+
+**✅ Adding New Output Formats:**
+```python
+# Add new methods to src/transcript_formatter.py
+class TranscriptFormatter:
+    def format_as_new_format(self, transcript: List[Dict]) -> str:
+        # Implementation for new format
+        pass
+```
+
+### Performance Considerations
+
+**✅ Modular Performance Benefits:**
+- **Lazy Loading**: Components are only loaded when needed
+- **Caching**: Each component can implement its own caching strategy
+- **Parallel Processing**: Independent components can be processed in parallel
+- **Resource Management**: Components manage their own resources (API clients, connections)
+
+### Maintenance Guidelines
+
+**✅ Regular Maintenance Tasks:**
+- **Component Updates**: Update individual components without affecting others
+- **Dependency Management**: Keep component dependencies isolated and up-to-date
+- **Code Reviews**: Review components independently for better focus
+- **Documentation**: Maintain component-level documentation with usage examples
+
+**✅ Monitoring and Debugging:**
+- **Component Health**: Monitor each component's health independently
+- **Error Tracking**: Track errors by component for better debugging
+- **Performance Metrics**: Measure performance of individual components
+- **Logging**: Use structured logging with component identification
+
+### Migration Path
+
+**✅ From Legacy Code:**
+- Legacy `transcript_summarizer.py` functions have been migrated to appropriate modules
+- Old imports are updated to use new modular components
+- Existing functionality is preserved while gaining modular benefits
+
+**✅ Future Enhancements:**
+- Easy to add new AI models to `summarizer.py`
+- Simple to add new transcript sources to `transcript_extractor.py`
+- Straightforward to add new output formats to `transcript_formatter.py`
+- Clear path for adding new processing steps to the pipeline
+
+This modular architecture provides a solid foundation for scalable, maintainable, and extensible development of the YouTube Deep Summary application.

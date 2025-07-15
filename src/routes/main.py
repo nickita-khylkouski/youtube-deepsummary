@@ -2,7 +2,7 @@
 Main routes for the YouTube Deep Summary application
 """
 from flask import Blueprint, request, render_template, redirect
-from ..transcript_summarizer import extract_video_info
+from ..chapter_extractor import extract_video_info
 from ..database_storage import database_storage
 from ..video_processing import video_processor
 from ..utils.helpers import extract_video_id
