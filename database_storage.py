@@ -6,6 +6,8 @@ Replaces the file-based transcript_cache.py
 
 import os
 import time
+import re
+import unicodedata
 from typing import Optional, Dict, List
 from datetime import datetime, timezone
 from supabase import create_client, Client
@@ -62,6 +64,89 @@ class DatabaseStorage:
             if original_https_proxy_lower:
                 os.environ['https_proxy'] = original_https_proxy_lower
         print("Database storage initialized with Supabase (no proxy)")
+
+    def _generate_url_slug(self, title: str) -> str:
+        """Generate a URL-friendly slug from a video title using only ASCII characters."""
+        if not title:
+            return "untitled-video"
+        
+        # Normalize unicode characters
+        title = unicodedata.normalize('NFKD', title)
+        
+        # Convert to lowercase
+        title = title.lower()
+        
+        # Basic transliteration for common characters
+        transliteration_map = {
+            'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo',
+            'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
+            'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+            'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch',
+            'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya',
+            'ä': 'a', 'ö': 'o', 'ü': 'u', 'ß': 'ss', 'ç': 'c', 'ñ': 'n',
+            'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e', 'à': 'a', 'á': 'a', 'â': 'a',
+            'ã': 'a', 'ì': 'i', 'í': 'i', 'î': 'i', 'ï': 'i', 'ò': 'o', 'ó': 'o',
+            'ô': 'o', 'õ': 'o', 'ù': 'u', 'ú': 'u', 'û': 'u', 'ý': 'y', 'ÿ': 'y'
+        }
+        
+        # Apply transliteration
+        for char, replacement in transliteration_map.items():
+            title = title.replace(char, replacement)
+        
+        # Remove any remaining non-ASCII characters
+        # Keep only ASCII letters, numbers, spaces, and hyphens
+        title = re.sub(r'[^a-zA-Z0-9\s-]', '', title)
+        
+        # Replace spaces and multiple hyphens with single hyphens
+        title = re.sub(r'[-\s]+', '-', title)
+        
+        # Remove leading/trailing hyphens
+        title = title.strip('-')
+        
+        # Limit length to 100 characters
+        if len(title) > 100:
+            title = title[:100].rstrip('-')
+        
+        # Ensure it's not empty
+        if not title:
+            return "untitled-video"
+        
+        return title
+
+    def _ensure_unique_url_slug(self, base_slug: str, video_id: str = None) -> str:
+        """Ensure the URL slug is unique by appending numbers if necessary."""
+        try:
+            # Check if the base slug is already taken
+            query = self.supabase.table('youtube_videos').select('video_id').eq('url_path', base_slug)
+            
+            # If we're updating an existing video, exclude it from the check
+            if video_id:
+                query = query.neq('video_id', video_id)
+            
+            response = query.execute()
+            
+            if not response.data:
+                return base_slug
+            
+            # Find a unique slug by appending numbers
+            counter = 1
+            while True:
+                candidate_slug = f"{base_slug}-{counter}"
+                query = self.supabase.table('youtube_videos').select('video_id').eq('url_path', candidate_slug)
+                
+                if video_id:
+                    query = query.neq('video_id', video_id)
+                
+                response = query.execute()
+                
+                if not response.data:
+                    return candidate_slug
+                
+                counter += 1
+                
+        except Exception as e:
+            print(f"Error ensuring unique URL slug: {e}")
+            return base_slug
 
     def _ensure_channel_exists(self, channel_id: str, channel_name: str, channel_info: dict = None):
         """Ensure a channel exists in the database, create if not found"""
@@ -270,14 +355,20 @@ class DatabaseStorage:
                 except:
                     published_at = None
 
+            # Generate URL path from title
+            title = video_info.get('title', '')
+            base_slug = self._generate_url_slug(title)
+            url_path = self._ensure_unique_url_slug(base_slug, video_id)
+
             # Insert or update video metadata
             video_data = {
                 'video_id': video_id,
-                'title': video_info.get('title'),
+                'title': title,
                 'channel_id': channel_id,
                 'duration': video_info.get('duration'),
                 'thumbnail_url': f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
                 'published_at': published_at,
+                'url_path': url_path,
                 'updated_at': datetime.now(timezone.utc).isoformat()
             }
 
@@ -481,7 +572,8 @@ class DatabaseStorage:
                     'cache_timestamp': time.mktime(created_at.timetuple()),
                     'file_size': 0,  # Not applicable for database
                     'has_summary': has_summary,
-                    'created_at': video['created_at']
+                    'created_at': video['created_at'],
+                    'url_path': video.get('url_path')
                 })
 
             return cached_videos
@@ -489,6 +581,55 @@ class DatabaseStorage:
         except Exception as e:
             print(f"Error getting all cached videos: {e}")
             return []
+
+    def get_video_by_url_path(self, url_path: str) -> Optional[Dict]:
+        """Get a video by its URL path"""
+        try:
+            response = self.supabase.table('youtube_videos')\
+                .select('*')\
+                .eq('url_path', url_path)\
+                .execute()
+            
+            if response.data and len(response.data) > 0:
+                video = response.data[0]
+                
+                # Get channel information if available
+                channel_name = 'Unknown Channel'
+                channel_id = video.get('channel_id')
+                handle = None
+                
+                if channel_id:
+                    try:
+                        channel_response = self.supabase.table('youtube_channels')\
+                            .select('channel_name, channel_id, handle')\
+                            .eq('channel_id', channel_id)\
+                            .execute()
+                        
+                        if channel_response.data and len(channel_response.data) > 0:
+                            channel_info = channel_response.data[0]
+                            channel_name = channel_info['channel_name']
+                            handle = channel_info.get('handle')
+                    except Exception as e:
+                        print(f"Warning: Could not fetch channel info for {channel_id}: {e}")
+                
+                return {
+                    'video_id': video['video_id'],
+                    'title': video['title'] or 'Unknown Title',
+                    'channel_name': channel_name,
+                    'channel_id': channel_id,
+                    'handle': handle,
+                    'duration': video['duration'],
+                    'thumbnail_url': video.get('thumbnail_url'),
+                    'published_at': video.get('published_at'),
+                    'created_at': video['created_at'],
+                    'url_path': video.get('url_path')
+                }
+            
+            return None
+            
+        except Exception as e:
+            print(f"Error getting video by url_path '{url_path}': {e}")
+            return None
 
     def get_videos_by_channel(self, channel_name: str = None, channel_id: str = None) -> List[Dict]:
         """Get all videos from a specific channel (by name or ID)"""

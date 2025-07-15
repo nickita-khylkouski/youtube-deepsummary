@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS youtube_videos (
     duration INTEGER,
     thumbnail_url TEXT,
     published_at TIMESTAMP WITH TIME ZONE, -- When video was published on YouTube
+    url_path TEXT, -- URL-friendly slug generated from video title for SEO-friendly URLs
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -85,6 +86,7 @@ CREATE INDEX IF NOT EXISTS idx_transcripts_created_at ON transcripts(created_at 
 CREATE INDEX IF NOT EXISTS idx_summaries_created_at ON summaries(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_memory_snippets_created_at ON memory_snippets(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_memory_snippets_tags ON memory_snippets USING GIN(tags);
+CREATE INDEX IF NOT EXISTS idx_youtube_videos_url_path ON youtube_videos(url_path);
 
 -- Enable Row Level Security (RLS) for better security
 ALTER TABLE youtube_channels ENABLE ROW LEVEL SECURITY;
