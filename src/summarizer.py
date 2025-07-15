@@ -314,8 +314,11 @@ Please analyze this transcript:
         else:
             return 0
     
-    def _format_timestamp(self, seconds: int) -> str:
+    def _format_timestamp(self, seconds) -> str:
         """Format seconds into readable timestamp"""
+        # Convert to int to handle both int and float inputs
+        seconds = int(seconds) if seconds is not None else 0
+        
         hours = seconds // 3600
         minutes = (seconds % 3600) // 60
         seconds = seconds % 60

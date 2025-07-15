@@ -238,16 +238,19 @@ class ChapterExtractor:
         
         return valid_chapters
     
-    def format_chapter_timestamp(self, seconds: int) -> str:
+    def format_chapter_timestamp(self, seconds) -> str:
         """
         Format seconds into readable timestamp
         
         Args:
-            seconds: Time in seconds
+            seconds: Time in seconds (int or float)
             
         Returns:
             Formatted timestamp string
         """
+        # Convert to int to handle both int and float inputs
+        seconds = int(seconds) if seconds is not None else 0
+        
         hours = seconds // 3600
         minutes = (seconds % 3600) // 60
         seconds = seconds % 60
