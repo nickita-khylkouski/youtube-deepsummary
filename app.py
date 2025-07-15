@@ -6,7 +6,7 @@ A Flask web application that accepts YouTube video IDs and displays transcripts.
 """
 
 import os
-from flask import Flask, request, render_template, jsonify
+from flask import Flask, request, render_template, jsonify, redirect
 from youtube_transcript_api import YouTubeTranscriptApi
 import re
 import json
@@ -518,10 +518,8 @@ def index():
 
 @app.route('/watch')
 def watch():
-    """Display transcript for YouTube video"""
+    """Redirect old /watch?v= URLs to new /@handle/url-path format"""
     video_id_param = request.args.get('v')
-    # Remove summarize parameter since we're using AJAX now
-    # summarize = request.args.get('summarize', 'false').lower() == 'true'
     
     if not video_id_param:
         return render_template('error.html', 
@@ -534,112 +532,43 @@ def watch():
                              error_message="Invalid video ID format"), 400
     
     try:
-        # Check database first
-        cached_data = database_storage.get(video_id)
+        # Get video from database to find channel handle and URL path
+        video_data = database_storage.get_all_cached_videos()
         
-        if cached_data:
-            print(f"Using cached data for video: {video_id}")
-            transcript = cached_data['transcript']
-            video_info = cached_data['video_info']
-            formatted_transcript_text = cached_data['formatted_transcript']
-            
-            video_title = video_info.get('title')
-            chapters = video_info.get('chapters')
-            video_duration = video_info.get('duration')
-            channel_name = 'Unknown Channel'
-            
-            # Get enhanced channel information from cached data
-            channel_info = None
-            if 'youtube_channels' in cached_data.get('video_info', {}):
-                channel_info = cached_data['video_info']['youtube_channels']
+        # Find the video by video_id
+        target_video = None
+        for video in video_data:
+            if video['video_id'] == video_id:
+                target_video = video
+                break
+        
+        if not target_video:
+            # Video not found in database, fall back to old behavior
+            return render_template('error.html', 
+                                 error_message=f"Video not found: {video_id}. Please import it first."), 404
+        
+        # Check if video has handle and url_path for redirect
+        handle = target_video.get('handle')
+        url_path = target_video.get('url_path')
+        
+        if handle and url_path:
+            # Redirect to new URL format
+            # Remove @ from handle if present for URL construction
+            clean_handle = handle.lstrip('@')
+            new_url = f"/@{clean_handle}/{url_path}"
+            print(f"Redirecting /watch?v={video_id} to {new_url}")
+            return redirect(new_url)
         else:
-            print(f"Database MISS for video: {video_id}, downloading fresh data")
-            transcript = get_transcript(video_id)
-            
-            # Extract video info (title, chapters, etc.)
-            print(f"Extracting video info for: {video_id}")
-            try:
-                video_info = extract_video_info(video_id)
-                video_title = video_info.get('title')
-                chapters = video_info.get('chapters')
-                video_duration = video_info.get('duration')
-                channel_name = 'Unknown Channel'
-                
-                # Channel info will be determined when storing in database
-                channel_info = None
-                
-                print(f"Video title: {video_title}")
-                print(f"Chapters extracted: {chapters}")
-                if chapters:
-                    print(f"Found {len(chapters)} chapters")
-                else:
-                    print("No chapters found or chapter extraction failed")
-            except Exception as e:
-                print(f"Video info extraction error: {e}")
-                video_info = {
-                    'title': None,
-                    'chapters': None,
-                    'duration': None,
-                }
-                video_title = None
-                chapters = None
-                video_duration = None
-                channel_name = 'Unknown Channel'
-                channel_info = None
-            
-            # Format transcript for improved readability
-            formatted_transcript_text = format_transcript_for_readability(transcript, chapters)
-            
-            # Try to get channel_id from video_info (extracted by yt-dlp)
-            channel_id = video_info.get('channel_id') if video_info else None
-            if channel_id:
-                print(f"Found channel_id {channel_id} from video info for video {video_id}")
-            
-            # Store the data in database for future use
-            # Get channel information if channel_id is available
-            channel_info = None
-            if channel_id:
-                channel_info = get_channel_info(channel_id)
-            database_storage.set(video_id, transcript, video_info, formatted_transcript_text, channel_id, channel_info)
-        
-        proxy_used = os.getenv('YOUTUBE_PROXY', 'None')
-        
-        # Check for existing summary
-        existing_summary = database_storage.get_summary(video_id)
-        if existing_summary:
-            # Convert markdown to HTML if markdown library is available
-            if MARKDOWN_AVAILABLE:
-                # Pre-process bullet points to proper markdown lists
-                processed_summary = existing_summary.replace('• ', '* ')
-                summary = markdown.markdown(processed_summary, extensions=['nl2br', 'tables'])
-                print(f"Converted existing summary for {video_id}: markdown -> HTML conversion applied")
-            else:
-                summary = existing_summary.replace('\n', '<br>').replace('• ', '• ')
-                print(f"Fallback for {video_id}: markdown library not available")
-        else:
-            summary = None
-        summary_error = None
-        
-        # Generate thumbnail URL
-        thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
-        
-        return render_template('transcript.html', 
-                             video_id=video_id,
-                             video_title=video_title,
-                             video_duration=video_duration,
-                             channel_info=channel_info,
-                             transcript=transcript,
-                             formatted_transcript=formatted_transcript_text,
-                             chapters=chapters,
-                             thumbnail_url=thumbnail_url,
-                             proxy_used=proxy_used,
-                             summary=summary,
-                             summary_error=summary_error,
-                             summarize_enabled=summarizer and summarizer.is_configured())
+            # Missing handle or url_path, show error
+            return render_template('error.html', 
+                                 error_message=f"Video exists but missing channel handle or URL path. Please re-import."), 400
         
     except Exception as e:
+        print(f"Error processing video {video_id}: {e}")
+        import traceback
+        traceback.print_exc()
         return render_template('error.html', 
-                             error_message=str(e)), 500
+                             error_message=f"Error loading video: {str(e)}"), 500
 
 @app.route('/api/transcript/<video_id>')
 def api_transcript(video_id):
@@ -1066,7 +995,8 @@ def channel_summaries(channel_handle):
                     'duration': video['duration'],
                     'thumbnail_url': f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
                     'summary': summary_html,
-                    'created_at': video['created_at']
+                    'created_at': video['created_at'],
+                    'url_path': video.get('url_path')
                 })
         
         # Use channel name from channel_info
@@ -1212,6 +1142,8 @@ def snippets_channel_page(channel_handle):
                     'video_id': video_id,
                     'channel_name': snippet.get('channel_name'),
                     'channel_id': snippet.get('channel_id'),
+                    'handle': snippet.get('handle'),
+                    'url_path': snippet.get('youtube_videos', {}).get('url_path'),
                     'snippets': []
                 }
             grouped_snippets[video_id]['snippets'].append(snippet)
@@ -1241,6 +1173,74 @@ def snippets_channel_page(channel_handle):
         traceback.print_exc()
         return render_template('error.html', 
                              error_message=f"Error loading channel snippets: {str(e)}"), 500
+
+@app.route('/@<channel_handle>/<url_path>')
+def video_by_url_path(channel_handle, url_path):
+    """Display transcript for YouTube video using SEO-friendly URL"""
+    try:
+        # Get video by URL path
+        video = database_storage.get_video_by_url_path(url_path)
+        
+        if not video:
+            return render_template('error.html', 
+                                 error_message=f"Video not found: {url_path}"), 404
+        
+        # Verify the channel handle matches
+        if video.get('handle') != channel_handle and video.get('handle') != f"@{channel_handle}":
+            return render_template('error.html', 
+                                 error_message=f"Video not found in channel: {channel_handle}"), 404
+        
+        video_id = video['video_id']
+        
+        # Get full video data from database
+        cached_data = database_storage.get(video_id)
+        
+        if not cached_data:
+            return render_template('error.html', 
+                                 error_message="Video data not found"), 404
+        
+        transcript = cached_data['transcript']
+        video_info = cached_data['video_info']
+        formatted_transcript_text = cached_data['formatted_transcript']
+        
+        video_title = video_info.get('title') or video['title']
+        chapters = video_info.get('chapters')
+        video_duration = video_info.get('duration') or video['duration']
+        channel_name = video['channel_name']
+        
+        # Get enhanced channel information from cached data
+        channel_info = None
+        if 'youtube_channels' in cached_data.get('video_info', {}):
+            channel_info = cached_data['video_info']['youtube_channels']
+        
+        # Get summary from database
+        summary = database_storage.get_summary(video_id)
+        
+        # Get memory snippets for this video
+        snippets = database_storage.get_memory_snippets(video_id=video_id)
+        
+        # Add thumbnail URL
+        thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+        
+        return render_template('transcript.html', 
+                             video_id=video_id,
+                             video_title=video_title,
+                             channel_name=channel_name,
+                             channel_info=channel_info,
+                             transcript=transcript,
+                             formatted_transcript=formatted_transcript_text,
+                             chapters=chapters,
+                             video_duration=video_duration,
+                             summary=summary,
+                             snippets=snippets,
+                             thumbnail_url=thumbnail_url)
+        
+    except Exception as e:
+        print(f"Error in video_by_url_path for {channel_handle}/{url_path}: {e}")
+        import traceback
+        traceback.print_exc()
+        return render_template('error.html', 
+                             error_message=f"Error loading video: {str(e)}"), 500
 
 @app.route('/api/<channel_handle>/import', methods=['POST'])
 def api_import_channel_videos(channel_handle):

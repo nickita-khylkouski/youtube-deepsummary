@@ -66,7 +66,7 @@
                                     {% endif %}
                                     <div style="flex: 1; min-width: 0;">
                                         <div style="font-size: 13px; font-weight: 500; line-height: 1.2; margin-bottom: 2px;">
-                                            <a href="/watch?v={{ video.video_id }}" style="color: #333; text-decoration: none;">
+                                            <a href="{% if video.url_path and channel.handle %}/{{ channel.handle }}/{{ video.url_path }}{% else %}/watch?v={{ video.video_id }}{% endif %}" style="color: #333; text-decoration: none;">
                                                 {% if video.video_info.title %}
                                                     {{ video.video_info.title[:60] }}{% if video.video_info.title|length > 60 %}...{% endif %}
                                                 {% else %}

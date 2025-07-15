@@ -126,7 +126,7 @@
     <div class="videos-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
         {% for video in recent_videos %}
             <div class="video-card" style="border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; transition: all 0.3s ease;">
-                <a href="/watch?v={{ video.video_id }}" style="text-decoration: none; color: inherit;">
+                <a href="{% if video.url_path and channel_info.handle %}/{{ channel_info.handle }}/{{ video.url_path }}{% else %}/watch?v={{ video.video_id }}{% endif %}" style="text-decoration: none; color: inherit;">
                     <img src="{{ video.thumbnail_url }}" 
                          alt="{{ video.title }}" 
                          style="width: 100%; height: 180px; object-fit: cover;">

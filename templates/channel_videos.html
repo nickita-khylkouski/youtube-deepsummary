@@ -24,14 +24,14 @@
 
                         <div style="flex-grow: 1;">
                             <h3 style="margin: 0 0 8px 0; font-size: 16px;">
-                                <a href="/watch?v={{ video.video_id }}" style="color: #333; text-decoration: none;">{{ video.title }}</a>
+                                <a href="{% if video.url_path and channel_info.handle %}/{{ channel_info.handle }}/{{ video.url_path }}{% else %}/watch?v={{ video.video_id }}{% endif %}" style="color: #333; text-decoration: none;">{{ video.title }}</a>
                             </h3>
                             <p style="color: #666; font-size: 14px; margin: 0 0 8px 0;">
                                 Duration: {{ "%.0f"|format(video.duration // 60) }}:{{ "%02.0f"|format(video.duration % 60) }} minutes
                                 • Saved: {{ video.created_at[:10] }}
                             </p>
                             <div style="display: flex; gap: 10px; margin-top: 10px;">
-                                <a href="/watch?v={{ video.video_id }}" 
+                                <a href="{% if video.url_path and channel_info.handle %}/{{ channel_info.handle }}/{{ video.url_path }}{% else %}/watch?v={{ video.video_id }}{% endif %}" 
                                    style="background: #f8f9fa; color: #333; text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; border: 1px solid #ddd;">
                                     📝 View Transcript
                                 </a>

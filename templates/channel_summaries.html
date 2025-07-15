@@ -40,7 +40,7 @@
                     </div>
                     <div class="video-meta">
                         <div class="title-row">
-                            <h3><a href="/watch?v={{ summary.video_id }}" style="color: #333; text-decoration: none;">{{ summary.title }}</a></h3>
+                            <h3><a href="{% if summary.url_path and channel_info.handle %}/{{ channel_info.handle }}/{{ summary.url_path }}{% else %}/watch?v={{ summary.video_id }}{% endif %}" style="color: #333; text-decoration: none;">{{ summary.title }}</a></h3>
                         </div>
                         <p class="video-details">
                             <span class="duration">{{ summary.duration }}</span>

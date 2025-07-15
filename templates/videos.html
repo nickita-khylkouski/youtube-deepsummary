@@ -31,7 +31,7 @@
                         <div style="flex-grow: 1; min-width: 0;">
                             <h4 style="margin: 0 0 8px 0; font-size: 16px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
                                 {% if video.is_valid %}
-                                    <a href="/watch?v={{ video.video_id }}" style="color: #333; text-decoration: none;">{{ video.title }}</a>
+                                    <a href="{% if video.url_path and video.handle %}/{{ video.handle }}/{{ video.url_path }}{% else %}/watch?v={{ video.video_id }}{% endif %}" style="color: #333; text-decoration: none;">{{ video.title }}</a>
                                 {% else %}
                                     <span style="color: #999;">{{ video.title }}</span>
                                 {% endif %}
@@ -63,7 +63,7 @@
                         <div style="display: flex; justify-content: flex-end; align-items: center;">
                             <div style="display: flex; gap: 8px;">
                                 {% if video.is_valid %}
-                                    <a href="/watch?v={{ video.video_id }}" style="background: #007bff; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">View</a>
+                                    <a href="{% if video.url_path and video.handle %}/{{ video.handle }}/{{ video.url_path }}{% else %}/watch?v={{ video.video_id }}{% endif %}" style="background: #007bff; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">View</a>
                                 {% endif %}
                                 <a href="https://www.youtube.com/watch?v={{ video.video_id }}" target="_blank" style="background: #ff0000; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">YouTube</a>
                                 <button onclick="deleteVideo('{{ video.video_id }}', '{{ video.title|e }}')" style="background: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 3px; font-size: 11px; cursor: pointer;">🗑️ Delete</button>

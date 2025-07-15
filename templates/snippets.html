@@ -58,16 +58,16 @@
                     <div style="flex: 1;">
                         {% if group.video_info.title %}
                             <h3 style="margin: 0 0 4px 0; font-size: 16px; line-height: 1.3;">
-                                <a href="/watch?v={{ group.video_id }}" style="color: #333; text-decoration: none;">{{ group.video_info.title }}</a>
+                                <a href="{% if group.url_path and group.handle %}/{{ group.handle }}/{{ group.url_path }}{% else %}/watch?v={{ group.video_id }}{% endif %}" style="color: #333; text-decoration: none;">{{ group.video_info.title }}</a>
                             </h3>
                             <p style="margin: 0; color: #666; font-size: 14px;">
                                 {% if group.channel_name %}{{ group.channel_name }} • {% endif %}
                                 <span style="background: #e8f5e8; color: #2e7d32; padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">{{ group.snippets|length }} snippet{{ 's' if group.snippets|length != 1 else '' }}</span>
-                                • <a href="/watch?v={{ group.video_id }}" style="color: #0066cc; text-decoration: none;">View Video</a>
+                                • <a href="{% if group.url_path and group.handle %}/{{ group.handle }}/{{ group.url_path }}{% else %}/watch?v={{ group.video_id }}{% endif %}" style="color: #0066cc; text-decoration: none;">View Video</a>
                             </p>
                         {% else %}
                             <h3 style="margin: 0 0 4px 0; font-size: 16px;">
-                                <a href="/watch?v={{ group.video_id }}" style="color: #333; text-decoration: none;">Video {{ group.video_id }}</a>
+                                <a href="{% if group.url_path and group.handle %}/{{ group.handle }}/{{ group.url_path }}{% else %}/watch?v={{ group.video_id }}{% endif %}" style="color: #333; text-decoration: none;">Video {{ group.video_id }}</a>
                             </h3>
                             <p style="margin: 0; color: #666; font-size: 14px;">
                                 <span style="background: #e8f5e8; color: #2e7d32; padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">{{ group.snippets|length }} snippet{{ 's' if group.snippets|length != 1 else '' }}</span>

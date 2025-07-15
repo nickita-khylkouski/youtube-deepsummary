@@ -648,7 +648,7 @@ class DatabaseStorage:
                 if videos and channel_id:
                     try:
                         channel_response = self.supabase.table('youtube_channels')\
-                            .select('channel_name, channel_id')\
+                            .select('channel_name, channel_id, handle')\
                             .eq('channel_id', channel_id)\
                             .execute()
                         
@@ -657,6 +657,7 @@ class DatabaseStorage:
                             for video in videos:
                                 video['channel_name'] = channel_info['channel_name']
                                 video['channel_id'] = channel_info['channel_id']
+                                video['handle'] = channel_info.get('handle')
                     except Exception as e:
                         print(f"Warning: Could not fetch channel info for {channel_id}: {e}")
                 
@@ -746,6 +747,7 @@ class DatabaseStorage:
                                 'channel_name': video.get('channel_name')
                             },
                             'video_id': video_id,
+                            'url_path': video.get('url_path'),
                             'has_summary': video_id in summarized_video_ids
                         }
                     
