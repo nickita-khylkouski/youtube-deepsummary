@@ -6,28 +6,57 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 YouTube Deep Summary is a comprehensive toolkit for downloading YouTube transcripts with multiple implementation approaches, AI-powered summarization using GPT-4.1, and a responsive web interface with Supabase database integration. The project handles various network restrictions and provides both command-line tools and a web application with persistent storage for transcripts, summaries, memory snippets, and channel management.
 
-## Core Scripts
+## Project Structure
 
-### Primary Scripts
+### Command-Line Tools
 - **`download_transcript.py`** - Main implementation using `youtube-transcript-api` library with proxy support
 - **`simple_transcript.py`** - Alternative implementation using `yt-dlp` for broader compatibility
 - **`download_transcript_manual.py`** - Manual web scraping fallback (no external dependencies)
 
-### Web Application & Advanced Features
-- **`app.py`** - Flask web application with transcript viewing, AI summarization, and database storage
-- **`transcript_summarizer.py`** - OpenAI GPT-4.1 powered summarization with chapter support
-- **`database_storage.py`** - Supabase database integration for persistent storage
-- **`transcript_cache.py`** - Legacy file-based caching system (replaced by database storage)
+### Web Application
+- **`app.py`** - Main Flask application entry point with blueprint registration and configuration
+
+### Core Modules (`/src`)
+The application follows a modular architecture with all source code organized in the `/src` directory:
+
+#### Configuration & Infrastructure
+- **`src/config.py`** - Centralized configuration management with environment variables
+- **`src/database_storage.py`** - Supabase database integration for persistent storage
+- **`src/legacy_file_storage.py`** - Legacy file-based storage system (deprecated, replaced by database storage)
+
+#### Business Logic
+- **`src/transcript_summarizer.py`** - OpenAI GPT-4.1 powered summarization with chapter support
+- **`src/video_processing.py`** - Video processing pipeline: transcript extraction, formatting, and AI summarization
+- **`src/youtube_api.py`** - YouTube Data API integration for channel and video information
+
+#### Web Interface (`/src/routes`)
+- **`src/routes/main.py`** - Main routes: home page, `/watch` redirects, favicon
+- **`src/routes/api.py`** - API endpoints for transcript data, summaries, and video operations
+- **`src/routes/channels.py`** - Channel management: overview, videos, summaries
+- **`src/routes/videos.py`** - Video display and transcript viewing
+- **`src/routes/snippets.py`** - Memory snippets management and display
+
+#### Utilities
+- **`src/utils/helpers.py`** - Utility functions: video ID extraction, markdown conversion, URL parsing
 
 ### Architecture
-The system follows a layered architecture:
-1. **Data Layer**: Extract video ID from YouTube URLs using regex patterns
-2. **Storage Layer**: Supabase database with tables for videos, transcripts, chapters, summaries, and memory_snippets
-3. **Acquisition Layer**: Download transcript and video metadata using multiple methods
-4. **Processing Layer**: Format transcript into readable paragraphs with chapter organization
-5. **AI Layer**: Generate structured summaries using GPT-4.1 via AJAX
-6. **Knowledge Layer**: Memory snippets with text selection, formatting preservation, and tagging
-7. **Presentation Layer**: Responsive web interface with mobile optimization, channel management, and personal knowledge base
+The system follows a modular layered architecture with clear separation of concerns:
+
+#### Layer Structure
+1. **Configuration Layer** (`src/config.py`): Environment variables and application settings
+2. **Data Layer** (`src/utils/helpers.py`): Extract video ID from YouTube URLs using regex patterns
+3. **Storage Layer** (`src/database_storage.py`): Supabase database with tables for videos, transcripts, chapters, summaries, and memory_snippets
+4. **Acquisition Layer** (`src/youtube_api.py`): Download transcript and video metadata using multiple methods
+5. **Processing Layer** (`src/video_processing.py`): Format transcript into readable paragraphs with chapter organization
+6. **AI Layer** (`src/transcript_summarizer.py`): Generate structured summaries using GPT-4.1 via AJAX
+7. **Knowledge Layer** (database + snippets routes): Memory snippets with text selection, formatting preservation, and tagging
+8. **Presentation Layer** (`src/routes/`): Responsive web interface with mobile optimization, channel management, and personal knowledge base
+
+#### Module Dependencies
+- **`app.py`** → Imports all route blueprints and initializes Flask application
+- **Route modules** → Import business logic modules and utilities
+- **Business logic modules** → Import configuration, storage, and utilities
+- **Utilities** → Self-contained helper functions with minimal dependencies
 
 ## Common Development Commands
 

@@ -99,6 +99,33 @@ python3 app.py
 ./start_server.sh
 ```
 
+## Development
+
+### Modular Architecture
+The application follows a clean modular design with Flask blueprints:
+
+- **Configuration**: Centralized environment management in `src/config.py`
+- **Route Organization**: Separated into logical blueprints in `src/routes/`
+- **Business Logic**: Core functionality in dedicated modules (`src/video_processing.py`, `src/youtube_api.py`, etc.)
+- **Utilities**: Helper functions in `src/utils/`
+- **Database**: Single source of truth with `src/database_storage.py`
+
+### Adding New Features
+1. **New Routes**: Add to appropriate blueprint in `src/routes/`
+2. **New Business Logic**: Create new modules in `src/` or extend existing ones
+3. **New Utilities**: Add helper functions to `src/utils/helpers.py`
+4. **Configuration**: Add environment variables to `src/config.py`
+
+### Testing
+```bash
+# Test module imports
+python3 -c "from app import create_app; app = create_app(); print('✓ App created successfully')"
+
+# Test specific modules
+python3 -c "from src.video_processing import video_processor; print('✓ Video processor available')"
+python3 -c "from src.youtube_api import youtube_api; print('✓ YouTube API available')"
+```
+
 ## Usage
 
 ### Command Line Scripts
@@ -180,22 +207,46 @@ curl -X POST http://localhost:33079/api/@techchannel/import \
 
 ## Project Structure
 
-### Core Scripts
+### Command-Line Tools
 - **`download_transcript.py`** - Main implementation using `youtube-transcript-api` with proxy support
 - **`simple_transcript.py`** - Alternative using `yt-dlp` for broader compatibility  
 - **`download_transcript_manual.py`** - Manual web scraping fallback
 
 ### Web Application
-- **`app.py`** - Flask web application with transcript viewing and AI summarization
-- **`transcript_summarizer.py`** - OpenAI-powered summarization module
-- **`database_storage.py`** - Supabase database integration module
-- **`templates/`** - HTML templates for web interface
+- **`app.py`** - Main Flask application entry point with modular blueprint architecture
 
-### Configuration & Storage
+### Core Modules (`/src`)
+The application follows a clean modular architecture with all source code organized in the `/src` directory:
+
+#### Configuration & Infrastructure
+- **`src/config.py`** - Centralized configuration management with environment variables
+- **`src/database_storage.py`** - Supabase database integration for persistent storage
+- **`src/legacy_file_storage.py`** - Legacy file-based storage (deprecated, replaced by database)
+
+#### Business Logic
+- **`src/transcript_summarizer.py`** - OpenAI GPT-4.1 powered summarization with chapter support
+- **`src/video_processing.py`** - Complete video processing pipeline: transcript extraction, formatting, AI summarization
+- **`src/youtube_api.py`** - YouTube Data API integration for channel and video information
+
+#### Web Interface (`/src/routes`)
+- **`src/routes/main.py`** - Main routes: home page, `/watch` redirects, favicon
+- **`src/routes/api.py`** - RESTful API endpoints for transcript data, summaries, and video operations
+- **`src/routes/channels.py`** - Channel management: overview, videos, summaries with handle-based routing
+- **`src/routes/videos.py`** - Video display and transcript viewing with SEO-friendly URLs
+- **`src/routes/snippets.py`** - Memory snippets management and display
+
+#### Utilities
+- **`src/utils/helpers.py`** - Utility functions: video ID extraction, markdown conversion, URL parsing
+
+### Frontend & Assets
+- **`templates/`** - HTML templates for responsive web interface
+- **`static/`** - CSS, JavaScript, and static assets
+
+### Configuration & Documentation
 - **`.env`** - Environment variables (create from examples above)
 - **`create_tables.sql`** - Database schema for Supabase setup
 - **`CLAUDE.md`** - Development guidelines and project documentation
-- **`transcript_cache.py`** - Legacy caching module (deprecated)
+- **`README.md`** - Project overview and setup instructions
 
 ## AI Summarization Structure
 

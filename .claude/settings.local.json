@@ -16,7 +16,10 @@
       "Bash(chmod:*)",
       "WebFetch(domain:developers.google.com)",
       "Bash(rm:*)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(cp:*)",
+      "Bash(mkdir:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
-Transcript caching module with TTL support
+Legacy file-based transcript storage module with TTL support
+
+DEPRECATED: This module has been replaced by database_storage.py which uses Supabase.
+Only kept for historical reference and potential fallback scenarios.
 """
 
 import os
@@ -10,12 +13,17 @@ from typing import Optional, Dict, List
 from pathlib import Path
 
 
-class TranscriptCache:
-    """Simple file-based cache for YouTube transcripts with TTL"""
+class LegacyFileStorage:
+    """
+    DEPRECATED: Legacy file-based storage for YouTube transcripts with TTL
+    
+    This class has been replaced by database_storage.py which uses Supabase for 
+    persistent storage. Only kept for historical reference and potential fallback.
+    """
     
     def __init__(self, cache_dir: str = "cache", ttl_hours: int = 24):
         """
-        Initialize transcript cache
+        Initialize legacy file storage (DEPRECATED)
         
         Args:
             cache_dir: Directory to store cache files
@@ -187,5 +195,5 @@ class TranscriptCache:
         return cached_videos
 
 
-# Global cache instance
-transcript_cache = TranscriptCache()
+# Global legacy storage instance (DEPRECATED - use database_storage instead)
+legacy_file_storage = LegacyFileStorage()
