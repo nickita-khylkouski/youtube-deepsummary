@@ -1,7 +1,7 @@
 """
 Channel-related routes for the YouTube Deep Summary application
 """
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, request
 from ..database_storage import database_storage
 from ..utils.helpers import format_summary_html
 
@@ -12,8 +12,24 @@ channels_bp = Blueprint('channels', __name__)
 def channels_page():
     """Display all channels with video counts"""
     try:
-        channels = database_storage.get_all_channels()
-        return render_template('channels.html', channels=channels)
+        # Get parameters from query string
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        # Ensure page is at least 1 and per_page is reasonable
+        if page < 1:
+            page = 1
+        if per_page < 1 or per_page > 100:
+            per_page = 20
+        
+        # Get paginated channels data
+        result = database_storage.get_all_channels(page=page, per_page=per_page)
+        channels = result['channels']
+        pagination = result['pagination']
+        
+        return render_template('channels.html', 
+                             channels=channels, 
+                             pagination=pagination)
     except Exception as e:
         return render_template('error.html', 
                              error_message=f"Error loading channels: {str(e)}"), 500

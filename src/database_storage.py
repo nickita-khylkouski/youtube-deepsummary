@@ -895,67 +895,199 @@ class DatabaseStorage:
 
     
 
-    def get_all_channels(self):
-        """Get all channels with video counts and summary counts"""
+    def get_all_channels(self, page: int = 1, per_page: int = 20):
+        """Get all channels with video counts and summary counts - OPTIMIZED VERSION with pagination"""
         try:
-            # Get channels from youtube_channels table using simple queries (no JOINs)
-            channels_result = self.supabase.table('youtube_channels')\
-                .select('*')\
-                .order('created_at', desc=True)\
+            # Use optimized implementation with minimal database calls
+            return self._get_all_channels_optimized(page, per_page)
+            
+        except Exception as e:
+            print(f"Error in get_all_channels: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'channels': [],
+                'pagination': {
+                    'page': page,
+                    'per_page': per_page,
+                    'total': 0,
+                    'total_pages': 0,
+                    'has_prev': False,
+                    'has_next': False,
+                    'prev_page': None,
+                    'next_page': None
+                }
+            }
+
+    def _get_all_channels_optimized(self, page: int = 1, per_page: int = 20):
+        """Optimized implementation using minimal database calls with pagination"""
+        try:
+            # Calculate offset
+            offset = (page - 1) * per_page
+            
+            # Get total count first for pagination
+            total_channels_result = self.supabase.table('youtube_channels')\
+                .select('channel_id', count='exact')\
+                .not_.is_('handle', 'null')\
                 .execute()
             
-            if channels_result.data:
-                print(f"Found {len(channels_result.data)} channels in youtube_channels table")
-                
-                # Get all summaries for efficiency
-                summaries_result = self.supabase.table('summaries').select('video_id').execute()
-                summarized_video_ids = {s['video_id'] for s in summaries_result.data if s.get('video_id')}
-                
-                channels = []
-                for channel in channels_result.data:
-                    channel_id = channel['channel_id']
-                    channel_name = channel['channel_name']
+            total_channels = total_channels_result.count if total_channels_result.count else 0
+            
+            # Get channels with basic info, only those with handles (required for URLs)
+            channels_result = self.supabase.table('youtube_channels')\
+                .select('channel_id, channel_name, handle, thumbnail_url')\
+                .not_.is_('handle', 'null')\
+                .order('created_at', desc=True)\
+                .range(offset, offset + per_page - 1)\
+                .execute()
+            
+            if not channels_result.data:
+                return {
+                    'channels': [],
+                    'pagination': {
+                        'page': page,
+                        'per_page': per_page,
+                        'total': total_channels,
+                        'total_pages': 0,
+                        'has_prev': False,
+                        'has_next': False,
+                        'prev_page': None,
+                        'next_page': None
+                    }
+                }
+            
+            # Get all channel IDs for filtering
+            channel_ids = [ch['channel_id'] for ch in channels_result.data]
+            
+            # Get all videos for these channels in one query, with row numbering for recent videos
+            all_videos_result = self.supabase.table('youtube_videos')\
+                .select('video_id, channel_id, title, duration, url_path, created_at')\
+                .in_('channel_id', channel_ids)\
+                .order('channel_id, created_at', desc=True)\
+                .execute()
+            
+            # Get all summaries in one query
+            summaries_result = self.supabase.table('summaries')\
+                .select('video_id')\
+                .execute()
+            
+            summarized_video_ids = {s['video_id'] for s in summaries_result.data}
+            
+            # Process data in memory for efficiency
+            channel_data = {}
+            
+            # Initialize channel data
+            for channel in channels_result.data:
+                channel_id = channel['channel_id']
+                channel_data[channel_id] = {
+                    'info': channel,
+                    'video_count': 0,
+                    'summary_count': 0,
+                    'recent_videos': [],
+                    'latest_video_date': None
+                }
+            
+            # Process all videos in one pass
+            for video in all_videos_result.data:
+                channel_id = video['channel_id']
+                if channel_id not in channel_data:
+                    continue
                     
-                    # Get videos for this channel
-                    channel_videos = self.get_videos_by_channel(channel_id=channel_id)
-                    print(f"Channel {channel_name} ({channel_id}): Found {len(channel_videos)} videos")
-                    
-                    # Count summaries for this channel
-                    summary_count = sum(1 for v in channel_videos if v.get('video_id') in summarized_video_ids)
-                    
-                    # Get recent videos (limit to 3 most recent)
-                    recent_videos = {}
-                    for video in channel_videos[:3]:
-                        video_id = video['video_id']
-                        recent_videos[video_id] = {
-                            'video_info': {
-                                'title': video.get('title'),
-                                'thumbnail_url': f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
-                                'duration': video.get('duration'),
-                                'channel_name': video.get('channel_name')
-                            },
-                            'video_id': video_id,
-                            'url_path': video.get('url_path'),
-                            'has_summary': video_id in summarized_video_ids
-                        }
-                    
-                    channels.append({
-                        'channel_id': channel_id,
-                        'name': channel_name,
-                        'handle': channel.get('handle'),
-                        'video_count': len(channel_videos),
-                        'summary_count': summary_count,
-                        'thumbnail_url': channel.get('thumbnail_url'),
-                        'recent_videos': recent_videos
-                    })
+                # Count videos
+                channel_data[channel_id]['video_count'] += 1
                 
-                # Filter out channels without handles and sort by video count
-                channels_with_handles = [c for c in channels if c.get('handle')]
-                return sorted(channels_with_handles, key=lambda x: x['video_count'], reverse=True)
+                # Count summaries
+                if video['video_id'] in summarized_video_ids:
+                    channel_data[channel_id]['summary_count'] += 1
                 
+                # Track the latest video date for sorting
+                video_date = video.get('created_at')
+                if video_date and (channel_data[channel_id]['latest_video_date'] is None or 
+                                   video_date > channel_data[channel_id]['latest_video_date']):
+                    channel_data[channel_id]['latest_video_date'] = video_date
+                
+                # Keep only the 3 most recent videos (already ordered by created_at desc)
+                if len(channel_data[channel_id]['recent_videos']) < 3:
+                    channel_data[channel_id]['recent_videos'].append(video)
+            
+            # Build final result
+            channels = []
+            for channel_id, data in channel_data.items():
+                # Only include channels with videos
+                if data['video_count'] == 0:
+                    continue
+                
+                # Format recent videos
+                recent_videos = {}
+                for video in data['recent_videos']:
+                    video_id = video['video_id']
+                    recent_videos[video_id] = {
+                        'video_info': {
+                            'title': video.get('title'),
+                            'thumbnail_url': f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
+                            'duration': video.get('duration'),
+                            'channel_name': data['info']['channel_name']
+                        },
+                        'video_id': video_id,
+                        'url_path': video.get('url_path'),
+                        'has_summary': video_id in summarized_video_ids
+                    }
+                
+                channels.append({
+                    'channel_id': channel_id,
+                    'name': data['info']['channel_name'],
+                    'handle': data['info']['handle'],
+                    'video_count': data['video_count'],
+                    'summary_count': data['summary_count'],
+                    'thumbnail_url': data['info'].get('thumbnail_url'),
+                    'recent_videos': recent_videos,
+                    'latest_video_date': data['latest_video_date']
+                })
+            
+            # Sort by latest video date desc (most recent first), then by video count desc
+            channels.sort(key=lambda x: (
+                x.get('latest_video_date', '') if x.get('latest_video_date') else '0000-00-00',  # Handle None dates
+                -x['video_count']
+            ), reverse=True)
+            
+            # Calculate pagination metadata
+            total_pages = (total_channels + per_page - 1) // per_page
+            has_prev = page > 1
+            has_next = page < total_pages
+            
+            print(f"Optimized channels query: {len(channels)} channels on page {page}/{total_pages}, sorted by latest video date, reduced to ~4 DB calls total")
+            
+            return {
+                'channels': channels,
+                'pagination': {
+                    'page': page,
+                    'per_page': per_page,
+                    'total': total_channels,
+                    'total_pages': total_pages,
+                    'has_prev': has_prev,
+                    'has_next': has_next,
+                    'prev_page': page - 1 if has_prev else None,
+                    'next_page': page + 1 if has_next else None
+                }
+            }
+            
         except Exception as e:
-            print(f"Error getting all channels: {e}")
-            return []
+            print(f"Error in optimized get_all_channels: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'channels': [],
+                'pagination': {
+                    'page': page,
+                    'per_page': per_page,
+                    'total': 0,
+                    'total_pages': 0,
+                    'has_prev': False,
+                    'has_next': False,
+                    'prev_page': None,
+                    'next_page': None
+                }
+            }
 
     def save_memory_snippet(self, video_id: str, snippet_text: str, context_before: str = None, context_after: str = None, tags: list = None) -> bool:
         """Save a memory snippet to the database"""
