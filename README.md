@@ -11,10 +11,12 @@ A comprehensive toolkit for downloading YouTube transcripts with multiple implem
 
 ### Web Application
 - **Clean Web Interface**: Responsive UI for viewing transcripts with mobile optimization
-- **AI-Powered Summarization**: OpenAI GPT-4.1 integration for intelligent video summaries
+- **AI-Powered Summarization**: OpenAI GPT-4.1 integration with proper markdown formatting
+- **Automatic Video Import**: `/watch?v=VIDEO_ID` URLs automatically import videos and redirect to SEO-friendly URLs
+- **Clickable Channel Navigation**: Channel names on video pages link directly to channel overview pages
 - **Channel Management**: Dedicated channel overview pages with clean handle-based routing (/@channelname)
 - **Channel Overview Pages**: Comprehensive channel hubs with statistics, navigation, and recent videos
-- **RESTful API**: JSON endpoints for programmatic access
+- **RESTful API**: JSON endpoints for programmatic access with auto-import capabilities
 - **Real-time Processing**: AJAX-based summarization without page reloads
 - **Chapter Organization**: Automatic video chapter detection and structured display
 - **Dual View Modes**: Toggle between readable paragraphs and detailed timestamps
@@ -31,7 +33,10 @@ A comprehensive toolkit for downloading YouTube transcripts with multiple implem
 ### Summarization Features
 - **Structured Summaries**: Organized sections including overview, key takeaways, and actionable strategies
 - **GPT-4.1 Integration**: Latest OpenAI model with improved instruction following and context understanding
+- **Proper Markdown Formatting**: Server-side conversion of markdown to HTML with bullet point processing
+- **Consistent Display**: Unified formatting across video pages and channel summary pages
 - **Efficient Processing**: Uses pre-formatted transcript data to avoid redundant API calls
+- **Consolidated Import Logic**: Unified `process_video_complete()` function ensures consistent behavior
 - **Error Handling**: Graceful fallbacks when summarization fails
 
 ## Setup
@@ -112,7 +117,8 @@ python3 download_transcript_manual.py "https://www.youtube.com/watch?v=VIDEO_ID"
 ### Web Interface
 
 - **Home**: `http://localhost:33079/`
-- **Transcript**: `http://localhost:33079/watch?v=VIDEO_ID`
+- **Transcript**: `http://localhost:33079/watch?v=VIDEO_ID` *(auto-imports and redirects to SEO-friendly URL)*
+- **SEO-Friendly Video**: `http://localhost:33079/@channelhandle/video-title-slug`
 - **Memory Snippets**: `http://localhost:33079/memory-snippets`
 - **Channels**: `http://localhost:33079/channels`
 - **Channel Overview**: `http://localhost:33079/@channelhandle`
@@ -121,15 +127,20 @@ python3 download_transcript_manual.py "https://www.youtube.com/watch?v=VIDEO_ID"
 - **Channel Snippets**: `http://localhost:33079/@channelhandle/snippets`
 - **Videos**: `http://localhost:33079/videos`
 
-**Note**: Channel URLs have been updated to use cleaner routing. The previous `/channel/@handle` format has been simplified to `/@handle` for all channel sub-pages.
+**Recent Improvements**:
+- **Auto-import functionality**: `/watch?v=VIDEO_ID` now automatically imports videos if not found and redirects to clean URLs
+- **Clickable channel names**: Channel names on video pages are now clickable links to channel overview pages
+- **Proper summary formatting**: AI summaries display with correct markdown formatting (headers, bullet points, links)
 
 ### API Endpoints
 
-- **Transcript JSON**: `http://localhost:33079/api/transcript/VIDEO_ID`
+- **Transcript JSON**: `http://localhost:33079/api/transcript/VIDEO_ID` *(auto-imports if not found)*
 - **Summary with Data**: `POST http://localhost:33079/api/summary` (with transcript data in body)
 - **Memory Snippets**: `GET/POST/DELETE http://localhost:33079/api/memory-snippets`
 - **Channel Import**: `POST http://localhost:33079/api/@channelhandle/import`
 - **Storage Stats**: `http://localhost:33079/api/storage/stats`
+
+**Import Logic**: All video import operations now use the unified `process_video_complete()` function for consistent behavior across all endpoints.
 
 ### Examples
 

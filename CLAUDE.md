@@ -74,19 +74,22 @@ python3 test_chapters.py
 - All scripts extract 11-character YouTube video IDs from various URL formats
 - Dual transcript format: detailed timestamps `[MM:SS] text` and readable paragraphs
 - Chapter-aware formatting with automatic organization by video sections
-- Intelligent caching prevents redundant API calls with 24-hour TTL
+- **Consolidated import logic**: Single `process_video_complete()` function handles all video imports
+- **Automatic video import**: `/watch?v=VIDEO_ID` URLs automatically import videos if not found in database
 
 ### Performance Optimizations
 - AJAX-based AI summarization without page reloads
-- Local file-based caching system with automatic cleanup
+- **Consolidated video import**: Eliminates duplicate import logic across multiple endpoints
 - Mobile-responsive UI with optimized padding and layout
 - Efficient transcript processing using pre-formatted text for AI
+- **Server-side markdown rendering**: AI summaries properly formatted with HTML conversion
 
 ### Error Handling & Reliability
 - Graceful fallbacks for network connectivity issues
 - Multiple transcript acquisition methods (youtube-transcript-api, yt-dlp, manual)
 - Proxy support for restricted network environments
 - Comprehensive error messaging and cache failure recovery
+- **Unified import function**: Consistent error handling across all import operations
 
 ## Environment Configuration
 
@@ -143,7 +146,8 @@ docker run -p 33079:33079 \
 
 ### User Interface
 - **`/`** - Home page with instructions and examples
-- **`/watch?v=VIDEO_ID`** - Display transcript with video metadata, thumbnails, and chapters
+- **`/watch?v=VIDEO_ID`** - **Auto-import and redirect**: Automatically imports videos if not found, then redirects to SEO-friendly URLs
+- **`/@handle/video-title-slug`** - SEO-friendly video pages with clickable channel names linking to channel overview
 - **`/memory-snippets`** - Personal knowledge base with saved text snippets grouped by video
 - **`/channels`** - Browse all channels with saved videos
 - **`/@handle`** - Channel overview page with statistics, navigation, and recent videos
@@ -154,14 +158,17 @@ docker run -p 33079:33079 \
 - **Mobile-responsive design** with optimized padding and collapsible elements
 - **Handle-based routing**: Clean URLs using channel handles (/@channelname) instead of IDs
 
-**Routing Update**: Channel URLs have been simplified from `/channel/@handle` to `/@handle` for cleaner, more intuitive navigation. API endpoints have been updated accordingly from `/api/channels/@handle/import` to `/api/@handle/import`.
+**Recent Improvements**:
+- **Automatic video import**: `/watch?v=VIDEO_ID` URLs now automatically import videos and redirect to SEO-friendly URLs
+- **Clickable channel names**: Channel names on video pages are now clickable links to channel overview pages
+- **Properly formatted AI summaries**: Server-side markdown conversion ensures summaries display with correct formatting
 - **Breadcrumb navigation**: Easy navigation between channel overview and sub-pages
 - **Dual view modes**: Toggle between readable paragraphs and detailed timestamps
 - **AJAX summarization**: Generate AI summaries without page reloads
 - **Memory snippets**: Text selection from summaries and transcripts with formatting preservation
 
 ### API Endpoints
-- **`GET /api/transcript/VIDEO_ID`** - JSON API for transcript data with database storage
+- **`GET /api/transcript/VIDEO_ID`** - **Auto-import enabled**: JSON API for transcript data with automatic video import if not found
 - **`POST /api/summary`** - Generate summary from provided transcript data (efficient)
 - **`GET /api/memory-snippets`** - Retrieve saved memory snippets with optional video filtering
 - **`POST /api/memory-snippets`** - Save new memory snippet with text, context, and tags
@@ -171,6 +178,8 @@ docker run -p 33079:33079 \
 - **`GET /api/cache/info`** - Legacy cache statistics (deprecated)
 - **`POST /api/cache/cleanup`** - Legacy cache cleanup (deprecated)
 - **`GET /api/storage/stats`** - Database storage statistics and metrics
+
+**Import Logic Consolidation**: All video import operations now use the unified `process_video_complete()` function, ensuring consistent behavior across `/watch` routes, API endpoints, and channel imports.
 
 ### Advanced Features
 - **Chapter Organization**: Automatic detection and display of video chapters
@@ -217,6 +226,9 @@ docker run -p 33079:33079 \
   - Actionable Strategies, Specific Details & Examples
   - Warnings & Common Mistakes, Resources & Next Steps
 - **Efficient processing**: Uses pre-formatted transcript data to avoid redundant downloads
+- **Proper markdown rendering**: Server-side conversion of markdown to HTML for proper formatting
+- **Bullet point processing**: Automatic conversion of bullet points (`•`) to proper HTML lists
+- **Consistent formatting**: Both individual video pages and channel summary pages use unified markdown processing
 
 ## Database Schema
 
