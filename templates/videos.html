@@ -11,74 +11,238 @@
         <!-- Video Actions -->
         <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
             <div>
-                <button id="groupToggle" onclick="toggleGrouping()" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">📁 Group by Channel</button>
+                {% if is_grouped %}
+                    <a href="/videos" style="background: #007bff; color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; display: inline-block;">📋 Show All Videos</a>
+                {% else %}
+                    <a href="/videos?group_by=true" style="background: #007bff; color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; display: inline-block;">📁 Group by Channel</a>
+                {% endif %}
             </div>
-            <span style="color: #666; font-size: 14px;">{{ cached_videos|length }} videos shown</span>
+            <div style="color: #666; font-size: 14px;">
+                {% if pagination %}
+                    {% if is_grouped %}
+                        Showing {{ pagination.total }} channels with videos
+                        {% if pagination.total_pages > 1 %}
+                            (Page {{ pagination.page }} of {{ pagination.total_pages }})
+                        {% endif %}
+                    {% else %}
+                        Showing {{ cached_videos|length }} of {{ pagination.total }} videos 
+                        {% if pagination.total_pages > 1 %}
+                            (Page {{ pagination.page }} of {{ pagination.total_pages }})
+                        {% endif %}
+                    {% endif %}
+                {% else %}
+                    {{ cached_videos|length }} videos shown
+                {% endif %}
+            </div>
         </div>
         
         <!-- Videos Grid -->
-        <div id="videosContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 20px;">
-            {% for video in cached_videos %}
-                <div class="video-card" data-channel="{{ video.channel_name or 'Unknown Channel' }}" style="background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); {% if not video.is_valid %}opacity: 0.6; border-left: 4px solid #dc3545;{% else %}border-left: 4px solid #28a745;{% endif %}">
-                    <!-- Video Thumbnail and Info -->
-                    <div style="display: flex; padding: 15px;">
-                        <div style="flex-shrink: 0; margin-right: 15px;">
-                            <img src="https://img.youtube.com/vi/{{ video.video_id }}/maxresdefault.jpg" 
-                                 alt="Thumbnail" 
-                                 style="width: 120px; height: 68px; object-fit: cover; border-radius: 4px;"
-                                 onerror="this.src='https://img.youtube.com/vi/{{ video.video_id }}/default.jpg'">
-                        </div>
-                        <div style="flex-grow: 1; min-width: 0;">
-                            <h4 style="margin: 0 0 8px 0; font-size: 16px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
-                                {% if video.is_valid %}
-                                    <a href="{% if video.url_path and video.handle %}/{{ video.handle }}/{{ video.url_path }}{% else %}/watch?v={{ video.video_id }}{% endif %}" style="color: #333; text-decoration: none;">{{ video.title }}</a>
-                                {% else %}
-                                    <span style="color: #999;">{{ video.title }}</span>
-                                {% endif %}
-                            </h4>
-                            <div style="color: #666; font-size: 14px; margin-bottom: 8px;">
-                                {% if video.channel_name and video.channel_name != 'Unknown Channel' and video.handle %}
-                                    <a href="/{{ video.handle }}" style="color: #0066cc; text-decoration: none;">{{ video.channel_name }}</a>
-                                    {% if video.has_summary %}
-                                        • <a href="/{{ video.handle }}/summaries" style="color: #2196f3; text-decoration: none; font-size: 12px;">📝 Summaries</a>
+        <div id="videosContainer">
+            {% if is_grouped %}
+                <!-- Grouped by Channel View -->
+                {% for channel_group in cached_videos %}
+                    <div class="channel-section" style="margin-bottom: 30px;">
+                        <div class="channel-header">
+                            <h3 style="margin: 0 0 15px 0; padding: 10px 15px; background: #f8f9fa; border-left: 4px solid #007bff; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+                                <span>📺 {{ channel_group.channel_name }}</span>
+                                <div style="display: flex; gap: 10px; align-items: center;">
+                                    <span style="font-size: 14px; font-weight: normal; color: #666;">
+                                        {{ channel_group.video_count }} video{{ 's' if channel_group.video_count != 1 else '' }}
+                                        {% if channel_group.videos_shown < channel_group.video_count %}
+                                            (showing {{ channel_group.videos_shown }})
+                                        {% endif %}
+                                    </span>
+                                    {% if channel_group.has_summaries and channel_group.handle %}
+                                        <a href="/{{ channel_group.handle }}/summaries" style="background: #2196f3; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 12px;">📝 View Summaries</a>
                                     {% endif %}
-                                {% else %}
-                                    {{ video.channel_name or 'Unknown Channel' }}
-                                {% endif %}
-                            </div>
-                            <div style="color: #888; font-size: 12px;">
-                                {% if video.duration %}
-                                    ⏱️ {{ "%.0f"|format(video.duration // 60) }}:{{ "%02.0f"|format(video.duration % 60) }} • 
-                                {% endif %}
-                                📝 {{ video.transcript_entries }} entries
-                                {% if video.chapters_count > 0 %}
-                                    • 📚 {{ video.chapters_count }} chapters
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Cache Info -->
-                    <div style="background: #f8f9fa; padding: 12px 15px; border-top: 1px solid #eee;">
-                        <div style="display: flex; justify-content: flex-end; align-items: center;">
-                            <div style="display: flex; gap: 8px;">
-                                {% if video.is_valid %}
-                                    <a href="{% if video.url_path and video.handle %}/{{ video.handle }}/{{ video.url_path }}{% else %}/watch?v={{ video.video_id }}{% endif %}" style="background: #007bff; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">View</a>
-                                {% endif %}
-                                <a href="https://www.youtube.com/watch?v={{ video.video_id }}" target="_blank" style="background: #ff0000; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">YouTube</a>
-                                <button onclick="deleteVideo('{{ video.video_id }}', '{{ video.title|e }}')" style="background: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 3px; font-size: 11px; cursor: pointer;">🗑️ Delete</button>
-                            </div>
+                                </div>
+                            </h3>
                         </div>
                         
-                        {% if video.error %}
-                            <div style="color: #dc3545; font-size: 11px; margin-top: 8px; padding: 6px; background: #f8d7da; border-radius: 3px;">
-                                Error: {{ video.error }}
-                            </div>
-                        {% endif %}
+                        <div class="channel-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 20px;">
+                            {% for video in channel_group.videos %}
+                                <div class="video-card" data-channel="{{ video.channel_name or 'Unknown Channel' }}" style="background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); {% if not video.is_valid %}opacity: 0.6; border-left: 4px solid #dc3545;{% else %}border-left: 4px solid #28a745;{% endif %}">
+                                    <!-- Video Thumbnail and Info -->
+                                    <div style="display: flex; padding: 15px;">
+                                        <div style="flex-shrink: 0; margin-right: 15px;">
+                                            <img src="https://img.youtube.com/vi/{{ video.video_id }}/maxresdefault.jpg" 
+                                                 alt="Thumbnail" 
+                                                 style="width: 120px; height: 68px; object-fit: cover; border-radius: 4px;"
+                                                 onerror="this.src='https://img.youtube.com/vi/{{ video.video_id }}/default.jpg'">
+                                        </div>
+                                        <div style="flex-grow: 1; min-width: 0;">
+                                            <h4 style="margin: 0 0 8px 0; font-size: 16px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+                                                {% if video.is_valid %}
+                                                    <a href="{% if video.url_path and video.handle %}/{{ video.handle }}/{{ video.url_path }}{% else %}/watch?v={{ video.video_id }}{% endif %}" style="color: #333; text-decoration: none;">{{ video.title }}</a>
+                                                {% else %}
+                                                    <span style="color: #999;">{{ video.title }}</span>
+                                                {% endif %}
+                                            </h4>
+                                            <div style="color: #666; font-size: 14px; margin-bottom: 8px;">
+                                                {% if video.channel_name and video.channel_name != 'Unknown Channel' and video.handle %}
+                                                    <a href="/{{ video.handle }}" style="color: #0066cc; text-decoration: none;">{{ video.channel_name }}</a>
+                                                    {% if video.has_summary %}
+                                                        • <a href="/{{ video.handle }}/summaries" style="color: #2196f3; text-decoration: none; font-size: 12px;">📝 Summaries</a>
+                                                    {% endif %}
+                                                {% else %}
+                                                    {{ video.channel_name or 'Unknown Channel' }}
+                                                {% endif %}
+                                            </div>
+                                            <div style="color: #888; font-size: 12px;">
+                                                {% if video.duration %}
+                                                    ⏱️ {{ "%.0f"|format(video.duration // 60) }}:{{ "%02.0f"|format(video.duration % 60) }} • 
+                                                {% endif %}
+                                                📝 {{ video.transcript_entries }} entries
+                                                {% if video.chapters_count > 0 %}
+                                                    • 📚 {{ video.chapters_count }} chapters
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Cache Info -->
+                                    <div style="background: #f8f9fa; padding: 12px 15px; border-top: 1px solid #eee;">
+                                        <div style="display: flex; justify-content: flex-end; align-items: center;">
+                                            <div style="display: flex; gap: 8px;">
+                                                {% if video.is_valid %}
+                                                    <a href="{% if video.url_path and video.handle %}/{{ video.handle }}/{{ video.url_path }}{% else %}/watch?v={{ video.video_id }}{% endif %}" style="background: #007bff; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">View</a>
+                                                {% endif %}
+                                                <a href="https://www.youtube.com/watch?v={{ video.video_id }}" target="_blank" style="background: #ff0000; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">YouTube</a>
+                                                <button onclick="deleteVideo('{{ video.video_id }}', '{{ video.title|e }}')" style="background: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 3px; font-size: 11px; cursor: pointer;">🗑️ Delete</button>
+                                            </div>
+                                        </div>
+                                        
+                                        {% if video.error %}
+                                            <div style="color: #dc3545; font-size: 11px; margin-top: 8px; padding: 6px; background: #f8d7da; border-radius: 3px;">
+                                                Error: {{ video.error }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
                     </div>
+                {% endfor %}
+            {% else %}
+                <!-- Regular Grid View -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 20px;">
+                    {% for video in cached_videos %}
+                        <div class="video-card" data-channel="{{ video.channel_name or 'Unknown Channel' }}" style="background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); {% if not video.is_valid %}opacity: 0.6; border-left: 4px solid #dc3545;{% else %}border-left: 4px solid #28a745;{% endif %}">
+                            <!-- Video Thumbnail and Info -->
+                            <div style="display: flex; padding: 15px;">
+                                <div style="flex-shrink: 0; margin-right: 15px;">
+                                    <img src="https://img.youtube.com/vi/{{ video.video_id }}/maxresdefault.jpg" 
+                                         alt="Thumbnail" 
+                                         style="width: 120px; height: 68px; object-fit: cover; border-radius: 4px;"
+                                         onerror="this.src='https://img.youtube.com/vi/{{ video.video_id }}/default.jpg'">
+                                </div>
+                                <div style="flex-grow: 1; min-width: 0;">
+                                    <h4 style="margin: 0 0 8px 0; font-size: 16px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+                                        {% if video.is_valid %}
+                                            <a href="{% if video.url_path and video.handle %}/{{ video.handle }}/{{ video.url_path }}{% else %}/watch?v={{ video.video_id }}{% endif %}" style="color: #333; text-decoration: none;">{{ video.title }}</a>
+                                        {% else %}
+                                            <span style="color: #999;">{{ video.title }}</span>
+                                        {% endif %}
+                                    </h4>
+                                    <div style="color: #666; font-size: 14px; margin-bottom: 8px;">
+                                        {% if video.channel_name and video.channel_name != 'Unknown Channel' and video.handle %}
+                                            <a href="/{{ video.handle }}" style="color: #0066cc; text-decoration: none;">{{ video.channel_name }}</a>
+                                            {% if video.has_summary %}
+                                                • <a href="/{{ video.handle }}/summaries" style="color: #2196f3; text-decoration: none; font-size: 12px;">📝 Summaries</a>
+                                            {% endif %}
+                                        {% else %}
+                                            {{ video.channel_name or 'Unknown Channel' }}
+                                        {% endif %}
+                                    </div>
+                                    <div style="color: #888; font-size: 12px;">
+                                        {% if video.duration %}
+                                            ⏱️ {{ "%.0f"|format(video.duration // 60) }}:{{ "%02.0f"|format(video.duration % 60) }} • 
+                                        {% endif %}
+                                        📝 {{ video.transcript_entries }} entries
+                                        {% if video.chapters_count > 0 %}
+                                            • 📚 {{ video.chapters_count }} chapters
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Cache Info -->
+                            <div style="background: #f8f9fa; padding: 12px 15px; border-top: 1px solid #eee;">
+                                <div style="display: flex; justify-content: flex-end; align-items: center;">
+                                    <div style="display: flex; gap: 8px;">
+                                        {% if video.is_valid %}
+                                            <a href="{% if video.url_path and video.handle %}/{{ video.handle }}/{{ video.url_path }}{% else %}/watch?v={{ video.video_id }}{% endif %}" style="background: #007bff; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">View</a>
+                                        {% endif %}
+                                        <a href="https://www.youtube.com/watch?v={{ video.video_id }}" target="_blank" style="background: #ff0000; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">YouTube</a>
+                                        <button onclick="deleteVideo('{{ video.video_id }}', '{{ video.title|e }}')" style="background: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 3px; font-size: 11px; cursor: pointer;">🗑️ Delete</button>
+                                    </div>
+                                </div>
+                                
+                                {% if video.error %}
+                                    <div style="color: #dc3545; font-size: 11px; margin-top: 8px; padding: 6px; background: #f8d7da; border-radius: 3px;">
+                                        Error: {{ video.error }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
                 </div>
-            {% endfor %}
+            {% endif %}
         </div>
+        
+        <!-- Pagination Controls -->
+        {% if pagination and pagination.total_pages > 1 %}
+            <div style="margin-top: 30px; display: flex; justify-content: center; align-items: center; gap: 15px; padding: 20px;">
+                {% set group_param = "?group_by=true&page=" if is_grouped else "?page=" %}
+                {% if pagination.has_prev %}
+                    <a href="/videos{{ group_param }}{{ pagination.prev_page }}" style="background: #007bff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: flex; align-items: center; gap: 5px;">
+                        ← Previous
+                    </a>
+                {% else %}
+                    <span style="background: #e9ecef; color: #6c757d; padding: 10px 15px; border-radius: 4px; display: flex; align-items: center; gap: 5px;">
+                        ← Previous
+                    </span>
+                {% endif %}
+                
+                <!-- Page Numbers -->
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    {% set start_page = [1, pagination.page - 2]|max %}
+                    {% set end_page = [pagination.total_pages, pagination.page + 2]|min %}
+                    
+                    {% if start_page > 1 %}
+                        <a href="/videos{{ group_param }}1" style="padding: 8px 12px; text-decoration: none; color: #007bff; border: 1px solid #dee2e6; border-radius: 4px;">1</a>
+                        {% if start_page > 2 %}
+                            <span style="color: #6c757d;">...</span>
+                        {% endif %}
+                    {% endif %}
+                    
+                    {% for page_num in range(start_page, end_page + 1) %}
+                        {% if page_num == pagination.page %}
+                            <span style="padding: 8px 12px; background: #007bff; color: white; border: 1px solid #007bff; border-radius: 4px; font-weight: bold;">{{ page_num }}</span>
+                        {% else %}
+                            <a href="/videos{{ group_param }}{{ page_num }}" style="padding: 8px 12px; text-decoration: none; color: #007bff; border: 1px solid #dee2e6; border-radius: 4px;">{{ page_num }}</a>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if end_page < pagination.total_pages %}
+                        {% if end_page < pagination.total_pages - 1 %}
+                            <span style="color: #6c757d;">...</span>
+                        {% endif %}
+                        <a href="/videos{{ group_param }}{{ pagination.total_pages }}" style="padding: 8px 12px; text-decoration: none; color: #007bff; border: 1px solid #dee2e6; border-radius: 4px;">{{ pagination.total_pages }}</a>
+                    {% endif %}
+                </div>
+                
+                {% if pagination.has_next %}
+                    <a href="/videos{{ group_param }}{{ pagination.next_page }}" style="background: #007bff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: flex; align-items: center; gap: 5px;">
+                        Next →
+                    </a>
+                {% else %}
+                    <span style="background: #e9ecef; color: #6c757d; padding: 10px 15px; border-radius: 4px; display: flex; align-items: center; gap: 5px;">
+                        Next →
+                    </span>
+                {% endif %}
+            </div>
+        {% endif %}
         
     {% else %}
         <!-- Empty State -->
@@ -91,94 +255,7 @@
     {% endif %}
     
     <script>
-        let isGrouped = false;
-        
-        function toggleGrouping() {
-            const container = document.getElementById('videosContainer');
-            const toggleButton = document.getElementById('groupToggle');
-            
-            if (!isGrouped) {
-                groupByChannel(container);
-                toggleButton.textContent = '📋 Show All Videos';
-                isGrouped = true;
-            } else {
-                ungroupVideos(container);
-                toggleButton.textContent = '📁 Group by Channel';
-                isGrouped = false;
-            }
-        }
-        
-        function groupByChannel(container) {
-            const videoCards = Array.from(container.querySelectorAll('.video-card'));
-            const channels = {};
-            
-            // Group videos by channel
-            videoCards.forEach(card => {
-                const channel = card.dataset.channel || 'Unknown Channel';
-                if (!channels[channel]) {
-                    channels[channel] = [];
-                }
-                channels[channel].push(card);
-            });
-            
-            // Clear container
-            container.innerHTML = '';
-            container.style.display = 'block';
-            
-            // Create channel sections
-            Object.keys(channels).forEach(channelName => {
-                const channelSection = document.createElement('div');
-                channelSection.className = 'channel-section';
-                channelSection.style.marginBottom = '30px';
-                
-                const channelHeader = document.createElement('div');
-                channelHeader.className = 'channel-header';
-                const videoCount = channels[channelName].length;
-                const hasSummaries = channels[channelName].some(card => {
-                    const summaryLink = card.querySelector('a[href*="/summaries"]');
-                    return summaryLink !== null;
-                });
-                
-                channelHeader.innerHTML = `
-                    <h3 style="margin: 0 0 15px 0; padding: 10px 15px; background: #f8f9fa; border-left: 4px solid #007bff; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
-                        <span>📺 ${channelName}</span>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <span style="font-size: 14px; font-weight: normal; color: #666;">${videoCount} video${videoCount !== 1 ? 's' : ''}</span>
-                            ${hasSummaries ? `<a href="/${encodeURIComponent(channelName)}/summaries" style="background: #2196f3; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 12px;">📝 View Summaries</a>` : ''}
-                        </div>
-                    </h3>
-                `;
-                
-                const channelGrid = document.createElement('div');
-                channelGrid.className = 'channel-grid';
-                channelGrid.style.display = 'grid';
-                channelGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(400px, 1fr))';
-                channelGrid.style.gap = '20px';
-                
-                channels[channelName].forEach(card => {
-                    channelGrid.appendChild(card);
-                });
-                
-                channelSection.appendChild(channelHeader);
-                channelSection.appendChild(channelGrid);
-                container.appendChild(channelSection);
-            });
-        }
-        
-        function ungroupVideos(container) {
-            const videoCards = Array.from(container.querySelectorAll('.video-card'));
-            
-            // Clear container and restore grid layout
-            container.innerHTML = '';
-            container.style.display = 'grid';
-            container.style.gridTemplateColumns = 'repeat(auto-fill, minmax(400px, 1fr))';
-            container.style.gap = '20px';
-            
-            // Add all video cards back
-            videoCards.forEach(card => {
-                container.appendChild(card);
-            });
-        }
+        // Simplified JavaScript for video deletion
         
         function cleanupExpired() {
             fetch('/api/cache/cleanup', {
@@ -197,7 +274,7 @@
             });
         }
         
-        function deleteVideo(videoId, videoTitle) {
+        function deleteVideo(videoId, videoTitle, isFromGrouped = false) {
             if (!confirm(`Are you sure you want to delete "${videoTitle}"?\n\nThis will permanently remove the video, transcript, and summary.`)) {
                 return;
             }
@@ -222,16 +299,32 @@
                     setTimeout(() => {
                         videoCard.remove();
                         
+                        // If in grouped mode, also remove from cached data
+                        if (isFromGrouped && allVideosCache) {
+                            allVideosCache = allVideosCache.filter(video => video.video_id !== videoId);
+                        }
+                        
                         // Check if there are any videos left
                         const remainingVideos = document.querySelectorAll('.video-card').length;
                         if (remainingVideos === 0) {
                             // Reload the page to show the empty state
                             window.location.reload();
-                        } else {
-                            // Update the video count display
-                            const videoCountSpan = document.querySelector('div[style*="justify-content: space-between"] span');
-                            if (videoCountSpan) {
-                                videoCountSpan.textContent = `${remainingVideos} videos shown`;
+                        } else if (!isGrouped) {
+                            // Update the video count display only in paginated mode
+                            const videoCountDiv = document.querySelector('div[style*="justify-content: space-between"] div');
+                            if (videoCountDiv) {
+                                {% if pagination %}
+                                    const totalVideos = {{ pagination.total }} - 1; // Subtract 1 for deleted video
+                                    const currentPage = {{ pagination.page }};
+                                    const totalPages = Math.ceil(totalVideos / {{ pagination.per_page }});
+                                    if (totalPages > 1) {
+                                        videoCountDiv.textContent = `Showing ${remainingVideos} of ${totalVideos} videos (Page ${currentPage} of ${totalPages})`;
+                                    } else {
+                                        videoCountDiv.textContent = `Showing ${remainingVideos} of ${totalVideos} videos`;
+                                    }
+                                {% else %}
+                                    videoCountDiv.textContent = `${remainingVideos} videos shown`;
+                                {% endif %}
                             }
                         }
                     }, 300);

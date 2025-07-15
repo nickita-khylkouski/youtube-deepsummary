@@ -1,7 +1,7 @@
 """
 Video-related routes for the YouTube Deep Summary application
 """
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, request
 from ..database_storage import database_storage
 from ..utils.helpers import format_summary_html
 from ..video_processing import video_processor
@@ -11,14 +11,40 @@ videos_bp = Blueprint('videos', __name__)
 
 @videos_bp.route('/videos')
 def videos_page():
-    """Display all saved videos"""
+    """Display all saved videos with pagination"""
     try:
-        cached_videos = database_storage.get_all_cached_videos()
+        # Get parameters from query string
+        page = request.args.get('page', 1, type=int)
+        group_by_channel = request.args.get('group_by', 'false').lower() == 'true'
+        
+        # Set different per_page values for different modes
+        if group_by_channel:
+            per_page = 5  # Show 5 channels per page when grouped
+        else:
+            per_page = 20  # Show 20 videos per page when not grouped
+        
+        # Ensure page is at least 1
+        if page < 1:
+            page = 1
+        
+        # Get paginated videos and metadata
+        result = database_storage.get_cached_videos_paginated(
+            page=page, 
+            per_page=per_page, 
+            group_by_channel=group_by_channel
+        )
+        cached_videos = result['videos']
+        pagination = result['pagination']
+        is_grouped = result.get('is_grouped', False)
+        
         cache_stats = database_storage.get_cache_info()
         
         return render_template('videos.html', 
                              cached_videos=cached_videos,
-                             cache_stats=cache_stats)
+                             cache_stats=cache_stats,
+                             pagination=pagination,
+                             is_grouped=is_grouped,
+                             group_by_channel=group_by_channel)
     except Exception as e:
         return render_template('error.html', 
                              error_message=f"Error loading videos page: {str(e)}"), 500

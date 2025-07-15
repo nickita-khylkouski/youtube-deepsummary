@@ -508,12 +508,29 @@ class DatabaseStorage:
 
     def get_all_cached_videos(self) -> List[Dict]:
         """Get list of all cached videos with metadata from database"""
+        return self.get_cached_videos_paginated()['videos']
+
+    def get_cached_videos_paginated(self, page: int = 1, per_page: int = 20, group_by_channel: bool = False) -> Dict:
+        """Get paginated list of cached videos with metadata from database"""
         try:
-            # Get all videos with their transcripts, summaries, and channel information
+            if group_by_channel:
+                return self._get_videos_grouped_by_channel_paginated(page, per_page)
+            
+            # Calculate offset
+            offset = (page - 1) * per_page
+            
+            # Get total count for pagination
+            count_response = self.supabase.table('youtube_videos')\
+                .select('video_id', count='exact')\
+                .execute()
+            total_videos = count_response.count if count_response.count is not None else 0
+            
+            # Get paginated videos with their transcripts, summaries, and channel information
             # Use LEFT JOIN approach to handle missing foreign key constraints
             response = self.supabase.table('youtube_videos')\
                 .select('*, transcripts(transcript_data), summaries(summary_text), video_chapters(chapters_data)')\
                 .order('created_at', desc=True)\
+                .range(offset, offset + per_page - 1)\
                 .execute()
 
             cached_videos = []
@@ -576,11 +593,182 @@ class DatabaseStorage:
                     'url_path': video.get('url_path')
                 })
 
-            return cached_videos
+            # Calculate pagination metadata
+            total_pages = (total_videos + per_page - 1) // per_page
+            has_prev = page > 1
+            has_next = page < total_pages
+            
+            return {
+                'videos': cached_videos,
+                'pagination': {
+                    'page': page,
+                    'per_page': per_page,
+                    'total': total_videos,
+                    'total_pages': total_pages,
+                    'has_prev': has_prev,
+                    'has_next': has_next,
+                    'prev_page': page - 1 if has_prev else None,
+                    'next_page': page + 1 if has_next else None
+                }
+            }
 
         except Exception as e:
-            print(f"Error getting all cached videos: {e}")
-            return []
+            print(f"Error getting paginated cached videos: {e}")
+            return {
+                'videos': [],
+                'pagination': {
+                    'page': 1,
+                    'per_page': per_page,
+                    'total': 0,
+                    'total_pages': 0,
+                    'has_prev': False,
+                    'has_next': False,
+                    'prev_page': None,
+                    'next_page': None
+                }
+            }
+
+    def _get_videos_grouped_by_channel_paginated(self, page: int = 1, per_page: int = 5) -> Dict:
+        """Get videos grouped by channel with pagination at the channel level"""
+        try:
+            # Calculate offset for channels
+            offset = (page - 1) * per_page
+            
+            # Get all channels that have videos, with their video counts
+            # First get all channels
+            channels_response = self.supabase.table('youtube_channels')\
+                .select('channel_id, channel_name, handle')\
+                .order('channel_name')\
+                .execute()
+            
+            all_channels_with_counts = []
+            for channel in channels_response.data:
+                # Count videos for each channel
+                videos_count_response = self.supabase.table('youtube_videos')\
+                    .select('video_id', count='exact')\
+                    .eq('channel_id', channel['channel_id'])\
+                    .execute()
+                
+                video_count = videos_count_response.count if videos_count_response.count else 0
+                
+                # Only include channels that have videos
+                if video_count > 0:
+                    all_channels_with_counts.append({
+                        'channel_id': channel['channel_id'],
+                        'channel_name': channel['channel_name'],
+                        'handle': channel['handle'],
+                        'video_count': video_count
+                    })
+            
+            total_channels = len(all_channels_with_counts)
+            
+            # Get paginated channels
+            paginated_channels = all_channels_with_counts[offset:offset + per_page]
+            
+            # For each channel, get some videos (limit to keep performance good)
+            grouped_data = []
+            videos_per_channel = 12  # Show up to 12 videos per channel
+            
+            for channel in paginated_channels:
+                channel_id = channel['channel_id']
+                channel_name = channel['channel_name']
+                handle = channel['handle']
+                total_videos_in_channel = channel['video_count']
+                
+                # Get videos for this channel
+                videos_response = self.supabase.table('youtube_videos')\
+                    .select('*, transcripts(transcript_data), summaries(summary_text), video_chapters(chapters_data)')\
+                    .eq('channel_id', channel_id)\
+                    .order('created_at', desc=True)\
+                    .limit(videos_per_channel)\
+                    .execute()
+                
+                channel_videos = []
+                for video in videos_response.data:
+                    # Process video data (same as regular pagination)
+                    transcript_entries = 0
+                    if video.get('transcripts') and len(video['transcripts']) > 0:
+                        transcript_data = video['transcripts'][0].get('transcript_data', [])
+                        transcript_entries = len(transcript_data) if transcript_data else 0
+
+                    chapters_count = 0
+                    if video.get('video_chapters') and len(video['video_chapters']) > 0:
+                        chapters_data = video['video_chapters'][0].get('chapters_data', [])
+                        chapters_count = len(chapters_data) if chapters_data else 0
+
+                    created_at = self._parse_datetime(video['created_at'])
+                    cache_age_hours = (datetime.now(timezone.utc) - created_at).total_seconds() / 3600
+                    has_summary = video.get('summaries') and len(video['summaries']) > 0
+
+                    channel_videos.append({
+                        'video_id': video['video_id'],
+                        'title': video['title'] or 'Unknown Title',
+                        'channel_name': channel_name,
+                        'channel_id': channel_id,
+                        'handle': handle,
+                        'duration': video['duration'],
+                        'chapters_count': chapters_count,
+                        'transcript_entries': transcript_entries,
+                        'cache_age_hours': round(cache_age_hours, 1),
+                        'is_valid': True,
+                        'cache_timestamp': time.mktime(created_at.timetuple()),
+                        'file_size': 0,
+                        'has_summary': has_summary,
+                        'created_at': video['created_at'],
+                        'url_path': video.get('url_path')
+                    })
+                
+                # Check if any videos in this channel have summaries for the summary link
+                has_summaries = any(video['has_summary'] for video in channel_videos)
+                
+                grouped_data.append({
+                    'channel_name': channel_name,
+                    'channel_id': channel_id,
+                    'handle': handle,
+                    'video_count': total_videos_in_channel,
+                    'videos_shown': len(channel_videos),
+                    'has_summaries': has_summaries,
+                    'videos': channel_videos
+                })
+            
+            # Calculate pagination metadata for channels
+            total_pages = (total_channels + per_page - 1) // per_page
+            has_prev = page > 1
+            has_next = page < total_pages
+            
+            return {
+                'videos': grouped_data,  # This will be channel groups, not individual videos
+                'is_grouped': True,
+                'pagination': {
+                    'page': page,
+                    'per_page': per_page,
+                    'total': total_channels,  # Total channels, not videos
+                    'total_pages': total_pages,
+                    'has_prev': has_prev,
+                    'has_next': has_next,
+                    'prev_page': page - 1 if has_prev else None,
+                    'next_page': page + 1 if has_next else None
+                }
+            }
+
+        except Exception as e:
+            print(f"Error getting grouped videos: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'videos': [],
+                'is_grouped': True,
+                'pagination': {
+                    'page': 1,
+                    'per_page': per_page,
+                    'total': 0,
+                    'total_pages': 0,
+                    'has_prev': False,
+                    'has_next': False,
+                    'prev_page': None,
+                    'next_page': None
+                }
+            }
 
     def get_video_by_url_path(self, url_path: str) -> Optional[Dict]:
         """Get a video by its URL path"""
