@@ -933,12 +933,11 @@ class DatabaseStorage:
             
             total_channels = total_channels_result.count if total_channels_result.count else 0
             
-            # Get channels with basic info, only those with handles (required for URLs)
+            # Get ALL channels with basic info, only those with handles (required for URLs)
+            # We need all channels first, then sort by latest video date, then paginate
             channels_result = self.supabase.table('youtube_channels')\
                 .select('channel_id, channel_name, handle, thumbnail_url')\
                 .not_.is_('handle', 'null')\
-                .order('created_at', desc=True)\
-                .range(offset, offset + per_page - 1)\
                 .execute()
             
             if not channels_result.data:
@@ -1050,19 +1049,25 @@ class DatabaseStorage:
                 -x['video_count']
             ), reverse=True)
             
-            # Calculate pagination metadata
-            total_pages = (total_channels + per_page - 1) // per_page
+            # Apply pagination AFTER sorting to ensure correct order
+            total_channels_with_videos = len(channels)
+            start_idx = (page - 1) * per_page
+            end_idx = start_idx + per_page
+            paginated_channels = channels[start_idx:end_idx]
+            
+            # Calculate pagination metadata based on channels with videos
+            total_pages = (total_channels_with_videos + per_page - 1) // per_page
             has_prev = page > 1
             has_next = page < total_pages
             
-            print(f"Optimized channels query: {len(channels)} channels on page {page}/{total_pages}, sorted by latest video date, reduced to ~4 DB calls total")
+            print(f"Optimized channels query: {len(paginated_channels)} channels on page {page}/{total_pages}, sorted by latest video date, reduced to ~4 DB calls total")
             
             return {
-                'channels': channels,
+                'channels': paginated_channels,
                 'pagination': {
                     'page': page,
                     'per_page': per_page,
-                    'total': total_channels,
+                    'total': total_channels_with_videos,
                     'total_pages': total_pages,
                     'has_prev': has_prev,
                     'has_next': has_next,
