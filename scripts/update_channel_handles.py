@@ -4,10 +4,14 @@ Script to fetch and update YouTube channel handles using the YouTube Data API v3
 """
 
 import os
+import sys
 import requests
 import time
 from dotenv import load_dotenv
-from database_storage import DatabaseStorage
+
+# Add parent directory to path to import from src
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from src.database_storage import database_storage
 
 # Load environment variables
 load_dotenv()
@@ -94,7 +98,7 @@ def update_channel_handles_in_db(db_storage, handles):
     Update channel handles in the database
     
     Args:
-        db_storage: DatabaseStorage instance
+        db_storage: database_storage instance
         handles: Dict mapping channel_id to handle
     """
     updated_count = 0
@@ -121,16 +125,9 @@ def main():
         print("Please set your YouTube Data API v3 key in .env file")
         return
     
-    # Initialize database storage
-    try:
-        db_storage = DatabaseStorage()
-    except Exception as e:
-        print(f"Error initializing database: {e}")
-        return
-    
     # Get all channels from database
     try:
-        channels = db_storage.get_all_channels()
+        channels = database_storage.get_all_channels()
         print(f"Found {len(channels)} channels in database")
         
         if not channels:
@@ -147,7 +144,7 @@ def main():
         
         # Update database with handles
         if handles:
-            updated_count = update_channel_handles_in_db(db_storage, handles)
+            updated_count = update_channel_handles_in_db(database_storage, handles)
             print(f"Successfully updated {updated_count} channel handles")
         else:
             print("No handles to update")

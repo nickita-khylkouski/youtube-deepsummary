@@ -132,13 +132,13 @@ python3 -c "from src.youtube_api import youtube_api; print('✓ YouTube API avai
 
 ```bash
 # Main implementation with proxy support
-python3 download_transcript.py "https://www.youtube.com/watch?v=VIDEO_ID" [proxy_ip]
+python3 tools/download_transcript.py "https://www.youtube.com/watch?v=VIDEO_ID" [proxy_ip]
 
 # yt-dlp alternative
-python3 simple_transcript.py "https://www.youtube.com/watch?v=VIDEO_ID"
+python3 tools/simple_transcript.py "https://www.youtube.com/watch?v=VIDEO_ID"
 
 # Manual web scraping fallback
-python3 download_transcript_manual.py "https://www.youtube.com/watch?v=VIDEO_ID"
+python3 tools/download_transcript_manual.py "https://www.youtube.com/watch?v=VIDEO_ID"
 ```
 
 ### Web Interface
@@ -207,10 +207,10 @@ curl -X POST http://localhost:33079/api/@techchannel/import \
 
 ## Project Structure
 
-### Command-Line Tools
-- **`download_transcript.py`** - Main implementation using `youtube-transcript-api` with proxy support
-- **`simple_transcript.py`** - Alternative using `yt-dlp` for broader compatibility  
-- **`download_transcript_manual.py`** - Manual web scraping fallback
+### Command-Line Tools (`/tools`)
+- **`tools/download_transcript.py`** - Main implementation using `youtube-transcript-api` with proxy support
+- **`tools/simple_transcript.py`** - Alternative using `yt-dlp` for broader compatibility  
+- **`tools/download_transcript_manual.py`** - Manual web scraping fallback
 
 ### Web Application
 - **`app.py`** - Main Flask application entry point with modular blueprint architecture
@@ -248,6 +248,12 @@ The application follows a clean modular architecture with all source code organi
 - **`sql/migration_*.sql`** - Database migration scripts
 - **`sql/add_*.sql`** - Column addition scripts
 - **`sql/fix_*.sql`** - Database fixes and corrections
+
+### Utility Scripts (`/scripts`)
+- **`scripts/update_channel_handles.py`** - Update YouTube channel handles in database
+
+### Testing (`/tests`)
+- **`tests/test_chapters.py`** - Test script for debugging chapter extraction
 
 ### Configuration & Documentation
 - **`.env`** - Environment variables (create from examples above)

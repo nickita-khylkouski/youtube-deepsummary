@@ -8,10 +8,10 @@ YouTube Deep Summary is a comprehensive toolkit for downloading YouTube transcri
 
 ## Project Structure
 
-### Command-Line Tools
-- **`download_transcript.py`** - Main implementation using `youtube-transcript-api` library with proxy support
-- **`simple_transcript.py`** - Alternative implementation using `yt-dlp` for broader compatibility
-- **`download_transcript_manual.py`** - Manual web scraping fallback (no external dependencies)
+### Command-Line Tools (`/tools`)
+- **`tools/download_transcript.py`** - Main implementation using `youtube-transcript-api` library with proxy support
+- **`tools/simple_transcript.py`** - Alternative implementation using `yt-dlp` for broader compatibility
+- **`tools/download_transcript_manual.py`** - Manual web scraping fallback (no external dependencies)
 
 ### Web Application
 - **`app.py`** - Main Flask application entry point with blueprint registration and configuration
@@ -39,12 +39,18 @@ The application follows a modular architecture with all source code organized in
 #### Utilities
 - **`src/utils/helpers.py`** - Utility functions: video ID extraction, markdown conversion, URL parsing
 
-### Database & SQL
+### Database & SQL (`/sql`)
 - **`sql/create_tables.sql`** - Main database schema for Supabase setup
 - **`sql/create_memory_snippets_table.sql`** - Memory snippets table creation
 - **`sql/migration_*.sql`** - Database migration scripts for schema updates
 - **`sql/add_*.sql`** - Column addition scripts for schema evolution
 - **`sql/fix_*.sql`** - Database fixes and corrections
+
+### Utility Scripts (`/scripts`)
+- **`scripts/update_channel_handles.py`** - Update YouTube channel handles in database using YouTube Data API
+
+### Testing (`/tests`)
+- **`tests/test_chapters.py`** - Test script for debugging chapter extraction functionality
 
 ### Architecture
 The system follows a modular layered architecture with clear separation of concerns:
@@ -79,13 +85,13 @@ pip install flask youtube-transcript-api openai python-dotenv yt-dlp supabase ma
 ### Running Scripts
 ```bash
 # Main script (with optional proxy)
-python3 download_transcript.py "https://www.youtube.com/watch?v=VIDEO_ID" [proxy_ip]
+python3 tools/download_transcript.py "https://www.youtube.com/watch?v=VIDEO_ID" [proxy_ip]
 
 # yt-dlp version
-python3 simple_transcript.py "https://www.youtube.com/watch?v=VIDEO_ID"
+python3 tools/simple_transcript.py "https://www.youtube.com/watch?v=VIDEO_ID"
 
 # Manual fallback
-python3 download_transcript_manual.py "https://www.youtube.com/watch?v=VIDEO_ID"
+python3 tools/download_transcript_manual.py "https://www.youtube.com/watch?v=VIDEO_ID"
 
 # Web application (requires .env configuration)
 python3 app.py
@@ -94,7 +100,7 @@ python3 app.py
 ./start_server.sh
 
 # Testing chapter extraction
-python3 test_chapters.py
+python3 tests/test_chapters.py
 ```
 
 ## Network Considerations
