@@ -543,9 +543,33 @@ def watch():
                 break
         
         if not target_video:
-            # Video not found in database, fall back to old behavior
-            return render_template('error.html', 
-                                 error_message=f"Video not found: {video_id}. Please import it first."), 404
+            # Video not found in database, try to automatically import it
+            print(f"Video {video_id} not found in database, attempting automatic import...")
+            
+            # Extract channel_id from video_info if available
+            try:
+                video_info = extract_video_info(video_id)
+                channel_id = video_info.get('channel_id') if video_info else None
+            except Exception:
+                channel_id = None
+            
+            # Use consolidated import function
+            result = process_video_complete(video_id, channel_id)
+            
+            if result['status'] == 'error':
+                return render_template('error.html', 
+                                     error_message=f"Video not found and automatic import failed: {video_id}. Error: {result['error']}"), 404
+            
+            # Now try to find the video again
+            video_data = database_storage.get_all_cached_videos()
+            for video in video_data:
+                if video['video_id'] == video_id:
+                    target_video = video
+                    break
+            
+            if not target_video:
+                return render_template('error.html', 
+                                     error_message=f"Video imported but not found in database: {video_id}"), 500
         
         # Check if video has handle and url_path for redirect
         handle = target_video.get('handle')
@@ -585,22 +609,29 @@ def api_transcript(video_id):
             chapters = video_info.get('chapters')
         else:
             print(f"API: Database MISS for video: {video_id}, downloading fresh data")
-            transcript = get_transcript(video_id)
-            video_info = extract_video_info(video_id)
+            
+            # Extract channel_id from video_info if available
+            try:
+                video_info = extract_video_info(video_id)
+                channel_id = video_info.get('channel_id') if video_info else None
+            except Exception:
+                channel_id = None
+            
+            # Use consolidated import function
+            result = process_video_complete(video_id, channel_id)
+            
+            if result['status'] == 'error':
+                return jsonify({
+                    'success': False,
+                    'error': f"Failed to import video: {result['error']}"
+                }), 500
+            
+            # Get the data that was just stored
+            cached_data = database_storage.get(video_id)
+            transcript = cached_data['transcript']
+            formatted_transcript = cached_data['formatted_transcript']
+            video_info = cached_data['video_info']
             chapters = video_info.get('chapters')
-            formatted_transcript = format_transcript_for_readability(transcript, chapters)
-            
-            # Try to get channel_id from video_info (extracted by yt-dlp)  
-            channel_id = video_info.get('channel_id') if video_info else None
-            if channel_id:
-                print(f"API: Found channel_id {channel_id} from video info for video {video_id}")
-            
-            # Store the data in database
-            # Get channel information if channel_id is available
-            channel_info = None
-            if channel_id:
-                channel_info = get_channel_info(channel_id)
-            database_storage.set(video_id, transcript, video_info, formatted_transcript, channel_id, channel_info)
         
         thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
         

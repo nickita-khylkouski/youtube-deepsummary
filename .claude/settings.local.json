@@ -15,7 +15,8 @@
       "Bash(git add:*)",
       "Bash(chmod:*)",
       "WebFetch(domain:developers.google.com)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": []
   }
