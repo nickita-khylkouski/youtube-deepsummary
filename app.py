@@ -1284,7 +1284,8 @@ def video_by_url_path(channel_handle, url_path):
                              video_duration=video_duration,
                              summary=summary,
                              snippets=snippets,
-                             thumbnail_url=thumbnail_url)
+                             thumbnail_url=thumbnail_url,
+                             summarize_enabled=summarizer and summarizer.is_configured())
         
     except Exception as e:
         print(f"Error in video_by_url_path for {channel_handle}/{url_path}: {e}")
