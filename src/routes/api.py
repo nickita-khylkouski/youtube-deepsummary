@@ -7,6 +7,7 @@ from ..chapter_extractor import extract_video_info
 from ..database_storage import database_storage
 from ..video_processing import video_processor
 from ..youtube_api import youtube_api
+from ..snippet_manager import snippet_manager
 from ..utils.helpers import extract_video_id
 from ..config import Config
 
@@ -213,7 +214,7 @@ def save_snippet():
         if not video_id or not snippet_text:
             return jsonify({'success': False, 'message': 'video_id and snippet_text are required'}), 400
 
-        success = database_storage.save_memory_snippet(
+        result = snippet_manager.create_snippet(
             video_id=video_id,
             snippet_text=snippet_text,
             context_before=context_before,
@@ -221,10 +222,10 @@ def save_snippet():
             tags=tags
         )
 
-        if success:
-            return jsonify({'success': True, 'message': 'Snippet saved successfully'})
+        if result['success']:
+            return jsonify({'success': True, 'message': result['message']})
         else:
-            return jsonify({'success': False, 'message': 'Failed to save snippet'}), 500
+            return jsonify({'success': False, 'message': result['message']}), 400
 
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -237,7 +238,11 @@ def get_snippets():
         video_id = request.args.get('video_id')
         limit = int(request.args.get('limit', 100))
 
-        snippets = database_storage.get_memory_snippets(video_id=video_id, limit=limit)
+        if video_id:
+            snippets = snippet_manager.get_snippets_by_video(video_id, limit)
+        else:
+            snippets = snippet_manager.storage.get_memory_snippets(limit=limit)
+        
         return jsonify({'success': True, 'snippets': snippets})
 
     except Exception as e:
@@ -248,11 +253,11 @@ def get_snippets():
 def delete_snippet(snippet_id):
     """API endpoint to delete a snippet"""
     try:
-        success = database_storage.delete_memory_snippet(snippet_id)
-        if success:
-            return jsonify({'success': True, 'message': 'Snippet deleted successfully'})
+        result = snippet_manager.delete_snippet(snippet_id)
+        if result['success']:
+            return jsonify({'success': True, 'message': result['message']})
         else:
-            return jsonify({'success': False, 'message': 'Failed to delete snippet'}), 404
+            return jsonify({'success': False, 'message': result['message']}), 404
 
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -268,11 +273,11 @@ def update_snippet_tags(snippet_id):
 
         tags = data.get('tags', [])
 
-        success = database_storage.update_memory_snippet_tags(snippet_id, tags)
-        if success:
-            return jsonify({'success': True, 'message': 'Snippet tags updated successfully'})
+        result = snippet_manager.update_snippet_tags(snippet_id, tags)
+        if result['success']:
+            return jsonify({'success': True, 'message': result['message']})
         else:
-            return jsonify({'success': False, 'message': 'Failed to update snippet tags'}), 404
+            return jsonify({'success': False, 'message': result['message']}), 404
 
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500

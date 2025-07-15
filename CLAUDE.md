@@ -34,6 +34,7 @@ The application follows a modular architecture with all source code organized in
 - **`src/chapter_extractor.py`** - Video chapter extraction and metadata using yt-dlp
 - **`src/summarizer.py`** - OpenAI GPT-4.1 powered AI summarization with chapter awareness
 - **`src/transcript_formatter.py`** - Multiple transcript formatting options (readability, timestamps, SRT)
+- **`src/snippet_manager.py`** - Memory snippets business logic (creation, grouping, filtering, validation)
 - **`src/video_processing.py`** - Video processing pipeline orchestration using the above components
 - **`src/transcript_summarizer.py`** - Legacy summarization module (partially deprecated)
 - **`src/youtube_api.py`** - YouTube Data API integration for channel and video information
@@ -166,6 +167,7 @@ python3 -c "from src.transcript_extractor import transcript_extractor; print('�
 python3 -c "from src.chapter_extractor import chapter_extractor; print('✓ Chapter extractor available')"
 python3 -c "from src.summarizer import summarizer; print('✓ AI summarizer available')"
 python3 -c "from src.transcript_formatter import transcript_formatter; print('✓ Transcript formatter available')"
+python3 -c "from src.snippet_manager import snippet_manager; print('✓ Snippet manager available')"
 ```
 
 ## Network Considerations
@@ -419,6 +421,7 @@ python3 -c "from src.video_processing import video_processor; print('✓ Video p
 - **Chapter extraction methods** → Add to `src/chapter_extractor.py`
 - **Summarization models** → Add to `src/summarizer.py`
 - **Formatting options** → Add to `src/transcript_formatter.py`
+- **Snippet processing methods** → Add to `src/snippet_manager.py`
 
 **✅ Adding New API Endpoints:**
 - RESTful endpoints → Add to appropriate blueprint in `src/routes/`
@@ -439,12 +442,14 @@ from src.transcript_extractor import TranscriptExtractor
 from src.chapter_extractor import ChapterExtractor
 from src.summarizer import TranscriptSummarizer
 from src.transcript_formatter import TranscriptFormatter
+from src.snippet_manager import SnippetManager
 
 # Each component can be tested independently
 extractor = TranscriptExtractor()
 chapters = ChapterExtractor()
 summarizer = TranscriptSummarizer()
 formatter = TranscriptFormatter()
+snippet_mgr = SnippetManager()
 ```
 
 **✅ Integration Testing:**
@@ -494,6 +499,19 @@ class TranscriptSummarizer:
 class TranscriptFormatter:
     def format_as_new_format(self, transcript: List[Dict]) -> str:
         # Implementation for new format
+        pass
+```
+
+**✅ Adding New Snippet Processing Methods:**
+```python
+# Add new methods to src/snippet_manager.py
+class SnippetManager:
+    def process_snippets_with_new_logic(self, snippets: List[Dict]) -> List[Dict]:
+        # Implementation for new processing logic
+        pass
+    
+    def export_snippets_to_new_format(self, snippets: List[Dict]) -> str:
+        # Implementation for new export format
         pass
 ```
 

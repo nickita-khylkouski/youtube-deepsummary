@@ -22,6 +22,7 @@ youtube-deepsearch/
 │   ├── summarizer.py               # OpenAI GPT-4.1 powered AI summarization
 │   ├── transcript_formatter.py     # Transcript formatting (readability, timestamps, SRT)
 │   ├── transcript_summarizer.py    # Legacy summarization module (partially deprecated)
+│   ├── snippet_manager.py          # Memory snippets business logic (grouping, filtering, validation)
 │   ├── video_processing.py         # Video processing pipeline orchestration
 │   ├── youtube_api.py              # YouTube Data API integration
 │   ├── routes/                     # Flask blueprints for web interface
@@ -94,7 +95,7 @@ youtube-deepsearch/
   - `chapter_extractor.py` - Video chapter extraction using yt-dlp
   - `summarizer.py` - AI-powered summarization with OpenAI GPT-4.1
   - `transcript_formatter.py` - Multiple transcript formatting options
-- **Business Logic Layer**: `video_processing.py`, `youtube_api.py`
+- **Business Logic Layer**: `video_processing.py`, `youtube_api.py`, `snippet_manager.py`
 - **Presentation Layer**: `routes/` - Flask blueprints for web interface
 
 ### `/tools` - Command-Line Tools
@@ -184,6 +185,7 @@ app.py
         │   ├── src/chapter_extractor.py
         │   ├── src/summarizer.py
         │   └── src/transcript_formatter.py
+        ├── src/snippet_manager.py
         ├── src/youtube_api.py
         └── src/utils/helpers.py
 ```
@@ -196,6 +198,7 @@ app.py
 - **Chapter Extraction**: Video chapter detection and metadata extraction
 - **AI Summarization**: GPT-4.1 powered structured summaries with chapter awareness
 - **Transcript Formatting**: Multiple output formats (readability, timestamps, SRT)
+- **Memory Snippets Management**: Business logic for snippet creation, grouping, and filtering
 - **YouTube API Integration**: Channel information and video metadata
 - **Database Operations**: Persistent storage with Supabase
 
@@ -234,6 +237,7 @@ python3 -c "from src.transcript_extractor import transcript_extractor; print('�
 python3 -c "from src.chapter_extractor import chapter_extractor; print('✓ Chapter extractor available')"
 python3 -c "from src.summarizer import summarizer; print('✓ AI summarizer available')"
 python3 -c "from src.transcript_formatter import transcript_formatter; print('✓ Transcript formatter available')"
+python3 -c "from src.snippet_manager import snippet_manager; print('✓ Snippet manager available')"
 ```
 
 ## Configuration
@@ -412,6 +416,46 @@ srt_content = transcript_formatter.format_as_srt(transcript)
 
 # Create chapter navigation
 chapter_nav = transcript_formatter.create_chapter_navigation(chapters, video_id)
+```
+
+#### `src/snippet_manager.py`
+**Purpose**: Handles business logic for memory snippets including creation, grouping, filtering, and validation.
+
+**Key Features**:
+- Snippet creation with input validation and content processing
+- Grouping snippets by channel and video with sorting
+- Search functionality across snippet content and tags
+- Statistics calculation with tag analysis
+- Clean separation between business logic and database operations
+
+**Usage Example**:
+```python
+from src.snippet_manager import snippet_manager
+
+# Create a new snippet
+result = snippet_manager.create_snippet(
+    video_id='VIDEO_ID',
+    snippet_text='Selected text content',
+    context_before='Text before selection',
+    context_after='Text after selection',
+    tags=['important', 'key-point']
+)
+
+# Get snippets for a video
+snippets = snippet_manager.get_snippets_by_video('VIDEO_ID')
+
+# Get snippets for a channel
+result = snippet_manager.get_snippets_by_channel_handle('channelhandle')
+
+# Group snippets by channel
+all_snippets = snippet_manager.storage.get_memory_snippets(limit=1000)
+channels = snippet_manager.group_snippets_by_channel(all_snippets)
+
+# Search snippets
+matching_snippets = snippet_manager.search_snippets('search query')
+
+# Get statistics
+stats = snippet_manager.get_snippet_statistics()
 ```
 
 ### Component Integration
