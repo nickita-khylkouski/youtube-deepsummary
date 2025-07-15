@@ -39,6 +39,13 @@ The application follows a modular architecture with all source code organized in
 #### Utilities
 - **`src/utils/helpers.py`** - Utility functions: video ID extraction, markdown conversion, URL parsing
 
+### Database & SQL
+- **`sql/create_tables.sql`** - Main database schema for Supabase setup
+- **`sql/create_memory_snippets_table.sql`** - Memory snippets table creation
+- **`sql/migration_*.sql`** - Database migration scripts for schema updates
+- **`sql/add_*.sql`** - Column addition scripts for schema evolution
+- **`sql/fix_*.sql`** - Database fixes and corrections
+
 ### Architecture
 The system follows a modular layered architecture with clear separation of concerns:
 
@@ -152,7 +159,7 @@ FLASK_DEBUG=True            # Optional, defaults to True
 The application uses Supabase for persistent storage. Initialize tables using:
 
 ```bash
-# Run SQL commands from create_tables.sql in your Supabase SQL editor
+# Run SQL commands from sql/create_tables.sql in your Supabase SQL editor
 # This creates tables for: youtube_videos, transcripts, video_chapters, summaries
 ```
 

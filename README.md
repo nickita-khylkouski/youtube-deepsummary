@@ -87,7 +87,7 @@ FLASK_DEBUG=True
 
 1. Create a Supabase project at [supabase.com](https://supabase.com)
 2. Copy your project URL and anon key to the `.env` file
-3. Run the SQL commands from `create_tables.sql` in your Supabase SQL editor to create the required tables
+3. Run the SQL commands from `sql/create_tables.sql` in your Supabase SQL editor to create the required tables
 
 ### Starting the Application
 
@@ -242,9 +242,15 @@ The application follows a clean modular architecture with all source code organi
 - **`templates/`** - HTML templates for responsive web interface
 - **`static/`** - CSS, JavaScript, and static assets
 
+### Database & SQL
+- **`sql/create_tables.sql`** - Database schema for Supabase setup
+- **`sql/create_memory_snippets_table.sql`** - Memory snippets table creation
+- **`sql/migration_*.sql`** - Database migration scripts
+- **`sql/add_*.sql`** - Column addition scripts
+- **`sql/fix_*.sql`** - Database fixes and corrections
+
 ### Configuration & Documentation
 - **`.env`** - Environment variables (create from examples above)
-- **`create_tables.sql`** - Database schema for Supabase setup
 - **`CLAUDE.md`** - Development guidelines and project documentation
 - **`README.md`** - Project overview and setup instructions
 
@@ -421,7 +427,7 @@ cp .env.example .env
 # Edit .env with your API keys
 
 # Initialize database
-# Run create_tables.sql in your Supabase SQL editor
+# Run sql/create_tables.sql in your Supabase SQL editor
 
 # Start application
 python3 app.py
