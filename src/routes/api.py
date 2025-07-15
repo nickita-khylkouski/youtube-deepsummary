@@ -8,7 +8,7 @@ from ..database_storage import database_storage
 from ..video_processing import video_processor
 from ..youtube_api import youtube_api
 from ..snippet_manager import snippet_manager
-from ..utils.helpers import extract_video_id
+from ..utils.helpers import extract_video_id, format_summary_html
 from ..config import Config
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -136,10 +136,13 @@ def summary():
         
         summary, from_cache = video_processor.generate_summary(video_id, formatted_transcript, force_regenerate)
         
+        # Format the summary as HTML for frontend display
+        summary_html = format_summary_html(summary)
+        
         return jsonify({
             'success': True,
             'video_id': video_id,
-            'summary': summary,
+            'summary': summary_html,
             'from_cache': from_cache
         })
     except Exception as e:
