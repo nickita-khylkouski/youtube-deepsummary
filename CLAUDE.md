@@ -32,11 +32,11 @@ The application follows a modular architecture with all source code organized in
 #### Core Processing Components (Modular Architecture)
 - **`src/transcript_extractor.py`** - YouTube transcript extraction with multiple methods and language fallback
 - **`src/chapter_extractor.py`** - Video chapter extraction and metadata using yt-dlp
-- **`src/summarizer.py`** - OpenAI GPT-4.1 powered AI summarization with chapter awareness
+- **`src/summarizer.py`** - OpenAI GPT-4.1 powered AI summarization with chapter awareness (main implementation)
 - **`src/transcript_formatter.py`** - Multiple transcript formatting options (readability, timestamps, SRT)
 - **`src/snippet_manager.py`** - Memory snippets business logic (creation, grouping, filtering, validation)
 - **`src/video_processing.py`** - Video processing pipeline orchestration using the above components
-- **`src/transcript_summarizer.py`** - Legacy summarization module (partially deprecated)
+- **`src/transcript_summarizer.py`** - Legacy compatibility wrapper (delegates to `src/summarizer.py`)
 - **`src/youtube_api.py`** - YouTube Data API integration for channel and video information
 
 #### Web Interface (`/src/routes`)
@@ -211,7 +211,7 @@ The web application and summarization features require environment variables:
 # Required for summarization
 OPENAI_API_KEY=your_openai_api_key
 OPENAI_MODEL=gpt-4.1        # Optional, defaults to gpt-4.1
-OPENAI_MAX_TOKENS=100000    # Optional, defaults to 100000
+OPENAI_MAX_TOKENS=100000    # Optional, defaults to 100000 (NOTE: max_tokens is now ignored to avoid API limits)
 OPENAI_TEMPERATURE=0.7      # Optional, defaults to 0.7
 
 # Required for database storage
@@ -486,11 +486,13 @@ class TranscriptExtractor:
 
 **✅ Adding New Summarization Models:**
 ```python
-# Add new methods to src/summarizer.py
+# Add new methods to src/summarizer.py (main implementation)
 class TranscriptSummarizer:
     def summarize_with_new_model(self, transcript_content: str) -> str:
         # Implementation for new model
         pass
+
+# Legacy wrapper in src/transcript_summarizer.py automatically delegates to new implementation
 ```
 
 **✅ Adding New Output Formats:**
@@ -540,14 +542,17 @@ class SnippetManager:
 ### Migration Path
 
 **✅ From Legacy Code:**
-- Legacy `transcript_summarizer.py` functions have been migrated to appropriate modules
-- Old imports are updated to use new modular components
+- Summarization logic consolidated from `transcript_summarizer.py` to `src/summarizer.py`
+- Legacy `transcript_summarizer.py` now serves as a compatibility wrapper
+- All other legacy functions have been migrated to appropriate modules
 - Existing functionality is preserved while gaining modular benefits
+- No breaking changes for existing code using the legacy interface
 
 **✅ Future Enhancements:**
-- Easy to add new AI models to `summarizer.py`
+- Easy to add new AI models to `summarizer.py` (single source of truth for summarization)
 - Simple to add new transcript sources to `transcript_extractor.py`
 - Straightforward to add new output formats to `transcript_formatter.py`
 - Clear path for adding new processing steps to the pipeline
+- Legacy compatibility maintained automatically through delegation pattern
 
 This modular architecture provides a solid foundation for scalable, maintainable, and extensible development of the YouTube Deep Summary application.

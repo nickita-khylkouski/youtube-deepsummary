@@ -1,384 +1,80 @@
 #!/usr/bin/env python3
 """
-YouTube Transcript Summarizer
+YouTube Transcript Summarizer (Legacy)
 
-A module that generates AI-powered summaries of YouTube transcripts using OpenAI's API.
-Based on the implementation from youtube-summarizer project.
+LEGACY MODULE: This module is deprecated. 
+All summarization logic has been consolidated into src/summarizer.py.
+This module now serves as a compatibility layer that imports and uses the new module.
 """
 
 import os
 import re
 import textwrap
 from typing import List, Dict, Optional
-from openai import OpenAI
+from .summarizer import TranscriptSummarizer as NewTranscriptSummarizer
 
 
 class TranscriptSummarizer:
-    """Handles transcript summarization using OpenAI's API"""
+    """Legacy wrapper around the new TranscriptSummarizer in src/summarizer.py"""
     
     def __init__(self):
-        """Initialize the summarizer with OpenAI client and configuration"""
-        self.api_key = os.getenv('OPENAI_API_KEY')
-        self.client = None
-        self.model = os.getenv('OPENAI_MODEL', 'gpt-4.1')
-        self.max_tokens = int(os.getenv('OPENAI_MAX_TOKENS', '100000'))
-        self.temperature = float(os.getenv('OPENAI_TEMPERATURE', '0.7'))
+        """Initialize the legacy summarizer by wrapping the new one"""
+        # Use the new summarizer implementation
+        self._new_summarizer = NewTranscriptSummarizer()
         
-        # Initialize client lazily to avoid proxy conflicts during import
-        if self.api_key:
-            self._initialize_client()
+        # Expose the same interface for backward compatibility
+        self.api_key = self._new_summarizer.api_key
+        self.client = self._new_summarizer.client
+        self.model = self._new_summarizer.model
+        self.max_tokens = self._new_summarizer.max_tokens
+        self.temperature = self._new_summarizer.temperature
     
     def _initialize_client(self):
-        """Initialize OpenAI client with proper error handling"""
-        if self.client is not None:
-            return
-        
-        try:
-            # Simple initialization with latest OpenAI version
-            self.client = OpenAI(api_key=self.api_key)
-            print("OpenAI client initialized successfully")
-        except Exception as e:
-            print(f"Warning: Failed to initialize OpenAI client: {e}")
-            self.client = None
+        """Legacy method - now delegates to new summarizer"""
+        # Delegate to the new summarizer
+        self._new_summarizer._initialize_client()
+        self.client = self._new_summarizer.client
     
     def format_text_for_readability(self, text: str) -> str:
-        """Format text for better readability"""
-        # Split text into lines
-        lines = text.split('\n')
-        formatted_lines = []
-        
-        for line in lines:
-            line = line.strip()
-            if not line:
-                formatted_lines.append('')
-                continue
-            
-            # Handle list items
-            if line.startswith(('- ', '* ', '1. ', '2. ', '3. ')):
-                formatted_lines.append(line)
-            # Handle headers (markdown style)
-            elif line.startswith('#'):
-                formatted_lines.append(line)
-            # Wrap long paragraphs
-            else:
-                wrapped = textwrap.fill(line, width=80, 
-                                      break_long_words=False, 
-                                      break_on_hyphens=False)
-                formatted_lines.append(wrapped)
-        
-        return '\n'.join(formatted_lines)
+        """Legacy method - delegates to new summarizer"""
+        return self._new_summarizer.format_text_for_readability(text)
     
     def create_summary_prompt(self, transcript_content: str, chapters: Optional[List[Dict]] = None) -> str:
-        """Create a detailed prompt for summarization with enhanced chapter integration"""
-        if chapters and len(chapters) > 1:
-            # Enhanced prompt for videos with chapters - deeply integrate chapter structure
-            chapter_info = "\n".join([f"- {ch.get('title', 'Chapter')} (starts at {self._format_timestamp(ch.get('time', 0))})" for ch in chapters])
-            
-            # Create chapter-specific content extraction
-            chapter_content_prompts = []
-            for i, chapter in enumerate(chapters):
-                chapter_title = chapter.get('title', f'Chapter {i+1}')
-                chapter_time = self._format_timestamp(chapter.get('time', 0))
-                chapter_content_prompts.append(f"### {chapter_title} ({chapter_time})\nSummarize the key points, insights, and actionable advice from this chapter specifically.")
-            
-            chapter_summaries_section = "\n\n".join(chapter_content_prompts)
-            
-            prompt = f"""Please provide a comprehensive summary of this YouTube video transcript. This video has {len(chapters)} chapters with distinct topics. Please structure your response to deeply utilize the chapter organization.
-
-## Overview
-Provide a brief 2-3 sentence overview of what this video covers and how the chapters connect to tell a complete story.
-
-## Chapter-by-Chapter Deep Dive
-For each chapter below, provide a detailed summary focusing on:
-- Core concepts and main points
-- Key insights and takeaways specific to that chapter
-- Actionable strategies or advice mentioned
-- Important examples, statistics, or case studies
-- How this chapter connects to the overall video theme
-
-{chapter_summaries_section}
-
-## Cross-Chapter Synthesis
-Identify themes, concepts, or strategies that appear across multiple chapters and how they build upon each other.
-
-## Progressive Learning Path
-Based on the chapter structure, outline how the video guides viewers through a learning journey from start to finish.
-
-## Key Takeaways & Insights
-Highlight the most important points from across all chapters, noting which chapters they come from.
-
-## Actionable Strategies by Chapter
-Organize practical advice and strategies by their respective chapters for easy reference.
-
-## Warnings & Common Mistakes
-List any warnings or pitfalls mentioned, noting which chapters discuss them.
-
-## Resources & Next Steps
-Any resources, tools, or next steps mentioned, organized by chapter when relevant.
-
-Here is the transcript to summarize:
-
-{transcript_content}
-
-Chapter structure for reference:
-{chapter_info}
-
-IMPORTANT: Use the chapter timestamps to understand the flow and organization of content. When mentioning insights or advice, reference the specific chapter it comes from to help readers navigate back to the source material.
-"""
-        else:
-            # Standard prompt for videos without chapters or with only one chapter
-            prompt = f"""Please provide a comprehensive summary of this YouTube video transcript. Structure your response with the following sections:
-
-## Overview
-Provide a brief 2-3 sentence overview of what this video is about.
-
-## Main Topics Covered
-List the primary topics or themes discussed in the video.
-
-## Key Takeaways & Insights
-Highlight the most important points, insights, or conclusions from the video.
-
-## Actionable Strategies
-If applicable, list any practical advice, strategies, or steps mentioned.
-
-## Specific Details & Examples
-Include important specific details, examples, statistics, or case studies mentioned.
-
-## Warnings & Common Mistakes
-If the video mentions any warnings, pitfalls, or common mistakes to avoid.
-
-## Resources & Next Steps
-Any resources, tools, or next steps mentioned in the video.
-
-Here is the transcript to summarize:
-
-{transcript_content}
-"""
-            
-            if chapters:
-                chapter_info = "\n".join([f"- {ch.get('title', 'Chapter')} (starts at {self._format_timestamp(ch.get('time', 0))})" for ch in chapters])
-                prompt += f"\n\nChapter structure:\n{chapter_info}\n"
-        
-        return prompt
+        """Legacy method - delegates to new summarizer"""
+        return self._new_summarizer.create_summary_prompt(transcript_content, chapters)
     
     def summarize_transcript(self, transcript: List[Dict]) -> str:
-        """
-        Summarize a transcript using OpenAI's API
-        
-        Args:
-            transcript: List of transcript entries with 'text', 'time', etc.
-            
-        Returns:
-            Formatted summary string
-        """
-        # Convert transcript to text
-        transcript_text = "\n".join([f"[{entry.get('formatted_time', entry.get('time', '00:00'))}] {entry['text']}" 
-                                   for entry in transcript])
-        
-        # Check if transcript is too long and truncate if needed
-        # Based on error: context limit is 16,385 tokens, need to be conservative
-        max_chars = 40000  # Conservative limit to stay within 16k token context window
-        if len(transcript_text) > max_chars:
-            transcript_text = transcript_text[:max_chars] + "\n\n[Transcript truncated due to length...]"
-        
-        return self.summarize_with_openai(transcript_text)
+        """Legacy method - delegates to new summarizer"""
+        return self._new_summarizer.summarize_transcript(transcript)
     
     def summarize_with_openai(self, transcript_content: str, chapters: Optional[List[Dict]] = None, video_id: str = None, video_info: Optional[Dict] = None) -> str:
-        """Generate summary using OpenAI's chat completion API with enhanced chapter integration"""
-        # Ensure client is initialized
-        if not self.client:
-            self._initialize_client()
-        
-        if not self.client:
-            raise Exception("OpenAI API key not configured or client initialization failed")
-        
-        # Enhanced processing for chapter-based content
-        if chapters and len(chapters) > 1:
-            # Parse transcript content and organize by chapters
-            chapter_organized_content = self._organize_transcript_by_chapters_for_ai(transcript_content, chapters)
-            prompt = self.create_summary_prompt(chapter_organized_content, chapters)
-        else:
-            prompt = self.create_summary_prompt(transcript_content, chapters)
-        
-        try:
-            # Enhanced system prompt for chapter-aware summarization
-            system_prompt = "You are a helpful assistant that creates clear, comprehensive summaries of educational video transcripts. When chapters are present, you excel at analyzing how content flows between chapters and identifying progressive learning patterns. Focus on extracting key insights, actionable advice, and important details while maintaining readability and respecting the chapter structure."
-            
-            # Prepare API call parameters
-            api_params = {
-                "model": self.model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt}
-                ],
-                "temperature": self.temperature
-            }
-            
-            # Only add max_tokens if it's reasonable (less than context limit)
-            if self.max_tokens and self.max_tokens < 16000:
-                api_params["max_tokens"] = self.max_tokens
-            
-            response = self.client.chat.completions.create(**api_params)
-            
-            summary = response.choices[0].message.content.strip()
-            formatted_summary = self.format_text_for_readability(summary)
-            
-            # Add video info section if video_info and video_id are provided
-            prefix_sections = []
-            if video_info and video_id:
-                video_info_section = self._create_video_info_section(video_info, video_id)
-                prefix_sections.append(video_info_section)
-            
-            # Add clickable chapters section if chapters and video_id are provided
-            if chapters and video_id:
-                chapters_section = self._create_clickable_chapters_section(chapters, video_id)
-                prefix_sections.append(chapters_section)
-            
-            if prefix_sections:
-                formatted_summary = "".join(prefix_sections) + formatted_summary
-            
-            return formatted_summary
-            
-        except Exception as e:
-            raise Exception(f"Error generating summary: {str(e)}")
+        """Legacy method - delegates to new summarizer"""
+        return self._new_summarizer.summarize_with_openai(transcript_content, chapters, video_id, video_info)
     
     def _create_clickable_chapters_section(self, chapters: List[Dict], video_id: str) -> str:
-        """Create a clickable chapters section for the summary"""
-        chapters_html = "📚 Video Chapters ({} chapters):\n\n".format(len(chapters))
-        
-        for chapter in chapters:
-            title = chapter.get('title', 'Chapter')
-            time_seconds = chapter.get('time', 0)
-            
-            # Format timestamp
-            hours = int(time_seconds // 3600)
-            minutes = int((time_seconds % 3600) // 60)
-            seconds = int(time_seconds % 60)
-            
-            if hours > 0:
-                timestamp = f"{hours}:{minutes:02d}:{seconds:02d}"
-            else:
-                timestamp = f"{minutes}:{seconds:02d}"
-            
-            # Create YouTube URL with timestamp
-            youtube_url = f"https://www.youtube.com/watch?v={video_id}&t={int(time_seconds)}s"
-            
-            # Format as clickable link (HTML will be rendered in the summary)
-            chapters_html += f"• [{title}]({youtube_url}) - {timestamp}\n"
-        
-        return chapters_html
+        """Legacy method - delegates to new summarizer"""
+        return self._new_summarizer._create_clickable_chapters_section(chapters, video_id)
     
     def _format_timestamp(self, seconds: float) -> str:
-        """Format timestamp in MM:SS or HH:MM:SS format"""
-        hours = int(seconds // 3600)
-        minutes = int((seconds % 3600) // 60)
-        seconds = int(seconds % 60)
-        
-        if hours > 0:
-            return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-        else:
-            return f"{minutes:02d}:{seconds:02d}"
+        """Legacy method - delegates to new summarizer"""
+        return self._new_summarizer._format_timestamp(seconds)
     
     def _organize_transcript_by_chapters_for_ai(self, transcript_content: str, chapters: List[Dict]) -> str:
-        """Organize transcript content by chapters for AI processing"""
-        if not chapters:
-            return transcript_content
-        
-        # Parse transcript lines to extract timestamps and content
-        lines = transcript_content.split('\n')
-        transcript_entries = []
-        
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-            
-            # Extract timestamp and text using regex
-            import re
-            timestamp_match = re.match(r'\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*(.*)', line)
-            if timestamp_match:
-                timestamp_str = timestamp_match.group(1)
-                text = timestamp_match.group(2)
-                
-                # Convert timestamp to seconds
-                time_parts = timestamp_str.split(':')
-                if len(time_parts) == 2:  # MM:SS
-                    seconds = int(time_parts[0]) * 60 + int(time_parts[1])
-                elif len(time_parts) == 3:  # HH:MM:SS
-                    seconds = int(time_parts[0]) * 3600 + int(time_parts[1]) * 60 + int(time_parts[2])
-                else:
-                    seconds = 0
-                
-                transcript_entries.append({
-                    'time': seconds,
-                    'text': text
-                })
-        
-        # If no entries found, return original content
-        if not transcript_entries:
-            return transcript_content
-        
-        # Organize entries by chapters
-        organized_content = ""
-        
-        for i, chapter in enumerate(chapters):
-            chapter_start = chapter.get('time', 0)
-            chapter_end = chapters[i + 1].get('time', float('inf')) if i + 1 < len(chapters) else float('inf')
-            
-            # Filter entries for this chapter
-            chapter_entries = [
-                entry for entry in transcript_entries
-                if chapter_start <= entry['time'] < chapter_end
-            ]
-            
-            if chapter_entries:
-                chapter_title = chapter.get('title', f'Chapter {i + 1}')
-                chapter_time = self._format_timestamp(chapter_start)
-                
-                organized_content += f"\n=== {chapter_title} (starts at {chapter_time}) ===\n"
-                
-                # Add chapter content
-                for entry in chapter_entries:
-                    formatted_time = self._format_timestamp(entry['time'])
-                    organized_content += f"[{formatted_time}] {entry['text']}\n"
-                
-                organized_content += "\n"
-        
-        return organized_content if organized_content.strip() else transcript_content
+        """Legacy method - delegates to new summarizer"""
+        return self._new_summarizer._organize_transcript_by_chapters_for_ai(transcript_content, chapters)
 
     def _create_video_info_section(self, video_info: Dict, video_id: str) -> str:
-        """Create a video info section with clickable channel link"""
-        info_html = ""
-        
-        title = video_info.get('title')
-        channel_name = video_info.get('channel_name', 'Unknown Channel')
-        duration = video_info.get('duration')
-        
-        if title:
-            info_html += f"🎥 **{title}**\n\n"
-        
-        if channel_name and channel_name != 'Unknown Channel':
-            # Create YouTube channel search URL (since we don't have direct channel URL)
-            channel_search_url = f"https://www.youtube.com/results?search_query={channel_name.replace(' ', '+')}"
-            info_html += f"👤 Channel: [{channel_name}]({channel_search_url})\n"
-        
-        if duration:
-            minutes = int(duration // 60)
-            seconds = int(duration % 60)
-            info_html += f"⏱️ Duration: {minutes}:{seconds:02d}\n"
-        
-        video_url = f"https://www.youtube.com/watch?v={video_id}"
-        info_html += f"🔗 [Watch on YouTube]({video_url})\n\n"
-        
-        return info_html
+        """Legacy method - delegates to new summarizer"""
+        return self._new_summarizer._create_video_info_section(video_info, video_id)
     
     def is_configured(self) -> bool:
-        """Check if OpenAI API key is configured"""
-        return bool(self.api_key)
+        """Legacy method - delegates to new summarizer"""
+        return self._new_summarizer.is_configured()
 
 
 def format_transcript_for_display(transcript: List[Dict]) -> str:
     """Format transcript entries for display"""
+    # Keep this utility function as it's not in the new summarizer
     formatted_lines = []
     for entry in transcript:
         time_str = entry.get('formatted_time', f"{int(entry.get('time', 0) // 60):02d}:{int(entry.get('time', 0) % 60):02d}")

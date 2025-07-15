@@ -182,7 +182,6 @@ Please analyze this transcript:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=self.max_tokens,
                 temperature=self.temperature
             )
             
