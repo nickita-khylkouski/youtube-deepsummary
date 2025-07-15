@@ -468,17 +468,17 @@ class DatabaseStorage:
         return
 
     def get_cache_info(self) -> Dict:
-        """Get database statistics"""
+        """Get database statistics using efficient count queries"""
         try:
-            # Alternative count method - get all records and count them
-            videos_response = self.supabase.table('youtube_videos').select('video_id').execute()
-            videos_count = len(videos_response.data) if videos_response.data else 0
+            # Use count='exact' for efficient counting without fetching data
+            videos_response = self.supabase.table('youtube_videos').select('video_id', count='exact').execute()
+            videos_count = videos_response.count if videos_response.count is not None else 0
 
-            transcripts_response = self.supabase.table('transcripts').select('video_id').execute()
-            transcripts_count = len(transcripts_response.data) if transcripts_response.data else 0
+            transcripts_response = self.supabase.table('transcripts').select('video_id', count='exact').execute()
+            transcripts_count = transcripts_response.count if transcripts_response.count is not None else 0
 
-            summaries_response = self.supabase.table('summaries').select('video_id').execute()
-            summaries_count = len(summaries_response.data) if summaries_response.data else 0
+            summaries_response = self.supabase.table('summaries').select('video_id', count='exact').execute()
+            summaries_count = summaries_response.count if summaries_response.count is not None else 0
 
             print(f"Database stats: {videos_count} videos, {transcripts_count} transcripts, {summaries_count} summaries")
 
@@ -526,12 +526,25 @@ class DatabaseStorage:
             total_videos = count_response.count if count_response.count is not None else 0
             
             # Get paginated videos with their transcripts, summaries, and channel information
-            # Use LEFT JOIN approach to handle missing foreign key constraints
             response = self.supabase.table('youtube_videos')\
                 .select('*, transcripts(transcript_data), summaries(summary_text), video_chapters(chapters_data)')\
                 .order('created_at', desc=True)\
                 .range(offset, offset + per_page - 1)\
                 .execute()
+            
+            # Get all unique channel IDs from the videos
+            channel_ids = list(set(video.get('channel_id') for video in response.data if video.get('channel_id')))
+            
+            # Batch fetch all channel information in one query
+            channels_info = {}
+            if channel_ids:
+                channels_response = self.supabase.table('youtube_channels')\
+                    .select('channel_id, channel_name, handle')\
+                    .in_('channel_id', channel_ids)\
+                    .execute()
+                
+                for channel in channels_response.data:
+                    channels_info[channel['channel_id']] = channel
 
             cached_videos = []
 
@@ -555,25 +568,15 @@ class DatabaseStorage:
                 # Check if summary exists
                 has_summary = video.get('summaries') and len(video['summaries']) > 0
 
-                # Get channel information (manually fetch if channel_id exists)
+                # Get channel information from batched data
                 channel_name = 'Unknown Channel'
                 channel_id = video.get('channel_id')
                 handle = None
                 
-                if channel_id:
-                    try:
-                        # Fetch channel information from youtube_channels table
-                        channel_response = self.supabase.table('youtube_channels')\
-                            .select('channel_name, channel_id, handle')\
-                            .eq('channel_id', channel_id)\
-                            .execute()
-                        
-                        if channel_response.data and len(channel_response.data) > 0:
-                            channel_info = channel_response.data[0]
-                            channel_name = channel_info['channel_name']
-                            handle = channel_info.get('handle')
-                    except Exception as e:
-                        print(f"Warning: Could not fetch channel info for {channel_id}: {e}")
+                if channel_id and channel_id in channels_info:
+                    channel_info = channels_info[channel_id]
+                    channel_name = channel_info.get('channel_name', 'Unknown Channel')
+                    handle = channel_info.get('handle')
 
                 cached_videos.append({
                     'video_id': video['video_id'],
@@ -634,30 +637,37 @@ class DatabaseStorage:
             # Calculate offset for channels
             offset = (page - 1) * per_page
             
-            # Get all channels that have videos, with their video counts
-            # First get all channels
-            channels_response = self.supabase.table('youtube_channels')\
-                .select('channel_id, channel_name, handle')\
-                .order('channel_name')\
+            # Get channels that have videos with their video counts efficiently
+            # First get all videos to count by channel
+            videos_response = self.supabase.table('youtube_videos')\
+                .select('channel_id')\
                 .execute()
             
+            # Count videos by channel
+            channel_video_counts = {}
+            for video in videos_response.data:
+                channel_id = video.get('channel_id')
+                if channel_id:
+                    channel_video_counts[channel_id] = channel_video_counts.get(channel_id, 0) + 1
+            
+            # Get channel info for channels that have videos
+            channel_ids_with_videos = list(channel_video_counts.keys())
             all_channels_with_counts = []
-            for channel in channels_response.data:
-                # Count videos for each channel
-                videos_count_response = self.supabase.table('youtube_videos')\
-                    .select('video_id', count='exact')\
-                    .eq('channel_id', channel['channel_id'])\
+            
+            if channel_ids_with_videos:
+                channels_response = self.supabase.table('youtube_channels')\
+                    .select('channel_id, channel_name, handle')\
+                    .in_('channel_id', channel_ids_with_videos)\
+                    .order('channel_name')\
                     .execute()
                 
-                video_count = videos_count_response.count if videos_count_response.count else 0
-                
-                # Only include channels that have videos
-                if video_count > 0:
+                for channel in channels_response.data:
+                    channel_id = channel['channel_id']
                     all_channels_with_counts.append({
-                        'channel_id': channel['channel_id'],
+                        'channel_id': channel_id,
                         'channel_name': channel['channel_name'],
                         'handle': channel['handle'],
-                        'video_count': video_count
+                        'video_count': channel_video_counts[channel_id]
                     })
             
             total_channels = len(all_channels_with_counts)
