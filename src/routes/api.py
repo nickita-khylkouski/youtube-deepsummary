@@ -730,6 +730,9 @@ def import_channel_videos(channel_handle):
                 'error': f'No videos found for channel: {channel_handle}'
             }), 404
         
+        # Get import settings for processing behavior
+        skip_existing_videos = import_settings.get('skip_existing_videos', True)
+        
         # Process each video
         results = []
         processed_count = 0
@@ -740,6 +743,20 @@ def import_channel_videos(channel_handle):
             video_id = video['video_id']
             channel_id = video.get('channel_id')
             print(f"Processing video: {video_id} - {video['title']}")
+            
+            # Check if video already exists and skip if configured
+            if skip_existing_videos:
+                existing_video = database_storage.get(video_id)
+                if existing_video:
+                    print(f"Skipping existing video: {video_id}")
+                    results.append({
+                        'status': 'exists',
+                        'video_id': video_id,
+                        'title': video['title'],
+                        'message': 'Video already exists in database'
+                    })
+                    skipped_count += 1
+                    continue
             
             result = video_processor.process_video_complete(video_id, channel_id)
             results.append(result)
