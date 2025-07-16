@@ -34,16 +34,21 @@ class VideoProcessor:
                 print(f"Video {video_id} already processed, skipping")
                 return {'status': 'exists', 'video_id': video_id}
             
-            # Get import settings to check if transcript extraction is enabled
+            # Get import settings to check if features are enabled
             import_settings = database_storage.get_import_settings()
-            enable_transcript_extraction = import_settings.get('enable_transcript_extraction', True)
-            enable_auto_summary = import_settings.get('enable_auto_summary', True)
+            # Prioritize camelCase settings (from frontend) over underscore settings (original)
+            enable_transcript_extraction = import_settings.get('enableTranscriptExtraction', import_settings.get('enable_transcript_extraction', True))
+            enable_auto_summary = import_settings.get('enableAutoSummary', import_settings.get('enable_auto_summary', True))
+            enable_chapter_extraction = import_settings.get('enableChapterExtraction', import_settings.get('enable_chapter_extraction', True))
             
-            print(f"Import settings - Transcript extraction: {enable_transcript_extraction}, Auto summary: {enable_auto_summary}")
+            print(f"Import settings - Transcript extraction: {enable_transcript_extraction}, Auto summary: {enable_auto_summary}, Chapter extraction: {enable_chapter_extraction}")
             
-            # Get video info and chapters (always needed for metadata)
+            # Get video info (always needed for metadata)
             print(f"Getting video info for {video_id}")
-            video_info = self.chapter_extractor.extract_video_info(video_id)
+            video_info = self.chapter_extractor.extract_video_info(video_id, extract_chapters=enable_chapter_extraction)
+            
+            if not enable_chapter_extraction:
+                print(f"Chapter extraction disabled for {video_id} (disabled in settings)")
             
             # Get transcript only if enabled
             transcript = None

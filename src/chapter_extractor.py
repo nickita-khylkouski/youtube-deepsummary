@@ -18,12 +18,13 @@ class ChapterExtractor:
         """Initialize the chapter extractor with proxy configuration"""
         self.proxy = os.getenv('YOUTUBE_PROXY')
     
-    def extract_video_info(self, video_id: str) -> Dict[str, any]:
+    def extract_video_info(self, video_id: str, extract_chapters: bool = True) -> Dict[str, any]:
         """
         Extract comprehensive video information including title, chapters, and metadata using yt-dlp
         
         Args:
             video_id: YouTube video ID
+            extract_chapters: Whether to extract chapter information (default: True)
             
         Returns:
             Dictionary containing video information including chapters
@@ -55,17 +56,17 @@ class ChapterExtractor:
                 # Extract title
                 title = video_info.get('title', 'Unknown Title')
                 
-                # Extract chapters
-                chapters = video_info.get('chapters', [])
+                # Extract chapters only if requested
                 formatted_chapters = None
-                
-                if chapters:
-                    formatted_chapters = []
-                    for chapter in chapters:
-                        formatted_chapters.append({
-                            'title': chapter.get('title', 'Unknown Chapter'),
-                            'time': chapter.get('start_time', 0)
-                        })
+                if extract_chapters:
+                    chapters = video_info.get('chapters', [])
+                    if chapters:
+                        formatted_chapters = []
+                        for chapter in chapters:
+                            formatted_chapters.append({
+                                'title': chapter.get('title', 'Unknown Chapter'),
+                                'time': chapter.get('start_time', 0)
+                            })
                 
                 return {
                     'title': title,
@@ -83,10 +84,10 @@ class ChapterExtractor:
                 
         except ImportError:
             print("yt-dlp not available, falling back to description parsing")
-            return self._extract_info_fallback(video_id)
+            return self._extract_info_fallback(video_id, extract_chapters)
         except Exception as e:
             print(f"Error extracting video info with yt-dlp: {e}")
-            return self._extract_info_fallback(video_id)
+            return self._extract_info_fallback(video_id, extract_chapters)
     
     def extract_chapters_only(self, video_id: str) -> Optional[List[Dict]]:
         """
@@ -101,13 +102,14 @@ class ChapterExtractor:
         video_info = self.extract_video_info(video_id)
         return video_info.get('chapters')
     
-    def _extract_info_fallback(self, video_id: str) -> Dict[str, any]:
+    def _extract_info_fallback(self, video_id: str, extract_chapters: bool = True) -> Dict[str, any]:
         """
         Fallback method to extract basic video info without yt-dlp
         This is a basic implementation that could be enhanced with web scraping
         
         Args:
             video_id: YouTube video ID
+            extract_chapters: Whether to extract chapter information (default: True)
             
         Returns:
             Basic video information dictionary
@@ -115,7 +117,7 @@ class ChapterExtractor:
         print(f"Using fallback method for video {video_id}")
         return {
             'title': f'Video {video_id}',
-            'chapters': None,
+            'chapters': None if not extract_chapters else None,
             'duration': None,
             'channel_name': 'Unknown Channel',
             'channel_id': None,
@@ -265,17 +267,18 @@ class ChapterExtractor:
 chapter_extractor = ChapterExtractor()
 
 
-def extract_video_info(video_id: str) -> Dict[str, any]:
+def extract_video_info(video_id: str, extract_chapters: bool = True) -> Dict[str, any]:
     """
     Convenience function to extract video info using the global extractor
     
     Args:
         video_id: YouTube video ID
+        extract_chapters: Whether to extract chapter information (default: True)
         
     Returns:
         Dictionary containing video information
     """
-    return chapter_extractor.extract_video_info(video_id)
+    return chapter_extractor.extract_video_info(video_id, extract_chapters)
 
 
 def extract_video_chapters(video_id: str) -> Optional[List[Dict]]:
