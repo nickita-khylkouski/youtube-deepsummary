@@ -3,1270 +3,1316 @@
 {% block title %}{{ channel_name }} - Channel Summaries{% endblock %}
 
 {% block content %}
-<div style="margin-bottom: 25px;">
-    <div class="breadcrumb-nav" style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
-        <a href="/channels" style="color: #555; text-decoration: none; font-size: 15px; font-weight: 500; padding: 8px 12px; border-radius: 6px; background: #f5f5f5; transition: all 0.2s ease;">← All Channels</a>
-        <span style="color: #ccc; font-size: 16px;">•</span>
-        <a href="/{{ channel_info.handle if channel_info else channel_name }}" style="color: #555; text-decoration: none; font-size: 15px; font-weight: 500; padding: 8px 12px; border-radius: 6px; background: #f5f5f5; transition: all 0.2s ease;">Channel Overview</a>
+    <style>
+        /* Custom tooltip styles */
+        .h2-snippet-icon {
+            position: relative;
+            cursor: pointer;
+            margin-left: 8px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            background: #f0f0f0;
+            transition: background-color 0.2s;
+        }
+        
+        .h2-snippet-icon:hover {
+            background: #e0e0e0;
+        }
+        
+        .h2-snippet-icon[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            margin-bottom: 5px;
+            pointer-events: none;
+        }
+        
+        .h2-snippet-icon[data-tooltip]:hover::before {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 4px solid transparent;
+            border-top-color: #333;
+            margin-bottom: 1px;
+            pointer-events: none;
+        }
+    </style>
+    
+    <div style="margin-bottom: 25px;">
+        <div class="breadcrumb-nav" style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+            <a href="/channels" style="color: #555; text-decoration: none; font-size: 15px; font-weight: 500; padding: 8px 12px; border-radius: 6px; background: #f5f5f5; transition: all 0.2s ease;">← All Channels</a>
+            <span style="color: #ccc; font-size: 16px;">•</span>
+            <a href="/{{ channel_info.handle if channel_info else channel_name }}" style="color: #555; text-decoration: none; font-size: 15px; font-weight: 500; padding: 8px 12px; border-radius: 6px; background: #f5f5f5; transition: all 0.2s ease;">Channel Overview</a>
+        </div>
     </div>
-</div>
 
-<div class="header" style="display: flex; align-items: center; gap: 25px; background: linear-gradient(135deg, #f8f9fa 0%, #e3f2fd 100%); padding: 30px; border-radius: 12px; margin-bottom: 30px; border: 1px solid #e5e5e5;">
-    {% if channel_info and channel_info.thumbnail_url %}
-        <img src="{{ channel_info.thumbnail_url }}" 
-             alt="{{ channel_name }} thumbnail" 
-             style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 4px solid #fff; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+    <div class="header" style="display: flex; align-items: center; gap: 25px; background: linear-gradient(135deg, #f8f9fa 0%, #e3f2fd 100%); padding: 30px; border-radius: 12px; margin-bottom: 30px; border: 1px solid #e5e5e5;">
+        {% if channel_info and channel_info.thumbnail_url %}
+            <img src="{{ channel_info.thumbnail_url }}" 
+                 alt="{{ channel_name }} thumbnail" 
+                 style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 4px solid #fff; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+        {% else %}
+            <div style="width: 90px; height: 90px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 36px; flex-shrink: 0; border: 4px solid #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                {{ channel_name[0]|upper if channel_name else '��' }}
+            </div>
+        {% endif %}
+        <div style="flex: 1; min-width: 0;">
+            <h2 style="margin: 0 0 12px 0; font-size: 28px; color: #1a1a1a; font-weight: 600;">📺 {{ channel_name }} - AI Summaries</h2>
+            <p style="margin: 0; color: #555; font-size: 18px; font-weight: 500;">{{ summarized_videos }} of {{ total_videos }} videos have AI summaries</p>
+            {% if channel_info and channel_info.handle %}
+                <p style="margin: 8px 0 0 0; color: #777; font-size: 16px;">{{ channel_info.handle }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if summaries %}
+        <div class="summaries-grid">
+            {% for summary in summaries %}
+                <div class="summary-card">
+                    <div class="video-header">
+                        <div class="video-thumbnail">
+                            <img src="{{ summary.thumbnail_url }}" alt="{{ summary.title }}" style="width: 100px; height: 75px; object-fit: cover; border-radius: 6px;">
+                        </div>
+                        <div class="video-meta">
+                            <div class="title-row">
+                                <h3><a href="{% if summary.url_path and channel_info.handle %}/{{ channel_info.handle }}/{{ summary.url_path }}{% else %}/watch?v={{ summary.video_id }}{% endif %}" style="color: #333; text-decoration: none;">{{ summary.title }}</a></h3>
+                            </div>
+                            <p class="video-details">
+                                <span class="duration">{{ summary.duration }}</span>
+                                {% if summary.created_at %}
+                                    <span class="date">• {{ summary.created_at[:10] }}</span>
+                                {% endif %}
+                            </p>
+                            <div style="margin-top: 12px;">
+                                <button class="summary-popup-btn" onclick="openSummaryPopup('{{ summary.video_id }}', '{{ summary.title|replace("'", "\\'") }}')">
+                                    🤖 View AI Summary
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div>
+            {% endfor %}
+        </div>
     {% else %}
-        <div style="width: 90px; height: 90px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 36px; flex-shrink: 0; border: 4px solid #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-            {{ channel_name[0]|upper if channel_name else '📺' }}
+        <div class="no-summaries">
+            <h3>No AI summaries available</h3>
+            <p>This channel has {{ total_videos }} videos, but none have been processed for AI summaries yet.</p>
+            <p>Visit individual video pages to generate summaries.</p>
         </div>
     {% endif %}
-    <div style="flex: 1; min-width: 0;">
-        <h2 style="margin: 0 0 12px 0; font-size: 28px; color: #1a1a1a; font-weight: 600;">📺 {{ channel_name }} - AI Summaries</h2>
-        <p style="margin: 0; color: #555; font-size: 18px; font-weight: 500;">{{ summarized_videos }} of {{ total_videos }} videos have AI summaries</p>
-        {% if channel_info and channel_info.handle %}
-            <p style="margin: 8px 0 0 0; color: #777; font-size: 16px;">{{ channel_info.handle }}</p>
-        {% endif %}
-    </div>
-</div>
 
-{% if summaries %}
-    <div class="summaries-grid">
-        {% for summary in summaries %}
-            <div class="summary-card">
-                <div class="video-header">
-                    <div class="video-thumbnail">
-                        <img src="{{ summary.thumbnail_url }}" alt="{{ summary.title }}" style="width: 100px; height: 75px; object-fit: cover; border-radius: 6px;">
-                    </div>
-                    <div class="video-meta">
-                        <div class="title-row">
-                            <h3><a href="{% if summary.url_path and channel_info.handle %}/{{ channel_info.handle }}/{{ summary.url_path }}{% else %}/watch?v={{ summary.video_id }}{% endif %}" style="color: #333; text-decoration: none;">{{ summary.title }}</a></h3>
-                        </div>
-                        <p class="video-details">
-                            <span class="duration">{{ summary.duration }}</span>
-                            {% if summary.created_at %}
-                                <span class="date">• {{ summary.created_at[:10] }}</span>
-                            {% endif %}
-                        </p>
-                        <div style="margin-top: 12px;">
-                            <button class="summary-popup-btn" onclick="openSummaryPopup('{{ summary.video_id }}', '{{ summary.title|replace("'", "\\'") }}')">
-                                🤖 View AI Summary
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-            </div>
-        {% endfor %}
-    </div>
-{% else %}
-    <div class="no-summaries">
-        <h3>No AI summaries available</h3>
-        <p>This channel has {{ total_videos }} videos, but none have been processed for AI summaries yet.</p>
-        <p>Visit individual video pages to generate summaries.</p>
-    </div>
-{% endif %}
-
-<style>
-    /* Breadcrumb navigation styles */
-    .breadcrumb-nav a:hover {
-        background: #e3f2fd !important;
-        color: #1565c0 !important;
-        transform: translateY(-1px);
-    }
-    
-    .summaries-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-        gap: 24px;
-        margin-top: 30px;
-    }
-    
-    /* Large screens - 3 columns */
-    @media (min-width: 1400px) {
+    <style>
+        /* Breadcrumb navigation styles */
+        .breadcrumb-nav a:hover {
+            background: #e3f2fd !important;
+            color: #1565c0 !important;
+            transform: translateY(-1px);
+        }
+        
         .summaries-grid {
-            grid-template-columns: repeat(3, 1fr);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 24px;
+            margin-top: 30px;
         }
-    }
-    
-    /* Medium screens - 2 columns */
-    @media (min-width: 900px) and (max-width: 1399px) {
-        .summaries-grid {
-            grid-template-columns: repeat(2, 1fr);
+        
+        /* Large screens - 3 columns */
+        @media (min-width: 1400px) {
+            .summaries-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
         }
-    }
-    
-    /* Small screens - 1 column */
-    @media (max-width: 899px) {
-        .summaries-grid {
-            grid-template-columns: 1fr;
+        
+        /* Medium screens - 2 columns */
+        @media (min-width: 900px) and (max-width: 1399px) {
+            .summaries-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
-    }
-    
-    .summary-card {
-        background: white;
-        border: 1px solid #e5e5e5;
-        border-radius: 10px;
-        padding: 20px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        transition: box-shadow 0.2s ease, transform 0.2s ease;
-        height: fit-content;
-    }
-    
-    .summary-card:hover {
-        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-        transform: translateY(-1px);
-    }
-    
-    .video-header {
-        display: flex;
-        gap: 15px;
-        margin-bottom: 0;
-        align-items: flex-start;
-    }
-    
-    .title-row {
-        margin-bottom: 8px;
-    }
-    
-    .video-meta h3 {
-        margin: 0;
-        font-size: 16px;
-        line-height: 1.4;
-        font-weight: 600;
-        color: #1a1a1a;
-    }
-    
-    .video-meta h3 a {
-        color: #1a1a1a;
-        text-decoration: none;
-        transition: color 0.2s ease;
-    }
-    
-    .video-meta h3 a:hover {
-        color: #ff0000;
-    }
-    
-    .summary-popup-btn {
-        background: #2196f3;
-        color: white;
-        border: none;
-        padding: 8px 14px;
-        border-radius: 6px;
-        font-size: 13px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        flex-shrink: 0;
-        white-space: nowrap;
-        height: 34px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 5px;
-    }
-    
-    .summary-popup-btn:hover {
-        background: #1976d2;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
-    }
-    
-    .modal-regenerate-btn {
-        background: #ff9800;
-        color: white;
-        border: none;
-        padding: 6px 12px;
-        border-radius: 5px;
-        font-size: 12px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        height: 30px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 4px;
-    }
-    
-    .modal-regenerate-btn:hover {
-        background: #f57c00;
-        transform: translateY(-1px);
-    }
-    
-    .modal-regenerate-btn:disabled {
-        background: #666;
-        cursor: not-allowed;
-        transform: none;
-    }
-    
-    
-    .video-details {
-        color: #666;
-        font-size: 13px;
-        margin: 0 0 8px 0;
-        line-height: 1.3;
-    }
-    
-    /* Popup Modal Styles */
-    .summary-modal {
-        display: none;
-        position: fixed;
-        z-index: 1000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0,0,0,0.5);
-        backdrop-filter: blur(2px);
-    }
-    
-    .summary-modal-content {
-        background-color: #fff;
-        margin: 3% auto;
-        padding: 0;
-        border-radius: 12px;
-        width: 90%;
-        max-width: 900px;
-        max-height: 85vh;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        display: flex;
-        flex-direction: column;
-        animation: modalSlideIn 0.3s ease-out;
-    }
-    
-    @keyframes modalSlideIn {
-        from {
-            transform: translateY(-30px);
-            opacity: 0;
-        }
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
-    }
-    
-    .summary-modal-header {
-        padding: 25px 30px 20px 30px;
-        border-bottom: 1px solid #e0e0e0;
-        background: #f8f9fa;
-        border-radius: 12px 12px 0 0;
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 20px;
-    }
-    
-    .summary-modal-title {
-        margin: 0;
-        font-size: 20px;
-        color: #1a1a1a;
-        line-height: 1.4;
-        flex: 1;
-        font-weight: 600;
-    }
-    
-    .summary-modal-close {
-        background: none;
-        border: none;
-        font-size: 26px;
-        cursor: pointer;
-        color: #666;
-        padding: 0;
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        transition: all 0.2s ease;
-        flex-shrink: 0;
-    }
-    
-    .summary-modal-close:hover {
-        background-color: #e0e0e0;
-        color: #333;
-        transform: scale(1.1);
-    }
-    
-    .summary-modal-body {
-        padding: 30px;
-        overflow-y: auto;
-        flex: 1;
-    }
-    
-    .markdown-content {
-        font-size: 16px;
-        line-height: 1.8;
-        color: #2c2c2c;
-        max-width: none;
-    }
-    
-    .markdown-content h1,
-    .markdown-content h2,
-    .markdown-content h3,
-    .markdown-content h4,
-    .markdown-content h5,
-    .markdown-content h6 {
-        color: #1565c0;
-        margin: 24px 0 12px 0;
-        font-weight: 600;
-        line-height: 1.3;
-    }
-    
-    .markdown-content h2 {
-        font-size: 20px;
-        border-bottom: 2px solid #e3f2fd;
-        padding-bottom: 8px;
-        margin-top: 32px;
-    }
-    
-    .markdown-content h3 {
-        font-size: 18px;
-        margin-top: 24px;
-    }
-    
-    .markdown-content p {
-        margin: 16px 0;
-        line-height: 1.8;
-    }
-    
-    .markdown-content ul,
-    .markdown-content ol {
-        margin: 16px 0;
-        padding-left: 24px;
-    }
-    
-    .markdown-content li {
-        margin: 8px 0;
-        line-height: 1.7;
-    }
-    
-    .markdown-content a {
-        color: #2196f3;
-        text-decoration: none;
-    }
-    
-    .markdown-content a:hover {
-        text-decoration: underline;
-    }
-    
-    .markdown-content strong {
-        font-weight: 600;
-        color: #1a1a1a;
-    }
-    
-    .markdown-content em {
-        font-style: italic;
-        color: #444;
-    }
-    
-    .markdown-content code {
-        background: #f5f5f5;
-        padding: 3px 6px;
-        border-radius: 4px;
-        font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
-        font-size: 14px;
-        color: #d73a49;
-    }
-    
-    .markdown-content blockquote {
-        border-left: 4px solid #1565c0;
-        margin: 20px 0;
-        padding: 12px 20px;
-        background: #f8f9fa;
-        font-style: italic;
-        border-radius: 0 4px 4px 0;
-    }
-    
-    /* H2 Section Snippet Icons */
-    .h2-snippet-icon {
-        display: inline-block;
-        margin-left: 8px;
-        cursor: pointer;
-        opacity: 0.6;
-        transition: opacity 0.2s, transform 0.2s;
-        font-size: 14px;
-        vertical-align: middle;
-        background: #f0f0f0;
-        padding: 4px 6px;
-        border-radius: 4px;
-        border: 1px solid #ddd;
-    }
-    
-    .h2-snippet-icon:hover {
-        opacity: 1;
-        transform: scale(1.1);
-        background: #4CAF50;
-        color: white;
-        border-color: #4CAF50;
-    }
-    
-    .markdown-content h2:hover .h2-snippet-icon {
-        opacity: 0.8;
-    }
-    
-    .summary-actions {
-        text-align: right;
-    }
-    
-    .view-transcript-btn {
-        display: inline-block;
-        background: #ff0000;
-        color: white;
-        padding: 8px 16px;
-        text-decoration: none;
-        border-radius: 5px;
-        font-size: 14px;
-        transition: background-color 0.3s;
-    }
-    
-    .view-transcript-btn:hover {
-        background: #cc0000;
-    }
-    
-    .no-summaries {
-        text-align: center;
-        padding: 60px 30px;
-        background: #f8f9fa;
-        border-radius: 12px;
-        color: #666;
-        margin-top: 30px;
-    }
-    
-    .no-summaries h3 {
-        color: #1a1a1a;
-        margin-bottom: 20px;
-        font-size: 20px;
-        font-weight: 600;
-    }
-    
-    .no-summaries p {
-        font-size: 16px;
-        line-height: 1.6;
-        margin: 12px 0;
-    }
-    
-    /* Mobile responsive */
-    @media (max-width: 768px) {
-        .summaries-grid {
-            grid-template-columns: 1fr;
-            gap: 20px;
-            margin-top: 20px;
+        
+        /* Small screens - 1 column */
+        @media (max-width: 899px) {
+            .summaries-grid {
+                grid-template-columns: 1fr;
+            }
         }
         
         .summary-card {
-            padding: 16px;
+            background: white;
+            border: 1px solid #e5e5e5;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            transition: box-shadow 0.2s ease, transform 0.2s ease;
+            height: fit-content;
+        }
+        
+        .summary-card:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+            transform: translateY(-1px);
         }
         
         .video-header {
-            flex-direction: column;
-            text-align: center;
+            display: flex;
             gap: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .video-thumbnail img {
-            width: 100% !important;
-            height: auto !important;
-            max-width: 280px;
-            margin: 0 auto;
-        }
-        
-        .video-meta h3 {
-            font-size: 16px;
+            margin-bottom: 0;
+            align-items: flex-start;
         }
         
         .title-row {
-            text-align: center;
+            margin-bottom: 8px;
+        }
+        
+        .video-meta h3 {
+            margin: 0;
+            font-size: 16px;
+            line-height: 1.4;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+        
+        .video-meta h3 a {
+            color: #1a1a1a;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+        
+        .video-meta h3 a:hover {
+            color: #ff0000;
         }
         
         .summary-popup-btn {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+            white-space: nowrap;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+        
+        .summary-popup-btn:hover {
+            background: #1976d2;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+        }
+        
+        .modal-regenerate-btn {
+            background: #ff9800;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 5px;
             font-size: 12px;
-            padding: 6px 10px;
-            height: 32px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        
+        .modal-regenerate-btn:hover {
+            background: #f57c00;
+            transform: translateY(-1px);
+        }
+        
+        .modal-regenerate-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        
+        .video-details {
+            color: #666;
+            font-size: 13px;
+            margin: 0 0 8px 0;
+            line-height: 1.3;
+        }
+        
+        /* Popup Modal Styles */
+        .summary-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            backdrop-filter: blur(2px);
         }
         
         .summary-modal-content {
-            width: 95%;
-            margin: 5% auto;
-            max-height: 90vh;
+            background-color: #fff;
+            margin: 3% auto;
+            padding: 0;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 900px;
+            max-height: 85vh;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            animation: modalSlideIn 0.3s ease-out;
+        }
+        
+        @keyframes modalSlideIn {
+            from {
+                transform: translateY(-30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
         
         .summary-modal-header {
-            padding: 20px 20px 15px 20px;
-            flex-direction: column;
+            padding: 25px 30px 20px 30px;
+            border-bottom: 1px solid #e0e0e0;
+            background: #f8f9fa;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
             align-items: flex-start;
-            gap: 10px;
+            gap: 20px;
         }
         
         .summary-modal-title {
-            font-size: 18px;
+            margin: 0;
+            font-size: 20px;
+            color: #1a1a1a;
+            line-height: 1.4;
+            flex: 1;
+            font-weight: 600;
         }
         
         .summary-modal-close {
-            position: absolute;
-            top: 15px;
-            right: 20px;
+            background: none;
+            border: none;
+            font-size: 26px;
+            cursor: pointer;
+            color: #666;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+        
+        .summary-modal-close:hover {
+            background-color: #e0e0e0;
+            color: #333;
+            transform: scale(1.1);
         }
         
         .summary-modal-body {
-            padding: 20px;
+            padding: 30px;
+            overflow-y: auto;
+            flex: 1;
         }
         
         .markdown-content {
-            font-size: 15px;
+            font-size: 16px;
+            line-height: 1.8;
+            color: #2c2c2c;
+            max-width: none;
+        }
+        
+        .markdown-content h1,
+        .markdown-content h2,
+        .markdown-content h3,
+        .markdown-content h4,
+        .markdown-content h5,
+        .markdown-content h6 {
+            color: #1565c0;
+            margin: 24px 0 12px 0;
+            font-weight: 600;
+            line-height: 1.3;
         }
         
         .markdown-content h2 {
-            font-size: 18px;
+            font-size: 20px;
+            border-bottom: 2px solid #e3f2fd;
+            padding-bottom: 8px;
+            margin-top: 32px;
         }
         
         .markdown-content h3 {
-            font-size: 16px;
+            font-size: 18px;
+            margin-top: 24px;
+        }
+        
+        .markdown-content p {
+            margin: 16px 0;
+            line-height: 1.8;
+        }
+        
+        .markdown-content ul,
+        .markdown-content ol {
+            margin: 16px 0;
+            padding-left: 24px;
+        }
+        
+        .markdown-content li {
+            margin: 8px 0;
+            line-height: 1.7;
+        }
+        
+        .markdown-content a {
+            color: #2196f3;
+            text-decoration: none;
+        }
+        
+        .markdown-content a:hover {
+            text-decoration: underline;
+        }
+        
+        .markdown-content strong {
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+        
+        .markdown-content em {
+            font-style: italic;
+            color: #444;
+        }
+        
+        .markdown-content code {
+            background: #f5f5f5;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+            font-size: 14px;
+            color: #d73a49;
+        }
+        
+        .markdown-content blockquote {
+            border-left: 4px solid #1565c0;
+            margin: 20px 0;
+            padding: 12px 20px;
+            background: #f8f9fa;
+            font-style: italic;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        /* H2 Section Snippet Icons */
+        .h2-snippet-icon {
+            display: inline-block;
+            margin-left: 8px;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s, transform 0.2s;
+            font-size: 14px;
+            vertical-align: middle;
+            background: #f0f0f0;
+            padding: 4px 6px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        
+        .h2-snippet-icon:hover {
+            opacity: 1;
+            transform: scale(1.1);
+            background: #4CAF50;
+            color: white;
+            border-color: #4CAF50;
+        }
+        
+        .markdown-content h2:hover .h2-snippet-icon {
+            opacity: 0.8;
+        }
+        
+        .summary-actions {
+            text-align: right;
+        }
+        
+        .view-transcript-btn {
+            display: inline-block;
+            background: #ff0000;
+            color: white;
+            padding: 8px 16px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        .view-transcript-btn:hover {
+            background: #cc0000;
         }
         
         .no-summaries {
-            padding: 40px 20px;
+            text-align: center;
+            padding: 60px 30px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            color: #666;
+            margin-top: 30px;
         }
-    }
-</style>
+        
+        .no-summaries h3 {
+            color: #1a1a1a;
+            margin-bottom: 20px;
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .no-summaries p {
+            font-size: 16px;
+            line-height: 1.6;
+            margin: 12px 0;
+        }
+        
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .summaries-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                margin-top: 20px;
+            }
+            
+            .summary-card {
+                padding: 16px;
+            }
+            
+            .video-header {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+                margin-bottom: 20px;
+            }
+            
+            .video-thumbnail img {
+                width: 100% !important;
+                height: auto !important;
+                max-width: 280px;
+                margin: 0 auto;
+            }
+            
+            .video-meta h3 {
+                font-size: 16px;
+            }
+            
+            .title-row {
+                text-align: center;
+            }
+            
+            .summary-popup-btn {
+                font-size: 12px;
+                padding: 6px 10px;
+                height: 32px;
+            }
+            
+            .summary-modal-content {
+                width: 95%;
+                margin: 5% auto;
+                max-height: 90vh;
+            }
+            
+            .summary-modal-header {
+                padding: 20px 20px 15px 20px;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .summary-modal-title {
+                font-size: 18px;
+            }
+            
+            .summary-modal-close {
+                position: absolute;
+                top: 15px;
+                right: 20px;
+            }
+            
+            .summary-modal-body {
+                padding: 20px;
+            }
+            
+            .markdown-content {
+                font-size: 15px;
+            }
+            
+            .markdown-content h2 {
+                font-size: 18px;
+            }
+            
+            .markdown-content h3 {
+                font-size: 16px;
+            }
+            
+            .no-summaries {
+                padding: 40px 20px;
+            }
+        }
+    </style>
 
-<!-- Summary Popup Modal -->
-<div id="summaryModal" class="summary-modal">
-    <div class="summary-modal-content">
-        <div class="summary-modal-header">
-            <h3 class="summary-modal-title" id="modalTitle">AI Summary</h3>
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <button id="modalRegenerateBtn" class="modal-regenerate-btn" onclick="regenerateCurrentSummary()">
-                    🔄 Regenerate
-                </button>
-                <button class="summary-modal-close" onclick="closeSummaryPopup()">&times;</button>
+    <!-- Summary Popup Modal -->
+    <div id="summaryModal" class="summary-modal">
+        <div class="summary-modal-content">
+            <div class="summary-modal-header">
+                <h3 class="summary-modal-title" id="modalTitle">AI Summary</h3>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button id="modalRegenerateBtn" class="modal-regenerate-btn" onclick="regenerateCurrentSummary()">
+                        🔄 Regenerate
+                    </button>
+                    <button class="summary-modal-close" onclick="closeSummaryPopup()">&times;</button>
+                </div>
             </div>
-        </div>
-        <div class="summary-modal-body">
-            <div class="markdown-content" id="modalSummaryContent">
-                <!-- Summary content will be inserted here -->
+            <div class="summary-modal-body">
+                <div class="markdown-content" id="modalSummaryContent">
+                    <!-- Summary content will be inserted here -->
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<script>
-// Store summaries data for popup access
-const summariesData = {
-    {% for summary in summaries %}
-    '{{ summary.video_id }}': `{{ summary.summary|safe }}`,
-    {% endfor %}
-};
+    <script>
+    // Store summaries data for popup access
+    const summariesData = {
+        {% for summary in summaries %}
+        '{{ summary.video_id }}': `{{ summary.summary|safe }}`,
+        {% endfor %}
+    };
 
-// Store current modal video ID for regeneration
-let currentVideoId = null;
-let currentVideoTitle = null;
+    // Store current modal video ID for regeneration
+    let currentVideoId = null;
+    let currentVideoTitle = null;
 
-function openSummaryPopup(videoId, title) {
-    const modal = document.getElementById('summaryModal');
-    const modalTitle = document.getElementById('modalTitle');
-    const modalContent = document.getElementById('modalSummaryContent');
-    
-    // Store current video info for regeneration
-    currentVideoId = videoId;
-    currentVideoTitle = title;
-    
-    // Set title and content
-    modalTitle.textContent = title;
-    modalContent.innerHTML = summariesData[videoId] || 'Summary not available';
-    
-    // Show modal
-    modal.style.display = 'block';
-    document.body.style.overflow = 'hidden'; // Prevent background scrolling
-}
-
-function closeSummaryPopup() {
-    const modal = document.getElementById('summaryModal');
-    modal.style.display = 'none';
-    document.body.style.overflow = 'auto'; // Restore scrolling
-}
-
-// Close modal when clicking outside the content
-window.onclick = function(event) {
-    const modal = document.getElementById('summaryModal');
-    if (event.target === modal) {
-        closeSummaryPopup();
+    function openSummaryPopup(videoId, title) {
+        const modal = document.getElementById('summaryModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalContent = document.getElementById('modalSummaryContent');
+        
+        // Store current video info for regeneration
+        currentVideoId = videoId;
+        currentVideoTitle = title;
+        
+        // Set title and content
+        modalTitle.textContent = title;
+        modalContent.innerHTML = summariesData[videoId] || 'Summary not available';
+        
+        // Show modal
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling
     }
-}
 
-// Close modal with Escape key
-document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') {
-        closeSummaryPopup();
+    function closeSummaryPopup() {
+        const modal = document.getElementById('summaryModal');
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto'; // Restore scrolling
     }
-});
 
-function regenerateChannelSummary(videoId, title) {
-    // Find the regenerate button for this video
-    const regenerateBtn = event.target;
-    
-    // Update button to show loading state
-    regenerateBtn.textContent = '⏳ Regenerating...';
-    regenerateBtn.disabled = true;
-    
-    // Make AJAX request to regenerate summary
-    fetch(`/api/transcript/${videoId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.formatted_transcript) {
-                // Make request to generate new summary
-                return fetch('/api/summary', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        video_id: videoId,
-                        formatted_transcript: data.formatted_transcript,
-                        force_regenerate: true
-                    })
-                });
-            } else {
-                throw new Error('Failed to get transcript');
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Update the summaries data
-                summariesData[videoId] = data.summary;
+    // Close modal when clicking outside the content
+    window.onclick = function(event) {
+        const modal = document.getElementById('summaryModal');
+        if (event.target === modal) {
+            closeSummaryPopup();
+        }
+    }
+
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeSummaryPopup();
+        }
+    });
+
+    function regenerateChannelSummary(videoId, title) {
+        // Find the regenerate button for this video
+        const regenerateBtn = event.target;
+        
+        // Update button to show loading state
+        regenerateBtn.textContent = '⏳ Regenerating...';
+        regenerateBtn.disabled = true;
+        
+        // Make AJAX request to regenerate summary
+        fetch(`/api/transcript/${videoId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.formatted_transcript) {
+                    // Make request to generate new summary
+                    return fetch('/api/summary', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            video_id: videoId,
+                            formatted_transcript: data.formatted_transcript,
+                            force_regenerate: true
+                        })
+                    });
+                } else {
+                    throw new Error('Failed to get transcript');
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update the summaries data
+                    summariesData[videoId] = data.summary;
+                    
+                    // Update modal if it's currently showing this video
+                    if (currentVideoId === videoId) {
+                        const modalContent = document.getElementById('modalSummaryContent');
+                        modalContent.innerHTML = data.summary;
+                        
+                        // Re-add H2 snippet icons to the new content
+                        setTimeout(addH2SnippetIcons, 100);
+                    }
+                    
+                    // Reset button
+                    regenerateBtn.textContent = '🔄 Regenerate';
+                    regenerateBtn.disabled = false;
+                    
+                    // Show success message (optional)
+                    alert('Summary regenerated successfully!');
+                } else {
+                    throw new Error(data.error || 'Failed to regenerate summary');
+                }
+            })
+            .catch(error => {
+                // Reset button
+                regenerateBtn.textContent = '🔄 Regenerate';
+                regenerateBtn.disabled = false;
                 
-                // Update modal if it's currently showing this video
-                if (currentVideoId === videoId) {
+                // Show error message
+                alert('Failed to regenerate summary: ' + error.message);
+            });
+    }
+
+    function regenerateCurrentSummary() {
+        if (!currentVideoId) {
+            alert('No video selected for regeneration');
+            return;
+        }
+        
+        const modalBtn = document.getElementById('modalRegenerateBtn');
+        
+        // Update button to show loading state
+        modalBtn.textContent = '⏳ Regenerating...';
+        modalBtn.disabled = true;
+        
+        // Make AJAX request to regenerate summary
+        fetch(`/api/transcript/${currentVideoId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.formatted_transcript) {
+                    // Make request to generate new summary
+                    return fetch('/api/summary', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            video_id: currentVideoId,
+                            formatted_transcript: data.formatted_transcript,
+                            force_regenerate: true
+                        })
+                    });
+                } else {
+                    throw new Error('Failed to get transcript');
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update the summaries data
+                    summariesData[currentVideoId] = data.summary;
+                    
+                    // Update modal content
                     const modalContent = document.getElementById('modalSummaryContent');
                     modalContent.innerHTML = data.summary;
                     
                     // Re-add H2 snippet icons to the new content
                     setTimeout(addH2SnippetIcons, 100);
+                    
+                    // Reset button
+                    modalBtn.textContent = '🔄 Regenerate';
+                    modalBtn.disabled = false;
+                } else {
+                    throw new Error(data.error || 'Failed to regenerate summary');
                 }
-                
+            })
+            .catch(error => {
                 // Reset button
-                regenerateBtn.textContent = '🔄 Regenerate';
-                regenerateBtn.disabled = false;
+                modalBtn.textContent = '🔄 Regenerate';
+                modalBtn.disabled = false;
                 
-                // Show success message (optional)
-                alert('Summary regenerated successfully!');
-            } else {
-                throw new Error(data.error || 'Failed to regenerate summary');
-            }
-        })
-        .catch(error => {
-            // Reset button
-            regenerateBtn.textContent = '🔄 Regenerate';
-            regenerateBtn.disabled = false;
-            
-            // Show error message
-            alert('Failed to regenerate summary: ' + error.message);
-        });
-}
-
-function regenerateCurrentSummary() {
-    if (!currentVideoId) {
-        alert('No video selected for regeneration');
-        return;
+                // Show error message
+                alert('Failed to regenerate summary: ' + error.message);
+            });
     }
-    
-    const modalBtn = document.getElementById('modalRegenerateBtn');
-    
-    // Update button to show loading state
-    modalBtn.textContent = '⏳ Regenerating...';
-    modalBtn.disabled = true;
-    
-    // Make AJAX request to regenerate summary
-    fetch(`/api/transcript/${currentVideoId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.formatted_transcript) {
-                // Make request to generate new summary
-                return fetch('/api/summary', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        video_id: currentVideoId,
-                        formatted_transcript: data.formatted_transcript,
-                        force_regenerate: true
-                    })
-                });
+
+    // Snippets functionality for summary pages
+    let saveSnippetModal = null;
+    let selectedText = '';
+    let contextBefore = '';
+    let contextAfter = '';
+    let buttonClickInProgress = false;
+    let selectionTimeout = null;
+    let buttonCreateTime = 0;
+    let lastSaveTime = 0;
+    let currentSnippetVideoId = null;
+
+    function initializeSnippets() {
+        // Listen for text selection in summary content
+        document.addEventListener('mouseup', handleTextSelection);
+        document.addEventListener('keyup', handleTextSelection);
+        
+        // Create the save snippet modal
+        createSaveSnippetModal();
+    }
+
+    function handleTextSelection() {
+        // Clear any existing timeout
+        if (selectionTimeout) {
+            clearTimeout(selectionTimeout);
+        }
+        
+        // Add a small delay to prevent rapid button creation/removal
+        selectionTimeout = setTimeout(() => {
+            const selection = window.getSelection();
+            
+            if (selection.toString().trim().length > 0) {
+                // Check if selection is within a summary content area
+                const summaryContent = selection.anchorNode.parentElement.closest('.markdown-content');
+                
+                if (summaryContent) {
+                    selectedText = selection.toString().trim();
+                    
+                    // Capture HTML formatting from summary content
+                    const range = selection.getRangeAt(0);
+                    const clonedContents = range.cloneContents();
+                    const div = document.createElement('div');
+                    div.appendChild(clonedContents);
+                    selectedText = div.innerHTML || selectedText; // Use HTML if available, fallback to plain text
+                    
+                    // Find the video ID from the modal or closest video context
+                    currentSnippetVideoId = findVideoIdFromSelection(summaryContent);
+                    
+                    if (currentSnippetVideoId) {
+                        // Get context before and after the selection
+                        getTextContext(range, summaryContent);
+                        
+                        // Show save snippet button
+                        showSaveSnippetButton(selection);
+                    }
+                }
             } else {
-                throw new Error('Failed to get transcript');
+                // Don't hide button if click is in progress
+                if (!buttonClickInProgress) {
+                    hideSaveSnippetButton();
+                }
             }
+        }, 100); // 100ms delay
+    }
+
+    function findVideoIdFromSelection(summaryContent) {
+        // If we're in a modal, use the current video ID
+        if (currentVideoId) {
+            return currentVideoId;
+        }
+        
+        // Otherwise, this function would need to be enhanced to find the video ID
+        // from the surrounding context. For now, we'll return null if not in modal
+        return null;
+    }
+
+    function getTextContext(range, container) {
+        const containerText = container.textContent;
+        const selectionStart = containerText.indexOf(selectedText.replace(/<[^>]*>/g, '')); // Remove HTML tags for finding position
+        
+        if (selectionStart !== -1) {
+            const beforeStart = Math.max(0, selectionStart - 100);
+            const afterEnd = Math.min(containerText.length, selectionStart + selectedText.replace(/<[^>]*>/g, '').length + 100);
+            
+            contextBefore = containerText.substring(beforeStart, selectionStart).trim();
+            contextAfter = containerText.substring(selectionStart + selectedText.replace(/<[^>]*>/g, '').length, afterEnd).trim();
+        }
+    }
+
+    function showSaveSnippetButton(selection) {
+        hideSaveSnippetButton(); // Remove any existing button
+        
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        
+        const button = document.createElement('button');
+        button.id = 'saveSnippetBtn';
+        button.innerHTML = '💾 Save as Snippet';
+        button.style.cssText = `
+            position: fixed;
+            top: ${rect.bottom + 5}px;
+            left: ${rect.left}px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            z-index: 9999;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            white-space: nowrap;
+        `;
+        
+        // Add event listener
+        button.addEventListener('click', function(e) {
+            buttonClickInProgress = true;
+            e.preventDefault();
+            e.stopPropagation();
+            
+            saveSnippetDirect();
+            
+            hideSaveSnippetButton();
+            window.getSelection().removeAllRanges();
+            setTimeout(() => { buttonClickInProgress = false; }, 100);
+        });
+        
+        document.body.appendChild(button);
+        buttonCreateTime = Date.now();
+        
+        // Auto-hide after 10 seconds
+        setTimeout(hideSaveSnippetButton, 10000);
+    }
+
+    function hideSaveSnippetButton() {
+        const existingButton = document.getElementById('saveSnippetBtn');
+        if (existingButton) {
+            // Don't remove the button if it was created less than 2 seconds ago
+            const timeSinceCreation = Date.now() - buttonCreateTime;
+            if (timeSinceCreation < 2000) {
+                return;
+            }
+            existingButton.remove();
+        }
+    }
+
+    function createSaveSnippetModal() {
+        const modal = document.createElement('div');
+        modal.id = 'saveSnippetModal';
+        modal.style.cssText = `
+            display: none;
+            position: fixed;
+            z-index: 1001;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        `;
+        
+        modal.innerHTML = `
+            <div style="background: white; margin: 5% auto; padding: 20px; border-radius: 8px; width: 90%; max-width: 500px;">
+                <h3 style="margin-top: 0;">💾 Save Snippet</h3>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Selected Text:</label>
+                    <div id="selectedTextPreview" style="background: #f5f5f5; padding: 10px; border-radius: 4px; max-height: 100px; overflow-y: auto; font-style: italic;"></div>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Tags (optional):</label>
+                    <input type="text" id="snippetTags" placeholder="Enter tags separated by commas" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <small style="color: #666;">e.g., important, strategy, action-item</small>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button onclick="closeSaveSnippetModal()" style="background: #ccc; color: #333; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Cancel</button>
+                    <button onclick="saveSnippet()" style="background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Save Snippet</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        saveSnippetModal = modal;
+        
+        // Close modal when clicking outside
+        modal.onclick = function(e) {
+            if (e.target === modal) {
+                closeSaveSnippetModal();
+            }
+        };
+    }
+
+    function openSaveSnippetModal() {
+        if (!saveSnippetModal) {
+            createSaveSnippetModal();
+        }
+        
+        // Show formatted text in preview if it contains HTML, otherwise show as text
+        const previewElement = document.getElementById('selectedTextPreview');
+        if (selectedText.includes('<') && selectedText.includes('>')) {
+            previewElement.innerHTML = selectedText;
+        } else {
+            previewElement.textContent = selectedText;
+        }
+        
+        document.getElementById('snippetTags').value = '';
+        saveSnippetModal.style.display = 'block';
+    }
+
+    function closeSaveSnippetModal() {
+        if (saveSnippetModal) {
+            saveSnippetModal.style.display = 'none';
+        }
+    }
+
+    function saveSnippet() {
+        if (!currentSnippetVideoId) {
+            alert('No video selected for saving snippet');
+            return;
+        }
+        
+        const tags = document.getElementById('snippetTags').value
+            .split(',')
+            .map(tag => tag.trim())
+            .filter(tag => tag.length > 0);
+        
+        const data = {
+            video_id: currentSnippetVideoId,
+            snippet_text: selectedText, // selectedText now contains HTML formatting when from summary
+            context_before: contextBefore,
+            context_after: contextAfter,
+            tags: tags
+        };
+        
+        fetch('/api/snippets', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Update the summaries data
-                summariesData[currentVideoId] = data.summary;
-                
-                // Update modal content
-                const modalContent = document.getElementById('modalSummaryContent');
-                modalContent.innerHTML = data.summary;
-                
-                // Re-add H2 snippet icons to the new content
-                setTimeout(addH2SnippetIcons, 100);
-                
-                // Reset button
-                modalBtn.textContent = '🔄 Regenerate';
-                modalBtn.disabled = false;
-            } else {
-                throw new Error(data.error || 'Failed to regenerate summary');
+                closeSaveSnippetModal();
+                // Show a brief success indicator
+                const successMsg = document.createElement('div');
+                successMsg.textContent = '✓ Snippet saved';
+                successMsg.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #4CAF50;
+                    color: white;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    z-index: 10000;
+                    font-size: 14px;
+                `;
+                document.body.appendChild(successMsg);
+                setTimeout(() => successMsg.remove(), 3000);
             }
         })
         .catch(error => {
-            // Reset button
-            modalBtn.textContent = '🔄 Regenerate';
-            modalBtn.disabled = false;
-            
+            // Silent error handling
+        });
+    }
+
+    function saveSnippetDirect() {
+        if (!currentSnippetVideoId) {
             // Show error message
-            alert('Failed to regenerate summary: ' + error.message);
-        });
-}
-
-// Snippets functionality for summary pages
-let saveSnippetModal = null;
-let selectedText = '';
-let contextBefore = '';
-let contextAfter = '';
-let buttonClickInProgress = false;
-let selectionTimeout = null;
-let buttonCreateTime = 0;
-let lastSaveTime = 0;
-let currentSnippetVideoId = null;
-
-function initializeSnippets() {
-    // Listen for text selection in summary content
-    document.addEventListener('mouseup', handleTextSelection);
-    document.addEventListener('keyup', handleTextSelection);
-    
-    // Create the save snippet modal
-    createSaveSnippetModal();
-}
-
-function handleTextSelection() {
-    // Clear any existing timeout
-    if (selectionTimeout) {
-        clearTimeout(selectionTimeout);
-    }
-    
-    // Add a small delay to prevent rapid button creation/removal
-    selectionTimeout = setTimeout(() => {
-        const selection = window.getSelection();
-        
-        if (selection.toString().trim().length > 0) {
-            // Check if selection is within a summary content area
-            const summaryContent = selection.anchorNode.parentElement.closest('.markdown-content');
-            
-            if (summaryContent) {
-                selectedText = selection.toString().trim();
-                
-                // Capture HTML formatting from summary content
-                const range = selection.getRangeAt(0);
-                const clonedContents = range.cloneContents();
-                const div = document.createElement('div');
-                div.appendChild(clonedContents);
-                selectedText = div.innerHTML || selectedText; // Use HTML if available, fallback to plain text
-                
-                // Find the video ID from the modal or closest video context
-                currentSnippetVideoId = findVideoIdFromSelection(summaryContent);
-                
-                if (currentSnippetVideoId) {
-                    // Get context before and after the selection
-                    getTextContext(range, summaryContent);
-                    
-                    // Show save snippet button
-                    showSaveSnippetButton(selection);
-                }
-            }
-        } else {
-            // Don't hide button if click is in progress
-            if (!buttonClickInProgress) {
-                hideSaveSnippetButton();
-            }
-        }
-    }, 100); // 100ms delay
-}
-
-function findVideoIdFromSelection(summaryContent) {
-    // If we're in a modal, use the current video ID
-    if (currentVideoId) {
-        return currentVideoId;
-    }
-    
-    // Otherwise, this function would need to be enhanced to find the video ID
-    // from the surrounding context. For now, we'll return null if not in modal
-    return null;
-}
-
-function getTextContext(range, container) {
-    const containerText = container.textContent;
-    const selectionStart = containerText.indexOf(selectedText.replace(/<[^>]*>/g, '')); // Remove HTML tags for finding position
-    
-    if (selectionStart !== -1) {
-        const beforeStart = Math.max(0, selectionStart - 100);
-        const afterEnd = Math.min(containerText.length, selectionStart + selectedText.replace(/<[^>]*>/g, '').length + 100);
-        
-        contextBefore = containerText.substring(beforeStart, selectionStart).trim();
-        contextAfter = containerText.substring(selectionStart + selectedText.replace(/<[^>]*>/g, '').length, afterEnd).trim();
-    }
-}
-
-function showSaveSnippetButton(selection) {
-    hideSaveSnippetButton(); // Remove any existing button
-    
-    const range = selection.getRangeAt(0);
-    const rect = range.getBoundingClientRect();
-    
-    const button = document.createElement('button');
-    button.id = 'saveSnippetBtn';
-    button.innerHTML = '💾 Save as Snippet';
-    button.style.cssText = `
-        position: fixed;
-        top: ${rect.bottom + 5}px;
-        left: ${rect.left}px;
-        background: #4CAF50;
-        color: white;
-        border: none;
-        padding: 8px 12px;
-        border-radius: 4px;
-        font-size: 12px;
-        cursor: pointer;
-        z-index: 9999;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        white-space: nowrap;
-    `;
-    
-    // Add event listener
-    button.addEventListener('click', function(e) {
-        buttonClickInProgress = true;
-        e.preventDefault();
-        e.stopPropagation();
-        
-        saveSnippetDirect();
-        
-        hideSaveSnippetButton();
-        window.getSelection().removeAllRanges();
-        setTimeout(() => { buttonClickInProgress = false; }, 100);
-    });
-    
-    document.body.appendChild(button);
-    buttonCreateTime = Date.now();
-    
-    // Auto-hide after 10 seconds
-    setTimeout(hideSaveSnippetButton, 10000);
-}
-
-function hideSaveSnippetButton() {
-    const existingButton = document.getElementById('saveSnippetBtn');
-    if (existingButton) {
-        // Don't remove the button if it was created less than 2 seconds ago
-        const timeSinceCreation = Date.now() - buttonCreateTime;
-        if (timeSinceCreation < 2000) {
-            return;
-        }
-        existingButton.remove();
-    }
-}
-
-function createSaveSnippetModal() {
-    const modal = document.createElement('div');
-    modal.id = 'saveSnippetModal';
-    modal.style.cssText = `
-        display: none;
-        position: fixed;
-        z-index: 1001;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0,0,0,0.5);
-    `;
-    
-    modal.innerHTML = `
-        <div style="background: white; margin: 5% auto; padding: 20px; border-radius: 8px; width: 90%; max-width: 500px;">
-            <h3 style="margin-top: 0;">💾 Save Snippet</h3>
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Selected Text:</label>
-                <div id="selectedTextPreview" style="background: #f5f5f5; padding: 10px; border-radius: 4px; max-height: 100px; overflow-y: auto; font-style: italic;"></div>
-            </div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Tags (optional):</label>
-                <input type="text" id="snippetTags" placeholder="Enter tags separated by commas" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                <small style="color: #666;">e.g., important, strategy, action-item</small>
-            </div>
-            <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                <button onclick="closeSaveSnippetModal()" style="background: #ccc; color: #333; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Cancel</button>
-                <button onclick="saveSnippet()" style="background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Save Snippet</button>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    saveSnippetModal = modal;
-    
-    // Close modal when clicking outside
-    modal.onclick = function(e) {
-        if (e.target === modal) {
-            closeSaveSnippetModal();
-        }
-    };
-}
-
-function openSaveSnippetModal() {
-    if (!saveSnippetModal) {
-        createSaveSnippetModal();
-    }
-    
-    // Show formatted text in preview if it contains HTML, otherwise show as text
-    const previewElement = document.getElementById('selectedTextPreview');
-    if (selectedText.includes('<') && selectedText.includes('>')) {
-        previewElement.innerHTML = selectedText;
-    } else {
-        previewElement.textContent = selectedText;
-    }
-    
-    document.getElementById('snippetTags').value = '';
-    saveSnippetModal.style.display = 'block';
-}
-
-function closeSaveSnippetModal() {
-    if (saveSnippetModal) {
-        saveSnippetModal.style.display = 'none';
-    }
-}
-
-function saveSnippet() {
-    if (!currentSnippetVideoId) {
-        alert('No video selected for saving snippet');
-        return;
-    }
-    
-    const tags = document.getElementById('snippetTags').value
-        .split(',')
-        .map(tag => tag.trim())
-        .filter(tag => tag.length > 0);
-    
-    const data = {
-        video_id: currentSnippetVideoId,
-        snippet_text: selectedText, // selectedText now contains HTML formatting when from summary
-        context_before: contextBefore,
-        context_after: contextAfter,
-        tags: tags
-    };
-    
-    fetch('/api/snippets', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            closeSaveSnippetModal();
-            // Show a brief success indicator
-            const successMsg = document.createElement('div');
-            successMsg.textContent = '✓ Snippet saved';
-            successMsg.style.cssText = `
+            const errorMsg = document.createElement('div');
+            errorMsg.textContent = '⚠️ Cannot save snippet: No video context found';
+            errorMsg.style.cssText = `
                 position: fixed;
                 top: 20px;
                 right: 20px;
-                background: #4CAF50;
+                background: #ff4444;
                 color: white;
                 padding: 10px 20px;
                 border-radius: 5px;
                 z-index: 10000;
                 font-size: 14px;
             `;
-            document.body.appendChild(successMsg);
-            setTimeout(() => successMsg.remove(), 3000);
-        }
-    })
-    .catch(error => {
-        // Silent error handling
-    });
-}
-
-function saveSnippetDirect() {
-    if (!currentSnippetVideoId) {
-        // Show error message
-        const errorMsg = document.createElement('div');
-        errorMsg.textContent = '⚠️ Cannot save snippet: No video context found';
-        errorMsg.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #ff4444;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            z-index: 10000;
-            font-size: 14px;
-        `;
-        document.body.appendChild(errorMsg);
-        setTimeout(() => errorMsg.remove(), 3000);
-        return;
-    }
-    
-    // Prevent duplicate saves within 2 seconds
-    const now = Date.now();
-    if (now - lastSaveTime < 2000) {
-        return;
-    }
-    lastSaveTime = now;
-    
-    const data = {
-        video_id: currentSnippetVideoId,
-        snippet_text: selectedText, // selectedText now contains HTML formatting when from summary
-        context_before: contextBefore,
-        context_after: contextAfter,
-        tags: [] // No tags when saving directly
-    };
-    
-    fetch('/api/snippets', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Show a brief success indicator
-            const successMsg = document.createElement('div');
-            successMsg.textContent = '✓ Snippet saved';
-            successMsg.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: #4CAF50;
-                color: white;
-                padding: 10px 20px;
-                border-radius: 5px;
-                z-index: 10000;
-                font-size: 14px;
-            `;
-            document.body.appendChild(successMsg);
-            setTimeout(() => successMsg.remove(), 3000);
-        }
-    })
-    .catch(error => {
-        // Silent error handling
-    });
-}
-
-// H2 Section Snippet Functionality
-function addH2SnippetIcons() {
-    // Find all H2 elements in markdown content
-    const h2Elements = document.querySelectorAll('.markdown-content h2');
-    
-    h2Elements.forEach((h2, index) => {
-        // Skip if icon already exists
-        if (h2.querySelector('.h2-snippet-icon')) {
+            document.body.appendChild(errorMsg);
+            setTimeout(() => errorMsg.remove(), 3000);
             return;
         }
         
-        // Create snippet icon
-        const icon = document.createElement('span');
-        icon.className = 'h2-snippet-icon';
-        icon.innerHTML = '💾';
-        icon.title = 'Save this section as snippet';
-        icon.setAttribute('data-h2-index', index);
+        // Prevent duplicate saves within 2 seconds
+        const now = Date.now();
+        if (now - lastSaveTime < 2000) {
+            return;
+        }
+        lastSaveTime = now;
         
-        // Add click handler
-        icon.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            saveH2Section(h2, index);
+        const data = {
+            video_id: currentSnippetVideoId,
+            snippet_text: selectedText, // selectedText now contains HTML formatting when from summary
+            context_before: contextBefore,
+            context_after: contextAfter,
+            tags: [] // No tags when saving directly
+        };
+        
+        fetch('/api/snippets', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show a brief success indicator
+                const successMsg = document.createElement('div');
+                successMsg.textContent = '✓ Snippet saved';
+                successMsg.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #4CAF50;
+                    color: white;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    z-index: 10000;
+                    font-size: 14px;
+                `;
+                document.body.appendChild(successMsg);
+                setTimeout(() => successMsg.remove(), 3000);
+            }
+        })
+        .catch(error => {
+            // Silent error handling
         });
-        
-        // Append icon to H2
-        h2.appendChild(icon);
-    });
-}
+    }
 
-function saveH2Section(h2Element, sectionIndex) {
-    if (!currentVideoId) {
-        // Show error message
-        const errorMsg = document.createElement('div');
-        errorMsg.textContent = '⚠️ Cannot save snippet: No video context found';
-        errorMsg.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #ff4444;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            z-index: 10000;
-            font-size: 14px;
-        `;
-        document.body.appendChild(errorMsg);
-        setTimeout(() => errorMsg.remove(), 3000);
-        return;
+    // H2 Section Snippet Functionality
+    function addH2SnippetIcons() {
+        // Find all H2 elements in markdown content
+        const h2Elements = document.querySelectorAll('.markdown-content h2');
+        
+        h2Elements.forEach((h2, index) => {
+            // Skip if icon already exists
+            if (h2.querySelector('.h2-snippet-icon')) {
+                return;
+            }
+            
+            // Create snippet icon
+            const icon = document.createElement('span');
+            icon.className = 'h2-snippet-icon';
+            icon.innerHTML = '💾';
+            icon.setAttribute('data-tooltip', 'Save this section as snippet');
+            icon.setAttribute('data-h2-index', index);
+            
+            // Add click handler
+            icon.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                saveH2Section(h2, index);
+            });
+            
+            // Append icon to H2
+            h2.appendChild(icon);
+        });
     }
-    
-    // Get the H2 section content (everything until the next H2 or end of content)
-    const sectionContent = getH2SectionContent(h2Element);
-    
-    if (!sectionContent.trim()) {
-        // Show error message
-        const errorMsg = document.createElement('div');
-        errorMsg.textContent = '⚠️ No content found in this section';
-        errorMsg.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #ff4444;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            z-index: 10000;
-            font-size: 14px;
-        `;
-        document.body.appendChild(errorMsg);
-        setTimeout(() => errorMsg.remove(), 3000);
-        return;
-    }
-    
-    // Prevent duplicate saves within 2 seconds
-    const now = Date.now();
-    if (now - lastSaveTime < 2000) {
-        return;
-    }
-    lastSaveTime = now;
-    
-    // Get section title for context
-    const sectionTitle = h2Element.textContent.replace('💾', '').trim();
-    
-    const data = {
-        video_id: currentVideoId,
-        snippet_text: sectionContent,
-        context_before: '',
-        context_after: '',
-        tags: []
-    };
-    
-    // Show loading state
-    const originalIcon = h2Element.querySelector('.h2-snippet-icon');
-    const originalContent = originalIcon.innerHTML;
-    originalIcon.innerHTML = '⏳';
-    originalIcon.style.background = '#666';
-    
-    fetch('/api/snippets', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Show success indicator
-            const successMsg = document.createElement('div');
-            successMsg.textContent = `✓ Section "${sectionTitle}" saved as snippet`;
-            successMsg.style.cssText = `
+
+    function saveH2Section(h2Element, sectionIndex) {
+        if (!currentVideoId) {
+            // Show error message
+            const errorMsg = document.createElement('div');
+            errorMsg.textContent = '⚠️ Cannot save snippet: No video context found';
+            errorMsg.style.cssText = `
                 position: fixed;
                 top: 20px;
                 right: 20px;
-                background: #4CAF50;
+                background: #ff4444;
                 color: white;
                 padding: 10px 20px;
                 border-radius: 5px;
                 z-index: 10000;
                 font-size: 14px;
-                max-width: 300px;
             `;
-            document.body.appendChild(successMsg);
-            setTimeout(() => successMsg.remove(), 3000);
+            document.body.appendChild(errorMsg);
+            setTimeout(() => errorMsg.remove(), 3000);
+            return;
+        }
+        
+        // Get the H2 section content (everything until the next H2 or end of content)
+        const sectionContent = getH2SectionContent(h2Element);
+        
+        if (!sectionContent.trim()) {
+            // Show error message
+            const errorMsg = document.createElement('div');
+            errorMsg.textContent = '⚠️ No content found in this section';
+            errorMsg.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #ff4444;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 5px;
+                z-index: 10000;
+                font-size: 14px;
+            `;
+            document.body.appendChild(errorMsg);
+            setTimeout(() => errorMsg.remove(), 3000);
+            return;
+        }
+        
+        // Prevent duplicate saves within 2 seconds
+        const now = Date.now();
+        if (now - lastSaveTime < 2000) {
+            return;
+        }
+        lastSaveTime = now;
+        
+        // Get section title for context
+        const sectionTitle = h2Element.textContent.replace('💾', '').trim();
+        
+        const data = {
+            video_id: currentVideoId,
+            snippet_text: sectionContent,
+            context_before: '',
+            context_after: '',
+            tags: []
+        };
+        
+        // Show loading state
+        const originalIcon = h2Element.querySelector('.h2-snippet-icon');
+        const originalContent = originalIcon.innerHTML;
+        originalIcon.innerHTML = '⏳';
+        originalIcon.style.background = '#666';
+        
+        fetch('/api/snippets', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success indicator
+                const successMsg = document.createElement('div');
+                successMsg.textContent = `✓ Section "${sectionTitle}" saved as snippet`;
+                successMsg.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #4CAF50;
+                    color: white;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    z-index: 10000;
+                    font-size: 14px;
+                    max-width: 300px;
+                `;
+                document.body.appendChild(successMsg);
+                setTimeout(() => successMsg.remove(), 3000);
+                
+                // Animate icon to show success
+                originalIcon.innerHTML = '✓';
+                originalIcon.style.background = '#4CAF50';
+                originalIcon.style.color = 'white';
+                setTimeout(() => {
+                    originalIcon.innerHTML = originalContent;
+                    originalIcon.style.background = '';
+                    originalIcon.style.color = '';
+                }, 2000);
+            } else {
+                throw new Error(data.message || 'Failed to save snippet');
+            }
+        })
+        .catch(error => {
+            // Show error message
+            const errorMsg = document.createElement('div');
+            errorMsg.textContent = `❌ Failed to save section: ${error.message}`;
+            errorMsg.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #ff4444;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 5px;
+                z-index: 10000;
+                font-size: 14px;
+            `;
+            document.body.appendChild(errorMsg);
+            setTimeout(() => errorMsg.remove(), 3000);
             
-            // Animate icon to show success
-            originalIcon.innerHTML = '✓';
-            originalIcon.style.background = '#4CAF50';
-            originalIcon.style.color = 'white';
-            setTimeout(() => {
-                originalIcon.innerHTML = originalContent;
-                originalIcon.style.background = '';
-                originalIcon.style.color = '';
-            }, 2000);
-        } else {
-            throw new Error(data.message || 'Failed to save snippet');
-        }
-    })
-    .catch(error => {
-        // Show error message
-        const errorMsg = document.createElement('div');
-        errorMsg.textContent = `❌ Failed to save section: ${error.message}`;
-        errorMsg.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #ff4444;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            z-index: 10000;
-            font-size: 14px;
-        `;
-        document.body.appendChild(errorMsg);
-        setTimeout(() => errorMsg.remove(), 3000);
+            // Reset icon
+            originalIcon.innerHTML = originalContent;
+            originalIcon.style.background = '';
+            originalIcon.style.color = '';
+        });
+    }
+
+    function getH2SectionContent(h2Element) {
+        let content = '';
+        let currentElement = h2Element.nextElementSibling;
         
-        // Reset icon
-        originalIcon.innerHTML = originalContent;
-        originalIcon.style.background = '';
-        originalIcon.style.color = '';
+        // Include the H2 title itself, but remove the snippet icon
+        const h2Clone = h2Element.cloneNode(true);
+        const iconElement = h2Clone.querySelector('.h2-snippet-icon');
+        if (iconElement) {
+            iconElement.remove();
+        }
+        content += h2Clone.outerHTML;
+        
+        // Traverse siblings until we hit another H2 or end of content
+        while (currentElement) {
+            // Stop if we encounter another H2
+            if (currentElement.tagName === 'H2') {
+                break;
+            }
+            
+            // Add the element's HTML content
+            content += currentElement.outerHTML;
+            currentElement = currentElement.nextElementSibling;
+        }
+        
+        return content;
+    }
+
+    // Initialize snippets functionality when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeSnippets();
+        addH2SnippetIcons();
     });
-}
 
-function getH2SectionContent(h2Element) {
-    let content = '';
-    let currentElement = h2Element.nextElementSibling;
-    
-    // Include the H2 title itself, but remove the snippet icon
-    const h2Clone = h2Element.cloneNode(true);
-    const iconElement = h2Clone.querySelector('.h2-snippet-icon');
-    if (iconElement) {
-        iconElement.remove();
-    }
-    content += h2Clone.outerHTML;
-    
-    // Traverse siblings until we hit another H2 or end of content
-    while (currentElement) {
-        // Stop if we encounter another H2
-        if (currentElement.tagName === 'H2') {
-            break;
-        }
-        
-        // Add the element's HTML content
-        content += currentElement.outerHTML;
-        currentElement = currentElement.nextElementSibling;
-    }
-    
-    return content;
-}
-
-// Initialize snippets functionality when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    initializeSnippets();
-    addH2SnippetIcons();
-});
-
-// Re-add icons when summary modal content changes
-const originalOpenSummaryPopup = openSummaryPopup;
-openSummaryPopup = function(videoId, title) {
-    originalOpenSummaryPopup(videoId, title);
-    // Add a small delay to ensure content is loaded
-    setTimeout(addH2SnippetIcons, 100);
-};
-</script>
+    // Re-add icons when summary modal content changes
+    const originalOpenSummaryPopup = openSummaryPopup;
+    openSummaryPopup = function(videoId, title) {
+        originalOpenSummaryPopup(videoId, title);
+        // Add a small delay to ensure content is loaded
+        setTimeout(addH2SnippetIcons, 100);
+    };
+    </script>
 {% endblock %}
