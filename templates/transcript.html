@@ -1598,7 +1598,7 @@
             btn.style.background = '#666';
             
             // Make AJAX request to extract chapters
-            fetch(`/api/chapters/${videoId}?force_extract=true`)
+            fetch(`/api/chapters/${videoId}?extract_chapters=true`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -1652,8 +1652,8 @@
                 statusDiv.style.display = 'block';
             }
             
-            // Make AJAX request to extract transcript with force_extract parameter
-            fetch(`/api/transcript/${videoId}?force_extract=true`)
+            // Make AJAX request to extract transcript
+            fetch(`/api/transcript/${videoId}?extract_transcript=true`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
