@@ -21,7 +21,7 @@ class ChapterExtractor:
     def extract_video_info(self, video_id: str, extract_chapters: bool = True) -> Dict[str, any]:
         """
         Extract comprehensive video information using YouTube Data API as primary source,
-        with yt-dlp fallback for chapters and additional metadata
+        with yt-dlp only for chapters (no fallback for metadata)
         
         Args:
             video_id: YouTube video ID
@@ -30,24 +30,24 @@ class ChapterExtractor:
         Returns:
             Dictionary containing video information including chapters
         """
-        # Try YouTube Data API first (faster, more reliable for basic metadata)
+        # Get metadata from YouTube Data API (primary and only source for metadata)
         youtube_api_data = self._extract_info_youtube_api(video_id)
         
-        # If chapters are needed or YouTube API failed, try yt-dlp
-        yt_dlp_data = None
-        if extract_chapters or not youtube_api_data:
-            yt_dlp_data = self._extract_info_yt_dlp(video_id, extract_chapters)
+        if not youtube_api_data:
+            print(f"YouTube Data API failed for {video_id}, using basic fallback (no yt-dlp)")
+            youtube_api_data = self._extract_info_fallback(video_id, extract_chapters=False)
         
-        # Merge data sources with YouTube Data API taking priority for most fields
-        merged_data = self._merge_video_info(youtube_api_data, yt_dlp_data)
+        # Get chapters from yt-dlp only if needed (chapters not available in YouTube Data API)
+        chapters = None
+        if extract_chapters:
+            yt_dlp_data = self._extract_info_yt_dlp(video_id, extract_chapters=True)
+            if yt_dlp_data and yt_dlp_data.get('chapters'):
+                chapters = yt_dlp_data['chapters']
         
-        # Add chapters from yt-dlp if requested
-        if extract_chapters and yt_dlp_data and yt_dlp_data.get('chapters'):
-            merged_data['chapters'] = yt_dlp_data['chapters']
-        elif not extract_chapters:
-            merged_data['chapters'] = None
+        # Add chapters to the YouTube Data API data
+        youtube_api_data['chapters'] = chapters
         
-        return merged_data
+        return youtube_api_data
     
     def _extract_info_youtube_api(self, video_id: str) -> Dict[str, any]:
         """Extract video info using YouTube Data API"""
@@ -73,7 +73,7 @@ class ChapterExtractor:
             return None
     
     def _extract_info_yt_dlp(self, video_id: str, extract_chapters: bool = True) -> Dict[str, any]:
-        """Extract video info using yt-dlp (primarily for chapters)"""
+        """Extract video info using yt-dlp (chapters only - no fallback metadata)"""
         try:
             import yt_dlp
             print(f"Extracting video info using yt-dlp for {video_id}")
@@ -130,41 +130,6 @@ class ChapterExtractor:
             print(f"Error extracting video info with yt-dlp for {video_id}: {e}")
             return None
     
-    def _merge_video_info(self, youtube_api_data: Dict, yt_dlp_data: Dict) -> Dict[str, any]:
-        """Merge video info from YouTube Data API and yt-dlp, prioritizing YouTube Data API"""
-        
-        if not youtube_api_data and not yt_dlp_data:
-            return self._extract_info_fallback("")
-        
-        if not youtube_api_data:
-            return yt_dlp_data or self._extract_info_fallback("")
-        
-        if not yt_dlp_data:
-            return youtube_api_data
-        
-        # YouTube Data API takes priority for most fields
-        merged = youtube_api_data.copy()
-        
-        # Use yt-dlp data as fallback for missing fields
-        fallback_fields = [
-            'title', 'description', 'channel_name', 'channel_id', 
-            'duration', 'thumbnail', 'upload_date', 'view_count', 
-            'like_count', 'tags'
-        ]
-        
-        for field in fallback_fields:
-            if not merged.get(field) and yt_dlp_data.get(field):
-                merged[field] = yt_dlp_data[field]
-                merged[f'{field}_source'] = 'yt_dlp_fallback'
-        
-        # Always prefer yt-dlp for chapters (YouTube Data API doesn't provide them)
-        if yt_dlp_data.get('chapters'):
-            merged['chapters'] = yt_dlp_data['chapters']
-        
-        # Set primary source indicator
-        merged['primary_source'] = 'youtube_data_api'
-        
-        return merged
     
     def extract_chapters_only(self, video_id: str) -> Optional[List[Dict]]:
         """
@@ -181,29 +146,36 @@ class ChapterExtractor:
     
     def _extract_info_fallback(self, video_id: str, extract_chapters: bool = True) -> Dict[str, any]:
         """
-        Fallback method to extract basic video info without yt-dlp
-        This is a basic implementation that could be enhanced with web scraping
+        Emergency fallback when YouTube Data API is completely unavailable
+        Provides minimal video info without any external dependencies
         
         Args:
             video_id: YouTube video ID
             extract_chapters: Whether to extract chapter information (default: True)
             
         Returns:
-            Basic video information dictionary
+            Basic video information dictionary with minimal data
         """
-        print(f"Using fallback method for video {video_id}")
+        print(f"Using emergency fallback (no API) for video {video_id}")
         return {
             'title': f'Video {video_id}',
-            'chapters': None if not extract_chapters else None,
+            'chapters': None,
             'duration': None,
             'channel_name': 'Unknown Channel',
             'channel_id': None,
             'description': '',
             'view_count': None,
             'like_count': None,
+            'comment_count': None,
             'upload_date': None,
+            'published_at': None,
             'thumbnail': f'https://img.youtube.com/vi/{video_id}/maxresdefault.jpg',
-            'tags': []
+            'tags': [],
+            'category_id': None,
+            'definition': None,
+            'caption': None,
+            'licensed_content': None,
+            'api_source': 'emergency_fallback'
         }
     
     def parse_chapters_from_description(self, description: str) -> Optional[List[Dict]]:
