@@ -97,8 +97,8 @@ class YouTubeAPI:
         channel_info = self.get_channel_info(channel_id)
         return channel_info['handle'] if channel_info else None
     
-    def get_channel_videos(self, channel_name, max_results=5):
-        """Get latest videos from a channel using YouTube Data API"""
+    def get_channel_videos(self, channel_name, max_results=5, days_back=30):
+        """Get latest videos from a channel using YouTube Data API within specified time range"""
         if not self.service:
             raise Exception("YouTube Data API not available or not configured")
         
@@ -242,7 +242,7 @@ class YouTubeAPI:
                     part='snippet,contentDetails',
                     channelId=actual_channel_id,
                     maxResults=max_results,
-                    publishedAfter=(datetime.utcnow() - timedelta(days=60)).isoformat() + 'Z'  # Last 60 days
+                    publishedAfter=(datetime.utcnow() - timedelta(days=days_back)).isoformat() + 'Z'  # Use specified days back
                 )
                 activities_response = activities_request.execute()
                 
@@ -278,7 +278,8 @@ class YouTubeAPI:
                 channelId=actual_channel_id,
                 type='video',
                 order='date',
-                maxResults=max_results
+                maxResults=max_results,
+                publishedAfter=(datetime.utcnow() - timedelta(days=days_back)).isoformat() + 'Z'  # Use specified days back
             )
             search_response = search_request.execute()
             
