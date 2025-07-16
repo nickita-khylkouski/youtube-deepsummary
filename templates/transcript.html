@@ -68,10 +68,15 @@
     <div id="summary-section" style="{% if not summary and not summary_error %}display: none;{% endif %}">
         {% if summary %}
             <div class="summary-section">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                     <h3 style="margin: 0;">🤖 AI-Generated Summary:</h3>
                     {% if summarize_enabled %}
-                        <button id="regenerateSummaryBtn" onclick="regenerateSummary('{{ video_id }}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <select id="modelSelect" style="padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; background: white;">
+                                <option value="">Loading models...</option>
+                            </select>
+                            <button id="regenerateSummaryBtn" onclick="regenerateSummaryWithModel('{{ video_id }}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
+                        </div>
                     {% endif %}
                 </div>
                 <div class="summary-content">
@@ -408,6 +413,134 @@
                         </div>
                         <hr style="margin: 30px 0; border: 1px solid #ddd;">
                                             `;
+                });
+        }
+        
+        // Load available models for regeneration
+        function loadAvailableModels() {
+            fetch('/api/models')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.models) {
+                        const modelSelect = document.getElementById('modelSelect');
+                        if (modelSelect) {
+                            // Clear loading option
+                            modelSelect.innerHTML = '';
+                            
+                            // Add providers and models
+                            for (const [provider, models] of Object.entries(data.models)) {
+                                const optgroup = document.createElement('optgroup');
+                                optgroup.label = provider.charAt(0).toUpperCase() + provider.slice(1);
+                                
+                                models.forEach(model => {
+                                    const option = document.createElement('option');
+                                    option.value = model;
+                                    option.textContent = model;
+                                    
+                                    // Default to Claude Sonnet 4 if available
+                                    if (model === 'claude-sonnet-4-20250514') {
+                                        option.selected = true;
+                                    }
+                                    
+                                    optgroup.appendChild(option);
+                                });
+                                
+                                modelSelect.appendChild(optgroup);
+                            }
+                            
+                            // If no Claude model available, select first available model
+                            if (modelSelect.selectedIndex === -1 && modelSelect.options.length > 0) {
+                                modelSelect.selectedIndex = 0;
+                            }
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading models:', error);
+                    const modelSelect = document.getElementById('modelSelect');
+                    if (modelSelect) {
+                        modelSelect.innerHTML = '<option value="">Error loading models</option>';
+                    }
+                });
+        }
+        
+        // Regenerate summary with selected model
+        function regenerateSummaryWithModel(videoId) {
+            const btn = document.getElementById('regenerateSummaryBtn');
+            const modelSelect = document.getElementById('modelSelect');
+            const summarySection = document.getElementById('summary-section');
+            
+            const selectedModel = modelSelect.value;
+            if (!selectedModel) {
+                alert('Please select a model first');
+                return;
+            }
+            
+            // Update button to show loading state
+            btn.textContent = '⏳ Regenerating...';
+            btn.disabled = true;
+            btn.style.background = '#666';
+            
+            // Make AJAX request to regenerate summary with selected model
+            fetch('/api/summary/regenerate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    video_id: videoId,
+                    model: selectedModel
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update summary section with new content
+                        summarySection.innerHTML = `
+                            <div class="summary-section">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                                    <h3 style="margin: 0;">🤖 AI-Generated Summary: <small style="color: #666; font-weight: normal;">(${selectedModel})</small></h3>
+                                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                        <select id="modelSelect" style="padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; background: white;">
+                                            <option value="">Loading models...</option>
+                                        </select>
+                                        <button id="regenerateSummaryBtn" onclick="regenerateSummaryWithModel('${videoId}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
+                                    </div>
+                                </div>
+                                <div class="summary-content">
+                                    <div class="markdown-content">${data.summary}</div>
+                                </div>
+                            </div>
+                            <hr style="margin: 30px 0; border: 1px solid #ddd;">
+                        `;
+                        
+                        // Reload models for the new dropdown
+                        loadAvailableModels();
+                        
+                        // Add H2 snippet icons to the regenerated summary
+                        setTimeout(addH2SnippetIcons, 100);
+                        
+                        // Update the main generate button
+                        const mainBtn = document.getElementById('generateSummaryBtn');
+                        if (mainBtn) {
+                            mainBtn.textContent = '🤖 Regenerate AI Summary';
+                            mainBtn.disabled = false;
+                            mainBtn.style.background = '#2196f3';
+                        }
+                    } else {
+                        // Show error and restore controls
+                        alert('Error regenerating summary: ' + data.error);
+                        btn.textContent = '🔄 Regenerate';
+                        btn.disabled = false;
+                        btn.style.background = '#ff9800';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error regenerating summary:', error);
+                    alert('Failed to regenerate summary: ' + error.message);
+                    btn.textContent = '🔄 Regenerate';
+                    btn.disabled = false;
+                    btn.style.background = '#ff9800';
                 });
         }
         
@@ -984,6 +1117,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             initializeSnippets();
             addH2SnippetIcons();
+            loadAvailableModels(); // Load available AI models for summary regeneration
         });
     </script>
     

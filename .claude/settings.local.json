@@ -20,7 +20,8 @@
       "Bash(cp:*)",
       "Bash(mkdir:*)",
       "Bash(find:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "WebFetch(domain:docs.anthropic.com)"
     ],
     "deny": []
   }

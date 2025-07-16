@@ -11,39 +11,101 @@ import re
 import textwrap
 from typing import List, Dict, Optional
 from openai import OpenAI
+try:
+    import anthropic
+    ANTHROPIC_AVAILABLE = True
+except ImportError:
+    ANTHROPIC_AVAILABLE = False
+    anthropic = None
 
 
 class TranscriptSummarizer:
-    """Handles transcript summarization using OpenAI's API"""
+    """Handles transcript summarization using OpenAI and Anthropic APIs"""
     
     def __init__(self):
-        """Initialize the summarizer with OpenAI client and configuration"""
-        self.api_key = os.getenv('OPENAI_API_KEY')
-        self.client = None
-        self.model = os.getenv('OPENAI_MODEL', 'gpt-4.1')
-        self.max_tokens = int(os.getenv('OPENAI_MAX_TOKENS', '100000'))
-        self.temperature = float(os.getenv('OPENAI_TEMPERATURE', '0.7'))
+        """Initialize the summarizer with AI clients and configuration"""
+        # OpenAI configuration
+        self.openai_api_key = os.getenv('OPENAI_API_KEY')
+        self.openai_client = None
+        self.openai_model = os.getenv('OPENAI_MODEL', 'gpt-4.1')
+        self.openai_max_tokens = int(os.getenv('OPENAI_MAX_TOKENS', '100000'))
+        self.openai_temperature = float(os.getenv('OPENAI_TEMPERATURE', '0.7'))
         
-        # Initialize client lazily to avoid proxy conflicts during import
-        if self.api_key:
-            self._initialize_client()
+        # Anthropic configuration
+        self.anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
+        self.anthropic_client = None
+        self.anthropic_model = os.getenv('ANTHROPIC_MODEL', 'claude-3-5-sonnet-20241022')
+        
+        # Legacy compatibility
+        self.api_key = self.openai_api_key
+        self.client = None
+        self.model = self.openai_model
+        self.max_tokens = self.openai_max_tokens
+        self.temperature = self.openai_temperature
+        
+        # Initialize clients lazily to avoid proxy conflicts during import
+        if self.openai_api_key:
+            self._initialize_openai_client()
+        if self.anthropic_api_key and ANTHROPIC_AVAILABLE:
+            self._initialize_anthropic_client()
     
-    def _initialize_client(self):
+    def _initialize_openai_client(self):
         """Initialize OpenAI client with proper error handling"""
-        if self.client is not None:
+        if self.openai_client is not None:
             return
         
         try:
-            # Simple initialization with latest OpenAI version
-            self.client = OpenAI(api_key=self.api_key)
+            self.openai_client = OpenAI(api_key=self.openai_api_key)
+            # Legacy compatibility
+            self.client = self.openai_client
             print("OpenAI client initialized successfully")
         except Exception as e:
             print(f"Warning: Failed to initialize OpenAI client: {e}")
-            self.client = None
+            self.openai_client = None
     
-    def is_configured(self) -> bool:
-        """Check if the summarizer is properly configured"""
-        return self.api_key is not None and self.client is not None
+    def _initialize_anthropic_client(self):
+        """Initialize Anthropic client with proper error handling"""
+        if self.anthropic_client is not None or not ANTHROPIC_AVAILABLE:
+            return
+        
+        try:
+            self.anthropic_client = anthropic.Anthropic(api_key=self.anthropic_api_key)
+            print("Anthropic client initialized successfully")
+        except Exception as e:
+            print(f"Warning: Failed to initialize Anthropic client: {e}")
+            self.anthropic_client = None
+    
+    def _initialize_client(self):
+        """Initialize OpenAI client with proper error handling (legacy compatibility)"""
+        self._initialize_openai_client()
+    
+    def is_configured(self, provider: str = 'openai') -> bool:
+        """Check if the summarizer is properly configured for a specific provider"""
+        if provider == 'openai':
+            return self.openai_api_key is not None and self.openai_client is not None
+        elif provider == 'anthropic':
+            return (self.anthropic_api_key is not None and 
+                   self.anthropic_client is not None and 
+                   ANTHROPIC_AVAILABLE)
+        else:
+            # Legacy compatibility - check OpenAI by default
+            return self.openai_api_key is not None and self.openai_client is not None
+    
+    def get_available_models(self) -> Dict[str, List[str]]:
+        """Get list of available models by provider"""
+        models = {}
+        
+        if self.is_configured('openai'):
+            models['openai'] = ['gpt-4.1', 'gpt-4', 'gpt-3.5-turbo']
+        
+        if self.is_configured('anthropic'):
+            models['anthropic'] = [
+                'claude-sonnet-4-20250514',
+                'claude-opus-4-20250514',
+                'claude-3-5-sonnet-20241022'
+            ]
+        
+        return models
     
     def format_text_for_readability(self, text: str) -> str:
         """Format text for better readability"""
@@ -159,7 +221,47 @@ Please analyze this transcript:
         
         return prompt
     
-    def summarize_with_openai(self, transcript_content: str, chapters: Optional[List[Dict]] = None, video_id: str = None, video_info: Optional[Dict] = None) -> str:
+    def summarize_with_anthropic(self, transcript_content: str, chapters: Optional[List[Dict]] = None, video_id: str = None, video_info: Optional[Dict] = None, model: str = None) -> str:
+        """Generate summary using Anthropic's Claude API with enhanced chapter integration"""
+        if not self.is_configured('anthropic'):
+            raise Exception("Anthropic client not configured properly")
+        
+        # Use provided model or default
+        model_to_use = model or self.anthropic_model
+        
+        # Enhanced processing for chapter-based content
+        if chapters and len(chapters) > 1:
+            # Parse transcript content and organize by chapters
+            chapter_organized_content = self._organize_transcript_by_chapters_for_ai(transcript_content, chapters)
+            prompt = self.create_summary_prompt(chapter_organized_content, chapters)
+        else:
+            prompt = self.create_summary_prompt(transcript_content, chapters)
+        
+        try:
+            # Enhanced system prompt for chapter-aware summarization
+            system_prompt = "You are a helpful assistant that creates clear, comprehensive summaries of educational video transcripts. When chapters are present, you excel at analyzing how content flows between chapters and identifying progressive learning patterns. Focus on extracting key insights, actionable advice, and important details while maintaining readability and respecting the chapter structure."
+            
+            response = self.anthropic_client.messages.create(
+                model=model_to_use,
+                max_tokens=8192,
+                system=system_prompt,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            
+            summary = response.content[0].text
+            
+            # Post-process summary with additional formatting
+            summary = self._post_process_summary(summary, chapters, video_id, video_info)
+            
+            return summary
+            
+        except Exception as e:
+            print(f"Error during Anthropic summarization: {e}")
+            raise Exception(f"Failed to generate summary with Anthropic: {str(e)}")
+
+    def summarize_with_openai(self, transcript_content: str, chapters: Optional[List[Dict]] = None, video_id: str = None, video_info: Optional[Dict] = None, model: str = None) -> str:
         """Generate summary using OpenAI's chat completion API with enhanced chapter integration"""
         if not self.is_configured():
             raise Exception("OpenAI client not configured properly")
@@ -195,6 +297,26 @@ Please analyze this transcript:
         except Exception as e:
             print(f"Error during OpenAI summarization: {e}")
             raise Exception(f"Failed to generate summary: {str(e)}")
+    
+    def summarize_with_model(self, transcript_content: str, model: str, chapters: Optional[List[Dict]] = None, video_id: str = None, video_info: Optional[Dict] = None) -> str:
+        """Generate summary using specified model (either OpenAI or Anthropic)"""
+        # Determine provider from model name
+        if model.startswith('claude') or model.startswith('anthropic'):
+            return self.summarize_with_anthropic(transcript_content, chapters, video_id, video_info, model)
+        elif model.startswith('gpt') or model.startswith('openai'):
+            return self.summarize_with_openai(transcript_content, chapters, video_id, video_info, model)
+        else:
+            # Try to detect provider from available models
+            available_models = self.get_available_models()
+            for provider, model_list in available_models.items():
+                if model in model_list:
+                    if provider == 'anthropic':
+                        return self.summarize_with_anthropic(transcript_content, chapters, video_id, video_info, model)
+                    elif provider == 'openai':
+                        return self.summarize_with_openai(transcript_content, chapters, video_id, video_info, model)
+            
+            # Fallback to OpenAI if model not found
+            raise Exception(f"Unknown model: {model}. Available models: {available_models}")
     
     def _post_process_summary(self, summary: str, chapters: Optional[List[Dict]] = None, video_id: str = None, video_info: Optional[Dict] = None) -> str:
         """Post-process the generated summary with additional formatting"""

@@ -152,6 +152,104 @@ def summary():
         }), 500
 
 
+@api_bp.route('/summary/regenerate', methods=['POST'])
+def regenerate_summary():
+    """API endpoint to regenerate summary with specified model"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No JSON data provided'
+            }), 400
+        
+        video_id = data.get('video_id')
+        model = data.get('model')
+        
+        if not video_id:
+            return jsonify({
+                'success': False,
+                'error': 'video_id is required'
+            }), 400
+        
+        if not model:
+            return jsonify({
+                'success': False,
+                'error': 'model is required'
+            }), 400
+        
+        # Check if model is supported
+        available_models = video_processor.summarizer.get_available_models()
+        model_found = False
+        for provider_models in available_models.values():
+            if model in provider_models:
+                model_found = True
+                break
+        
+        if not model_found:
+            return jsonify({
+                'success': False,
+                'error': f'Model not available. Available models: {available_models}'
+            }), 400
+        
+        # Get existing video data
+        cached_data = database_storage.get(video_id)
+        if not cached_data:
+            return jsonify({
+                'success': False,
+                'error': 'Video not found in database'
+            }), 404
+        
+        formatted_transcript = cached_data['formatted_transcript']
+        video_info = cached_data['video_info']
+        chapters = video_info.get('chapters')
+        
+        # Generate new summary with specified model
+        summary = video_processor.summarizer.summarize_with_model(
+            formatted_transcript, 
+            model, 
+            chapters, 
+            video_id, 
+            video_info
+        )
+        
+        # Save the new summary to database
+        database_storage.save_summary(video_id, summary, model)
+        
+        # Format the summary as HTML for frontend display
+        summary_html = format_summary_html(summary)
+        
+        return jsonify({
+            'success': True,
+            'video_id': video_id,
+            'summary': summary_html,
+            'model_used': model,
+            'from_cache': False
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route('/models')
+def get_available_models():
+    """API endpoint to get available AI models"""
+    try:
+        available_models = video_processor.summarizer.get_available_models()
+        return jsonify({
+            'success': True,
+            'models': available_models
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @api_bp.route('/cache/info')
 def cache_info():
     """API endpoint to get database statistics"""

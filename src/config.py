@@ -21,6 +21,10 @@ class Config:
     OPENAI_MAX_TOKENS = int(os.getenv('OPENAI_MAX_TOKENS', 100000))
     OPENAI_TEMPERATURE = float(os.getenv('OPENAI_TEMPERATURE', 0.7))
     
+    # Anthropic configuration
+    ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
+    ANTHROPIC_MODEL = os.getenv('ANTHROPIC_MODEL', 'claude-sonnet-4-20250514')
+    
     # Supabase configuration
     SUPABASE_URL = os.getenv('SUPABASE_URL')
     SUPABASE_KEY = os.getenv('SUPABASE_KEY')
@@ -33,6 +37,11 @@ class Config:
     def is_openai_configured(cls):
         """Check if OpenAI API is configured"""
         return bool(cls.OPENAI_API_KEY)
+    
+    @classmethod
+    def is_anthropic_configured(cls):
+        """Check if Anthropic API is configured"""
+        return bool(cls.ANTHROPIC_API_KEY)
     
     @classmethod
     def is_youtube_api_configured(cls):
