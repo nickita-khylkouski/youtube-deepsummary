@@ -94,10 +94,10 @@
         <div class="conversations-header">
             <h3>Recent Conversations</h3>
             <button id="toggleConversations" class="toggle-btn">
-                <i class="fas fa-chevron-down"></i>
+                <i class="fas fa-chevron-up"></i>
             </button>
         </div>
-        <div id="chatSessions" class="chat-sessions collapsed">
+        <div id="chatSessions" class="chat-sessions">
             {% if recent_sessions %}
                 {% for session in recent_sessions %}
                     <div class="session-item" data-session-id="{{ session.session_id }}">
@@ -268,12 +268,15 @@
 
 .chat-sessions {
     max-height: 300px;
+    min-height: 60px;
     overflow-y: auto;
     transition: all 0.3s ease;
+    display: block;
 }
 
 .chat-sessions.collapsed {
     max-height: 0;
+    min-height: 0;
     overflow: hidden;
 }
 
@@ -596,13 +599,22 @@
 .no-sessions {
     text-align: center;
     color: #718096;
-    padding: 2rem;
+    padding: 1.5rem;
+    background: #f8fafc;
+    border-radius: 8px;
+    margin: 0.5rem;
 }
 
 .no-sessions i {
-    font-size: 2rem;
-    margin-bottom: 1rem;
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
     display: block;
+    opacity: 0.7;
+}
+
+.no-sessions p {
+    margin: 0;
+    font-size: 0.9rem;
 }
 
 /* Error and Setup Messages */
