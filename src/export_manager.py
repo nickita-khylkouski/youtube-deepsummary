@@ -26,12 +26,13 @@ class ExportManager:
         """Initialize the export manager."""
         pass
     
-    def export_channel_summaries_zip(self, channel_handle: str) -> tuple[io.BytesIO, str]:
+    def export_channel_summaries_zip(self, channel_handle: str, format_type: str = 'markdown') -> tuple[io.BytesIO, str]:
         """
         Export all AI summaries for a channel as a ZIP file with individual text files.
         
         Args:
             channel_handle: The channel handle (e.g., 'allin')
+            format_type: Export format - 'markdown' (default) or 'plain' text
             
         Returns:
             tuple: (memory_file, zip_filename) where memory_file is the ZIP data
@@ -57,11 +58,12 @@ class ExportManager:
             raise ValueError(f'No AI summaries found for channel: {channel_handle}')
         
         # Create ZIP file
-        memory_file = self._create_summaries_zip(summaries, channel_info)
+        memory_file = self._create_summaries_zip(summaries, channel_info, format_type)
         
         # Generate filename
         safe_channel_name = self._sanitize_filename(channel_info['channel_name'])
-        zip_filename = f"{safe_channel_name}_AI_Summaries_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+        format_suffix = "_Plain" if format_type == 'plain' else ""
+        zip_filename = f"{safe_channel_name}_AI_Summaries{format_suffix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
         
         return memory_file, zip_filename
     
@@ -90,13 +92,14 @@ class ExportManager:
         
         return summaries
     
-    def _create_summaries_zip(self, summaries: List[Dict[str, Any]], channel_info: Dict[str, Any]) -> io.BytesIO:
+    def _create_summaries_zip(self, summaries: List[Dict[str, Any]], channel_info: Dict[str, Any], format_type: str = 'markdown') -> io.BytesIO:
         """
         Create a ZIP file containing all summaries as individual text files.
         
         Args:
             summaries: List of summary dictionaries
             channel_info: Channel information dictionary
+            format_type: Export format - 'markdown' or 'plain'
             
         Returns:
             BytesIO object containing the ZIP file data
@@ -107,7 +110,7 @@ class ExportManager:
             for summary_data in summaries:
                 # Create filename and content
                 filename = self._generate_summary_filename(summary_data)
-                content = self._generate_summary_content(summary_data, channel_info)
+                content = self._generate_summary_content(summary_data, channel_info, format_type)
                 
                 # Add file to ZIP
                 zip_file.writestr(filename, content.encode('utf-8'))
@@ -133,13 +136,14 @@ class ExportManager:
         
         return f"{safe_title} - {summary_data['video_id']}.txt"
     
-    def _generate_summary_content(self, summary_data: Dict[str, Any], channel_info: Dict[str, Any]) -> str:
+    def _generate_summary_content(self, summary_data: Dict[str, Any], channel_info: Dict[str, Any], format_type: str = 'markdown') -> str:
         """
         Generate the content for a summary text file.
         
         Args:
             summary_data: Summary data dictionary
             channel_info: Channel information dictionary
+            format_type: Export format - 'markdown' or 'plain'
             
         Returns:
             Formatted content string
@@ -149,8 +153,15 @@ class ExportManager:
         content += f"Video URL: https://www.youtube.com/watch?v={summary_data['video_id']}\n"
         content += f"Export Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
         content += f"Channel: {channel_info['channel_name']}\n"
+        content += f"Format: {format_type}\n"
         content += "=" * 80 + "\n\n"
-        content += summary_data['summary']
+        
+        # Process summary content based on format type
+        summary_content = summary_data['summary']
+        if format_type == 'plain':
+            summary_content = self._strip_markdown_formatting(summary_content)
+        
+        content += summary_content
         
         return content
     
@@ -169,6 +180,64 @@ class ExportManager:
         safe_filename = safe_filename.replace('  ', ' ').strip()
         
         return safe_filename
+    
+    def _strip_markdown_formatting(self, text: str) -> str:
+        """
+        Strip markdown formatting from text to create plain text version.
+        
+        Args:
+            text: Text with markdown formatting
+            
+        Returns:
+            Plain text without markdown formatting
+        """
+        if not text:
+            return text
+        
+        # Remove HTML tags first (in case summary contains HTML)
+        text = re.sub(r'<[^>]+>', '', text)
+        
+        # Remove markdown formatting
+        # Headers (##, ###, etc.)
+        text = re.sub(r'^#{1,6}\s*', '', text, flags=re.MULTILINE)
+        
+        # Bold and italic (**bold**, *italic*, __bold__, _italic_)
+        text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
+        text = re.sub(r'__([^_]+)__', r'\1', text)
+        text = re.sub(r'\*([^*]+)\*', r'\1', text)
+        text = re.sub(r'_([^_]+)_', r'\1', text)
+        
+        # Links [text](url)
+        text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
+        
+        # Code blocks ```code```
+        text = re.sub(r'```[^`]*```', '', text, flags=re.DOTALL)
+        
+        # Inline code `code`
+        text = re.sub(r'`([^`]+)`', r'\1', text)
+        
+        # Strikethrough ~~text~~
+        text = re.sub(r'~~([^~]+)~~', r'\1', text)
+        
+        # Bullet points (- or * or +)
+        text = re.sub(r'^[\s]*[-*+]\s*', '• ', text, flags=re.MULTILINE)
+        
+        # Numbered lists
+        text = re.sub(r'^[\s]*\d+\.\s*', '• ', text, flags=re.MULTILINE)
+        
+        # Blockquotes
+        text = re.sub(r'^>\s*', '', text, flags=re.MULTILINE)
+        
+        # Horizontal rules
+        text = re.sub(r'^[-*_]{3,}$', '', text, flags=re.MULTILINE)
+        
+        # Clean up multiple newlines
+        text = re.sub(r'\n\s*\n\s*\n', '\n\n', text)
+        
+        # Clean up multiple spaces
+        text = re.sub(r'  +', ' ', text)
+        
+        return text.strip()
     
     def get_export_statistics(self, channel_handle: str) -> Dict[str, Any]:
         """

@@ -181,8 +181,15 @@ def channel_summaries(channel_handle):
 def export_summaries(channel_handle):
     """Export all AI summaries for a channel as a ZIP file with individual text files"""
     try:
+        # Get format parameter from query string (default to 'markdown')
+        format_type = request.args.get('format', 'markdown')
+        
+        # Validate format type
+        if format_type not in ['markdown', 'plain']:
+            return jsonify({'error': 'Invalid format. Must be "markdown" or "plain"'}), 400
+        
         # Use export manager to handle the export
-        memory_file, zip_filename = export_manager.export_channel_summaries_zip(channel_handle)
+        memory_file, zip_filename = export_manager.export_channel_summaries_zip(channel_handle, format_type)
         
         return send_file(
             memory_file,

@@ -156,6 +156,10 @@
            style="background: #9c27b0; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; display: inline-block; transition: all 0.3s;">
             📦 Export AI Summaries ({{ summary_count }})
         </a>
+        <a href="/{{ channel_info.handle }}/export-summaries?format=plain" 
+           style="background: #795548; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; display: inline-block; transition: all 0.3s;">
+            📄 Export Plain Text ({{ summary_count }})
+        </a>
         {% endif %}
         {% if channel_info.channel_url %}
             <a href="{{ channel_info.channel_url }}" target="_blank" 
