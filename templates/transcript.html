@@ -31,8 +31,9 @@
                 <p style="margin-top: 10px;">
                     <a href="https://www.youtube.com/watch?v={{ video_id }}" target="_blank" style="background: #ff0000; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; display: inline-block; margin-right: 10px;">▶️ Watch on YouTube</a>
                     {% if summarize_enabled %}
-                        <button id="generateSummaryBtn" onclick="generateSummary('{{ video_id }}')" style="background: #2196f3; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; display: inline-block;">🤖 {% if summary %}Regenerate AI Summary{% else %}Generate AI Summary{% endif %}</button>
+                        <button id="generateSummaryBtn" onclick="generateSummary('{{ video_id }}')" style="background: #2196f3; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; display: inline-block; margin-right: 10px;">🤖 {% if summary %}Regenerate AI Summary{% else %}Generate AI Summary{% endif %}</button>
                     {% endif %}
+                    <button onclick="deleteVideo('{{ video_id }}', '{{ video_title|e }}')" style="background: #d32f2f; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; display: inline-block;">🗑️ Delete Video</button>
                 </p>
             </div>
         </div>
@@ -1559,6 +1560,69 @@
             loadSummaryHistory('{{ video_id }}');
             {% endif %}
         });
+        
+        // Delete video functionality
+        function deleteVideo(videoId, videoTitle) {
+            // Show confirmation dialog
+            const confirmed = confirm(
+                `⚠️ WARNING: Are you sure you want to delete this video?\n\n` +
+                `Video: "${videoTitle}"\n\n` +
+                `This will permanently delete:\n` +
+                `• Video data\n` +
+                `• Transcript\n` +
+                `• AI summary\n` +
+                `• All memory snippets\n` +
+                `• Video chapters\n\n` +
+                `This action CANNOT be undone!\n\n` +
+                `Are you sure you want to proceed?`
+            );
+            
+            if (!confirmed) {
+                return;
+            }
+            
+            const button = event.target;
+            const originalText = button.innerHTML;
+            
+            // Disable button and show loading state
+            button.disabled = true;
+            button.innerHTML = '⏳ Deleting...';
+            button.style.background = '#9e9e9e';
+            
+            fetch(`/api/delete/${videoId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    alert('✅ Video deleted successfully!');
+                    
+                    // Redirect to videos page after successful deletion
+                    window.location.href = '/videos';
+                } else {
+                    // Show error message
+                    alert('❌ Error deleting video: ' + data.message);
+                    
+                    // Reset button state
+                    button.disabled = false;
+                    button.innerHTML = originalText;
+                    button.style.background = '#d32f2f';
+                }
+            })
+            .catch(error => {
+                console.error('Delete error:', error);
+                alert('❌ Failed to delete video: ' + error.message);
+                
+                // Reset button state
+                button.disabled = false;
+                button.innerHTML = originalText;
+                button.style.background = '#d32f2f';
+            });
+        }
     </script>
     
 {% endblock %}
