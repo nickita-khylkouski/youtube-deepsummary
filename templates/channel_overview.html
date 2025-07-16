@@ -152,14 +152,24 @@
         </div>
         {% endif %}
         {% if summary_count > 0 %}
-        <a href="/{{ channel_info.handle }}/export-summaries" 
-           style="background: #9c27b0; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; display: inline-block; transition: all 0.3s;">
-            📦 Export AI Summaries ({{ summary_count }})
-        </a>
-        <a href="/{{ channel_info.handle }}/export-summaries?format=plain" 
-           style="background: #795548; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; display: inline-block; transition: all 0.3s;">
-            📄 Export Plain Text ({{ summary_count }})
-        </a>
+        <div class="export-dropdown" style="position: relative; display: inline-block;">
+            <button onclick="toggleExportDropdown()" 
+                    style="background: #9c27b0; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 8px;">
+                📦 Export AI Summaries ({{ summary_count }}) <span style="font-size: 12px;">▼</span>
+            </button>
+            <div id="exportDropdown" class="export-dropdown-content" style="display: none; position: absolute; background: white; min-width: 200px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 8px; z-index: 1; top: 100%; left: 0; margin-top: 5px;">
+                <a href="/{{ channel_info.handle }}/export-summaries" 
+                   style="color: #333; padding: 12px 16px; text-decoration: none; display: block; transition: all 0.3s; border-bottom: 1px solid #eee;">
+                    📦 <strong>Markdown Format</strong><br>
+                    <small style="color: #666;">Preserves formatting, headers, bold text</small>
+                </a>
+                <a href="/{{ channel_info.handle }}/export-summaries?format=plain" 
+                   style="color: #333; padding: 12px 16px; text-decoration: none; display: block; transition: all 0.3s;">
+                    📄 <strong>Plain Text Format</strong><br>
+                    <small style="color: #666;">Clean text without markdown syntax</small>
+                </a>
+            </div>
+        </div>
         {% endif %}
         {% if channel_info.channel_url %}
             <a href="{{ channel_info.channel_url }}" target="_blank" 
@@ -193,6 +203,14 @@
     button:hover, a[style*="background"]:hover {
         opacity: 0.9;
         transform: translateY(-1px);
+    }
+    
+    .export-dropdown-content a:hover {
+        background: #f5f5f5;
+    }
+    
+    .export-dropdown-content {
+        border: 1px solid #ddd;
     }
     
     /* Mobile responsive */
@@ -488,6 +506,28 @@ function showNotification(message, type) {
 // Load models when page loads
 document.addEventListener('DOMContentLoaded', function() {
     loadAvailableModels();
+});
+
+// Export dropdown functionality
+function toggleExportDropdown() {
+    const dropdown = document.getElementById('exportDropdown');
+    const isVisible = dropdown.style.display !== 'none';
+    
+    if (isVisible) {
+        dropdown.style.display = 'none';
+    } else {
+        dropdown.style.display = 'block';
+    }
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(event) {
+    const dropdown = document.getElementById('exportDropdown');
+    const dropdownContainer = document.querySelector('.export-dropdown');
+    
+    if (dropdown && dropdownContainer && !dropdownContainer.contains(event.target)) {
+        dropdown.style.display = 'none';
+    }
 });
 </script>
 {% endblock %}
