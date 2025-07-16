@@ -1,9 +1,10 @@
 """
 Channel-related routes for the YouTube Deep Summary application
 """
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, send_file, jsonify
 from ..database_storage import database_storage
 from ..utils.helpers import format_summary_html
+from ..export_manager import export_manager
 
 channels_bp = Blueprint('channels', __name__)
 
@@ -174,3 +175,23 @@ def channel_summaries(channel_handle):
     except Exception as e:
         return render_template('error.html', 
                              error_message=f"Error loading channel summaries: {str(e)}"), 500
+
+
+@channels_bp.route('/@<channel_handle>/export-summaries')
+def export_summaries(channel_handle):
+    """Export all AI summaries for a channel as a ZIP file with individual text files"""
+    try:
+        # Use export manager to handle the export
+        memory_file, zip_filename = export_manager.export_channel_summaries_zip(channel_handle)
+        
+        return send_file(
+            memory_file,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=zip_filename
+        )
+        
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 404
+    except Exception as e:
+        return jsonify({'error': f'Export failed: {str(e)}'}), 500
