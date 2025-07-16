@@ -129,18 +129,18 @@
         {% endif %}
     </div>
     
+    {% if chapters %}
+        <div class="chapters-info">
+            <h3>📚 Video Chapters ({{ chapters|length }} chapters):</h3>
+            <ul style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                {% for chapter in chapters %}
+                    <li><strong>{{ chapter.title }}</strong> - <a href="#chapter-{{ chapter.time|int }}" onclick="scrollToChapter({{ chapter.time|int }})" style="color: #0066cc; text-decoration: underline; cursor: pointer;">{{ "%.0f"|format(chapter.time // 60) }}:{{ "%02.0f"|format(chapter.time % 60) }}</a> <span style="color: #666; font-size: 0.9em;">(<a href="https://www.youtube.com/watch?v={{ video_id }}&t={{ chapter.time|int }}s" target="_blank" style="color: #999; text-decoration: none;" title="Watch on YouTube">▶️</a>)</span></li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+    
     {% if has_transcript %}
-        {% if chapters %}
-            <div class="chapters-info">
-                <h3>📚 Video Chapters ({{ chapters|length }} chapters):</h3>
-                <ul style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0;">
-                    {% for chapter in chapters %}
-                        <li><strong>{{ chapter.title }}</strong> - <a href="#chapter-{{ chapter.time|int }}" onclick="scrollToChapter({{ chapter.time|int }})" style="color: #0066cc; text-decoration: underline; cursor: pointer;">{{ "%.0f"|format(chapter.time // 60) }}:{{ "%02.0f"|format(chapter.time % 60) }}</a> <span style="color: #666; font-size: 0.9em;">(<a href="https://www.youtube.com/watch?v={{ video_id }}&t={{ chapter.time|int }}s" target="_blank" style="color: #999; text-decoration: none;" title="Watch on YouTube">▶️</a>)</span></li>
-                    {% endfor %}
-                </ul>
-            </div>
-        {% endif %}
-        
         <div class="transcript-options" style="margin: 20px 0;">
             <button onclick="toggleTranscriptView()" id="toggleBtn" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">
                 📖 Switch to Detailed View
@@ -198,11 +198,19 @@
         }
         
         function scrollToChapter(chapterTime) {
+            // Check if transcript elements exist
             const formattedDiv = document.getElementById('formatted-transcript');
             const detailedDiv = document.getElementById('detailed-transcript');
+            
+            // If no transcript is available, just open YouTube at the chapter timestamp
+            if (!formattedDiv && !detailedDiv) {
+                window.open(`https://www.youtube.com/watch?v={{ video_id }}&t=${chapterTime}s`, '_blank');
+                return;
+            }
+            
             const chapterId = 'chapter-' + chapterTime;
             
-            if (formattedDiv.style.display !== 'none') {
+            if (formattedDiv && formattedDiv.style.display !== 'none') {
                 // In formatted view - scroll to the chapter anchor
                 const chapterAnchor = document.getElementById(chapterId);
                 if (chapterAnchor) {
@@ -220,7 +228,7 @@
                     const formattedContent = document.getElementById('formatted-transcript-content');
                     formattedContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
-            } else {
+            } else if (detailedDiv) {
                 // In detailed view - find the closest timestamp entry
                 const timestampEntries = document.querySelectorAll('.transcript-entry[data-time]');
                 let closestEntry = null;
@@ -249,6 +257,9 @@
                         closestEntry.style.paddingLeft = '';
                     }, 2000);
                 }
+            } else {
+                // No transcript available, open YouTube at chapter timestamp
+                window.open(`https://www.youtube.com/watch?v={{ video_id }}&t=${chapterTime}s`, '_blank');
             }
         }
         
