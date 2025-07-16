@@ -78,6 +78,17 @@
         </div>
     </div>
     {% endif %}
+    
+    <!-- Videos without summaries card -->
+    {% if videos_without_summaries_count > 0 %}
+    <div class="stat-card" style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; border-left: 4px solid #ff9800;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <span style="font-size: 18px;">⚠️</span>
+            <span style="font-size: 24px; font-weight: bold; color: #ff9800;">{{ videos_without_summaries_count }}</span>
+            <span style="color: #666; font-weight: 500; font-size: 14px;">Missing Summar{{ 'ies' if videos_without_summaries_count != 1 else 'y' }}</span>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Recent Videos -->
@@ -129,6 +140,17 @@
                 style="background: #4caf50; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s;">
             ⬇️ Import Latest Videos
         </button>
+        {% if videos_without_summaries_count > 0 %}
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <select id="summaryModelSelect" style="padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; background: white;">
+                <option value="">Loading models...</option>
+            </select>
+            <button onclick="generateMissingSummaries('{{ channel_info.handle }}')" 
+                    style="background: #2196f3; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s;">
+                🤖 Generate Missing Summaries ({{ videos_without_summaries_count }})
+            </button>
+        </div>
+        {% endif %}
         {% if channel_info.channel_url %}
             <a href="{{ channel_info.channel_url }}" target="_blank" 
                style="background: #f44336; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; display: inline-block; transition: all 0.3s;">
@@ -315,6 +337,114 @@ async function deleteChannel(channelHandle, channelName) {
     }
 }
 
+// Load available models for summary generation
+function loadAvailableModels() {
+    fetch('/api/models')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.models) {
+                const modelSelect = document.getElementById('summaryModelSelect');
+                if (modelSelect) {
+                    // Clear loading option
+                    modelSelect.innerHTML = '';
+                    
+                    // Add providers and models
+                    for (const [provider, models] of Object.entries(data.models)) {
+                        const optgroup = document.createElement('optgroup');
+                        optgroup.label = provider.charAt(0).toUpperCase() + provider.slice(1);
+                        
+                        models.forEach(model => {
+                            const option = document.createElement('option');
+                            option.value = model;
+                            option.textContent = model;
+                            
+                            // Default to Claude Sonnet 4 if available
+                            if (model === 'claude-sonnet-4-20250514') {
+                                option.selected = true;
+                            }
+                            
+                            optgroup.appendChild(option);
+                        });
+                        
+                        modelSelect.appendChild(optgroup);
+                    }
+                    
+                    // If no Claude model available, select first available model
+                    if (modelSelect.selectedIndex === -1 && modelSelect.options.length > 0) {
+                        modelSelect.selectedIndex = 0;
+                    }
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading models:', error);
+            const modelSelect = document.getElementById('summaryModelSelect');
+            if (modelSelect) {
+                modelSelect.innerHTML = '<option value="">Error loading models</option>';
+            }
+        });
+}
+
+async function generateMissingSummaries(channelHandle) {
+    const button = event.target;
+    const modelSelect = document.getElementById('summaryModelSelect');
+    const originalText = button.innerHTML;
+    
+    const selectedModel = modelSelect.value;
+    if (!selectedModel) {
+        alert('Please select a model first');
+        return;
+    }
+    
+    // Disable button and show loading state
+    button.disabled = true;
+    button.innerHTML = '⏳ Generating Summaries...';
+    button.style.background = '#9e9e9e';
+    
+    try {
+        console.log(`Starting summary generation for channel: ${channelHandle} with model: ${selectedModel}`);
+        
+        const response = await fetch(`/api/${channelHandle}/generate-missing-summaries`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                model: selectedModel
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Show success message
+            const message = result.processed > 0 
+                ? `Successfully generated ${result.processed} AI summaries using ${result.model_used} (${result.errors} errors)`
+                : result.message;
+            
+            // Create and show success notification
+            showNotification(message, 'success');
+            
+            // Refresh the page after a short delay to show updated counts
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+            
+        } else {
+            showNotification(`Error: ${result.error}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('Summary generation error:', error);
+        showNotification(`Failed to generate summaries: ${error.message}`, 'error');
+    } finally {
+        // Reset button state
+        button.disabled = false;
+        button.innerHTML = originalText;
+        button.style.background = '#2196f3';
+    }
+}
+
 function showNotification(message, type) {
     // Create notification element
     const notification = document.createElement('div');
@@ -344,5 +474,10 @@ function showNotification(message, type) {
         }
     }, 5000);
 }
+
+// Load models when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadAvailableModels();
+});
 </script>
 {% endblock %}

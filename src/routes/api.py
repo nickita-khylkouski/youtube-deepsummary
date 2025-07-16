@@ -323,6 +323,128 @@ def delete_channel(channel_handle):
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+@api_bp.route('/<channel_handle>/generate-missing-summaries', methods=['POST'])
+def generate_missing_summaries(channel_handle):
+    """API endpoint to generate summaries for videos without summaries"""
+    try:
+        # Get channel info by handle
+        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return jsonify({
+                'success': False,
+                'error': f'Channel not found: {channel_handle}'
+            }), 404
+        
+        data = request.get_json() if request.content_type == 'application/json' else {}
+        model = data.get('model', 'claude-sonnet-4-20250514')  # Default to Claude Sonnet 4
+        
+        # Check if model is available
+        available_models = video_processor.summarizer.get_available_models()
+        model_found = False
+        for provider_models in available_models.values():
+            if model in provider_models:
+                model_found = True
+                break
+        
+        if not model_found:
+            return jsonify({
+                'success': False,
+                'error': f'Model not available. Available models: {available_models}'
+            }), 400
+        
+        # Get videos for this channel
+        channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
+        
+        # Find videos without summaries
+        videos_without_summaries = []
+        if channel_videos:
+            for video in channel_videos:
+                if not database_storage.get_summary(video['video_id']):
+                    videos_without_summaries.append(video)
+        
+        if not videos_without_summaries:
+            return jsonify({
+                'success': True,
+                'message': 'All videos already have summaries',
+                'processed': 0,
+                'errors': 0,
+                'results': []
+            })
+        
+        # Process each video without summary
+        results = []
+        processed_count = 0
+        error_count = 0
+        
+        for video in videos_without_summaries:
+            video_id = video['video_id']
+            print(f"Generating summary for video: {video_id} - {video.get('title', 'Unknown')}")
+            
+            try:
+                # Get existing video data
+                cached_data = database_storage.get(video_id)
+                if not cached_data:
+                    results.append({
+                        'video_id': video_id,
+                        'status': 'error',
+                        'message': 'Video data not found in database'
+                    })
+                    error_count += 1
+                    continue
+                
+                formatted_transcript = cached_data['formatted_transcript']
+                video_info = cached_data['video_info']
+                chapters = video_info.get('chapters')
+                
+                # Generate summary with specified model
+                summary = video_processor.summarizer.summarize_with_model(
+                    formatted_transcript, 
+                    model, 
+                    chapters, 
+                    video_id, 
+                    video_info
+                )
+                
+                # Save the summary to database
+                database_storage.save_summary(video_id, summary, model)
+                
+                results.append({
+                    'video_id': video_id,
+                    'title': video.get('title', 'Unknown'),
+                    'status': 'success',
+                    'model_used': model,
+                    'message': 'Summary generated successfully'
+                })
+                processed_count += 1
+                
+            except Exception as e:
+                print(f"Error generating summary for {video_id}: {e}")
+                results.append({
+                    'video_id': video_id,
+                    'title': video.get('title', 'Unknown'),
+                    'status': 'error',
+                    'message': f'Failed to generate summary: {str(e)}'
+                })
+                error_count += 1
+        
+        return jsonify({
+            'success': True,
+            'channel_name': channel_info['channel_name'],
+            'total_videos_without_summaries': len(videos_without_summaries),
+            'processed': processed_count,
+            'errors': error_count,
+            'model_used': model,
+            'results': results
+        })
+        
+    except Exception as e:
+        print(f"Error generating missing summaries: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 # Snippets API endpoints
 @api_bp.route('/snippets', methods=['POST'])
 def save_snippet():

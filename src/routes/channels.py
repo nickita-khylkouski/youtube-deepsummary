@@ -48,12 +48,15 @@ def channel_overview(channel_handle):
         # Get videos for this channel
         channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
         
-        # Get summary count
+        # Get summary count and videos without summaries
         summary_count = 0
+        videos_without_summaries = []
         if channel_videos:
             for video in channel_videos:
                 if database_storage.get_summary(video['video_id']):
                     summary_count += 1
+                else:
+                    videos_without_summaries.append(video['video_id'])
         
         # Get snippet count for this channel
         snippets = database_storage.get_memory_snippets(limit=1000)
@@ -73,6 +76,8 @@ def channel_overview(channel_handle):
                              channel_handle=channel_handle,
                              total_videos=len(channel_videos) if channel_videos else 0,
                              summary_count=summary_count,
+                             videos_without_summaries_count=len(videos_without_summaries),
+                             videos_without_summaries=videos_without_summaries,
                              snippet_count=snippet_count,
                              recent_videos=recent_videos)
         
