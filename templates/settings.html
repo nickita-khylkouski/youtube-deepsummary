@@ -59,6 +59,23 @@
         .alert-dismissible .btn-close {
             font-size: 0.75rem;
         }
+        .fallback-strategy-item {
+            transition: all 0.2s ease;
+            border-radius: 6px;
+            padding: 8px;
+        }
+        .fallback-strategy-item:hover {
+            background-color: #e9ecef;
+        }
+        .fallback-strategy-item.disabled {
+            opacity: 0.6;
+        }
+        .fallback-strategy-item .form-check-label {
+            font-weight: 500;
+        }
+        #fallbackStrategiesList {
+            min-height: 120px;
+        }
     </style>
 </head>
 <body>
@@ -276,9 +293,60 @@
                                     </div>
                                     
                                     <div class="mb-3">
-                                        <label for="fallbackStrategies" class="form-label">Fallback Strategies</label>
-                                        <input type="text" class="form-control" id="fallbackStrategies" name="fallback_strategies" value="activities_api,search_api">
-                                        <div class="form-text">Comma-separated list of fallback strategies to try</div>
+                                        <label class="form-label">Fallback Strategies</label>
+                                        <div class="form-text mb-2">Select and reorder fallback strategies to try when the primary strategy fails</div>
+                                        <div id="fallbackStrategiesList" class="border rounded p-3" style="background-color: #f8f9fa;">
+                                            <div class="fallback-strategy-item d-flex align-items-center mb-2" data-strategy="activities_api">
+                                                <div class="form-check me-3">
+                                                    <input class="form-check-input" type="checkbox" id="fallback_activities_api" checked>
+                                                    <label class="form-check-label" for="fallback_activities_api">
+                                                        Activities API
+                                                    </label>
+                                                </div>
+                                                <div class="ms-auto">
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm me-1" onclick="moveFallbackStrategy(this, 'up')" title="Move up">
+                                                        <i class="fas fa-chevron-up"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="moveFallbackStrategy(this, 'down')" title="Move down">
+                                                        <i class="fas fa-chevron-down"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="fallback-strategy-item d-flex align-items-center mb-2" data-strategy="search_api">
+                                                <div class="form-check me-3">
+                                                    <input class="form-check-input" type="checkbox" id="fallback_search_api" checked>
+                                                    <label class="form-check-label" for="fallback_search_api">
+                                                        Search API
+                                                    </label>
+                                                </div>
+                                                <div class="ms-auto">
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm me-1" onclick="moveFallbackStrategy(this, 'up')" title="Move up">
+                                                        <i class="fas fa-chevron-up"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="moveFallbackStrategy(this, 'down')" title="Move down">
+                                                        <i class="fas fa-chevron-down"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="fallback-strategy-item d-flex align-items-center" data-strategy="uploads_playlist">
+                                                <div class="form-check me-3">
+                                                    <input class="form-check-input" type="checkbox" id="fallback_uploads_playlist">
+                                                    <label class="form-check-label" for="fallback_uploads_playlist">
+                                                        Uploads Playlist
+                                                    </label>
+                                                </div>
+                                                <div class="ms-auto">
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm me-1" onclick="moveFallbackStrategy(this, 'up')" title="Move up">
+                                                        <i class="fas fa-chevron-up"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="moveFallbackStrategy(this, 'down')" title="Move down">
+                                                        <i class="fas fa-chevron-down"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <!-- Hidden input to store the final comma-separated value -->
+                                        <input type="hidden" id="fallbackStrategies" name="fallback_strategies" value="activities_api,search_api">
                                     </div>
                                 </div>
                             </div>
@@ -579,12 +647,17 @@
         function populateImportSettingsForm(settings) {
             // Populate form fields with current settings
             for (const [key, value] of Object.entries(settings)) {
-                const element = document.getElementById(key);
-                if (element) {
-                    if (element.type === 'checkbox') {
-                        element.checked = value;
-                    } else {
-                        element.value = value;
+                if (key === 'fallbackStrategies') {
+                    // Handle fallback strategies specially
+                    populateFallbackStrategiesFromValue(value);
+                } else {
+                    const element = document.getElementById(key);
+                    if (element) {
+                        if (element.type === 'checkbox') {
+                            element.checked = value;
+                        } else {
+                            element.value = value;
+                        }
                     }
                 }
             }
@@ -672,8 +745,73 @@
             });
         }
 
+        // Fallback Strategies Functions
+        function moveFallbackStrategy(button, direction) {
+            const item = button.closest('.fallback-strategy-item');
+            const container = item.parentNode;
+            
+            if (direction === 'up' && item.previousElementSibling) {
+                container.insertBefore(item, item.previousElementSibling);
+            } else if (direction === 'down' && item.nextElementSibling) {
+                container.insertBefore(item.nextElementSibling, item);
+            }
+            
+            updateFallbackStrategiesValue();
+        }
+        
+        function updateFallbackStrategiesValue() {
+            const container = document.getElementById('fallbackStrategiesList');
+            const items = container.querySelectorAll('.fallback-strategy-item');
+            const strategies = [];
+            
+            items.forEach(item => {
+                const checkbox = item.querySelector('input[type="checkbox"]');
+                if (checkbox.checked) {
+                    strategies.push(item.dataset.strategy);
+                }
+            });
+            
+            document.getElementById('fallbackStrategies').value = strategies.join(',');
+            console.log('Updated fallback strategies:', strategies.join(','));
+        }
+        
+        function initializeFallbackStrategies() {
+            // Add event listeners to checkboxes
+            const checkboxes = document.querySelectorAll('#fallbackStrategiesList input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', updateFallbackStrategiesValue);
+            });
+            
+            // Initial update
+            updateFallbackStrategiesValue();
+        }
+        
+        function populateFallbackStrategiesFromValue(value) {
+            if (!value) return;
+            
+            const strategies = value.split(',').map(s => s.trim()).filter(s => s);
+            const container = document.getElementById('fallbackStrategiesList');
+            
+            // First, uncheck all checkboxes
+            const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = false);
+            
+            // Then check and reorder based on the value
+            strategies.forEach((strategy, index) => {
+                const item = container.querySelector(`[data-strategy="${strategy}"]`);
+                if (item) {
+                    const checkbox = item.querySelector('input[type="checkbox"]');
+                    checkbox.checked = true;
+                    
+                    // Move to correct position
+                    container.appendChild(item);
+                }
+            });
+        }
+
         // Load import settings when the page loads
         document.addEventListener('DOMContentLoaded', function() {
+            initializeFallbackStrategies();
             loadImportSettings();
         });
     </script>
