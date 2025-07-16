@@ -35,7 +35,7 @@ def channels_page():
                              error_message=f"Error loading channels: {str(e)}"), 500
 
 
-@channels_bp.route('/@<channel_handle>')
+@channels_bp.route('/@<channel_handle>', strict_slashes=False)
 def channel_overview(channel_handle):
     """Display channel overview with stats and navigation links"""
     try:
