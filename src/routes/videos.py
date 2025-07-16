@@ -79,6 +79,9 @@ def video_by_url_path(channel_handle, url_path):
         video_info = cached_data['video_info']
         formatted_transcript_text = cached_data['formatted_transcript']
         
+        # Check if transcript exists
+        has_transcript = transcript and len(transcript) > 0
+        
         video_title = video_info.get('title') or video['title']
         chapters = video_info.get('chapters')
         video_duration = video_info.get('duration') or video['duration']
@@ -112,6 +115,7 @@ def video_by_url_path(channel_handle, url_path):
                              summary=summary,
                              snippets=snippets,
                              thumbnail_url=thumbnail_url,
+                             has_transcript=has_transcript,
                              summarize_enabled=video_processor.summarizer and video_processor.summarizer.is_configured())
         
     except Exception as e:

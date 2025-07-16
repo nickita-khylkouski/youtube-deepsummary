@@ -18,17 +18,32 @@ api_bp = Blueprint('api', __name__, url_prefix='/api')
 def transcript(video_id):
     """API endpoint to get transcript as JSON"""
     try:
+        # Check for force_extract parameter
+        force_extract = request.args.get('force_extract', 'false').lower() == 'true'
+        
         # Check database first for API endpoint too
         cached_data = database_storage.get(video_id)
         
-        if cached_data:
+        # If force_extract is True, or if we have cached data but no transcript, force re-extraction
+        needs_extraction = (
+            force_extract or 
+            not cached_data or 
+            not cached_data.get('transcript') or 
+            len(cached_data.get('transcript', [])) == 0 or
+            cached_data.get('formatted_transcript') == "Transcript extraction is disabled in import settings."
+        )
+        
+        if cached_data and not needs_extraction:
             print(f"API: Using cached data for video: {video_id}")
             transcript = cached_data['transcript']
             video_info = cached_data['video_info']
             formatted_transcript = cached_data['formatted_transcript']
             chapters = video_info.get('chapters')
         else:
-            print(f"API: Database MISS for video: {video_id}, downloading fresh data")
+            if force_extract:
+                print(f"API: Force extracting transcript for video: {video_id}")
+            else:
+                print(f"API: Database MISS for video: {video_id}, downloading fresh data")
             
             # Extract channel_id from video_info if available
             try:
@@ -37,8 +52,8 @@ def transcript(video_id):
             except Exception:
                 channel_id = None
             
-            # Use consolidated import function
-            result = video_processor.process_video_complete(video_id, channel_id)
+            # Use consolidated import function with force_extract parameter
+            result = video_processor.process_video_complete(video_id, channel_id, force_transcript_extraction=force_extract)
             
             if result['status'] == 'error':
                 return jsonify({
