@@ -14,13 +14,6 @@
             <a href="/{{ channel_info.handle if channel_info else channel_name }}" style="color: #666; text-decoration: none; font-size: 14px;">Channel Overview</a>
         </div>
         
-        <!-- Channel Navigation -->
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <a href="/{{ channel_info.handle if channel_info else channel_name }}/videos" style="background: #007bff; color: white; padding: 6px 12px; text-decoration: none; border-radius: 4px; font-size: 12px; font-weight: 500;">📺 Videos</a>
-            <a href="/{{ channel_info.handle if channel_info else channel_name }}/summaries" style="background: #28a745; color: white; padding: 6px 12px; text-decoration: none; border-radius: 4px; font-size: 12px; font-weight: 500;">📝 Summaries</a>
-            <a href="/{{ channel_info.handle if channel_info else channel_name }}/snippets" style="background: #ffc107; color: white; padding: 6px 12px; text-decoration: none; border-radius: 4px; font-size: 12px; font-weight: 500;">💡 Snippets</a>
-            <a href="/{{ channel_info.handle if channel_info else channel_name }}/chat" style="background: #9c27b0; color: white; padding: 6px 12px; text-decoration: none; border-radius: 4px; font-size: 12px; font-weight: 500;">💬 Chat</a>
-        </div>
     </div>
 
     {% if videos %}
