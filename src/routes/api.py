@@ -698,9 +698,13 @@ def import_channel_videos(channel_handle):
         
         data = request.get_json() if request.content_type == 'application/json' else {}
         max_results = int(data.get('max_results', 5))
+        days_back = int(data.get('days_back', 30))  # Default to 30 days
         
-        if max_results > 20:  # Reasonable limit
-            max_results = 20
+        # Validate parameters
+        if max_results > 50:  # Increased limit for time-based filtering
+            max_results = 50
+        if days_back < 1 or days_back > 365:  # Reasonable range: 1 day to 1 year
+            days_back = 30
         
         # Check if YouTube API is configured
         if not youtube_api.is_available():
@@ -710,8 +714,8 @@ def import_channel_videos(channel_handle):
             }), 400
         
         # Get latest videos from channel using channel name for the YouTube API
-        print(f"Fetching {max_results} videos from channel: {channel_info['channel_name']}")
-        videos = youtube_api.get_channel_videos(channel_info['channel_name'], max_results)
+        print(f"Fetching {max_results} videos from channel: {channel_info['channel_name']} within {days_back} days")
+        videos = youtube_api.get_channel_videos(channel_info['channel_name'], max_results, days_back)
         
         if not videos:
             return jsonify({
