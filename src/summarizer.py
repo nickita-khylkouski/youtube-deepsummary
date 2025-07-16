@@ -134,8 +134,13 @@ class TranscriptSummarizer:
         
         return '\n'.join(formatted_lines)
     
-    def create_summary_prompt(self, transcript_content: str, chapters: Optional[List[Dict]] = None) -> str:
+    def create_summary_prompt(self, transcript_content: str, chapters: Optional[List[Dict]] = None, custom_prompt: Optional[str] = None) -> str:
         """Create a detailed prompt for summarization with enhanced chapter integration"""
+        
+        # If custom prompt is provided, use it instead of the default
+        if custom_prompt:
+            # Append transcript content to custom prompt
+            return f"{custom_prompt}\n\nPlease analyze this transcript:\n\n{transcript_content}"
         if chapters and len(chapters) > 1:
             # Enhanced prompt for videos with chapters - deeply integrate chapter structure
             chapter_info = "\n".join([f"- {ch.get('title', 'Chapter')} (starts at {self._format_timestamp(ch.get('time', 0))})" for ch in chapters])
@@ -221,7 +226,7 @@ Please analyze this transcript:
         
         return prompt
     
-    def summarize_with_anthropic(self, transcript_content: str, chapters: Optional[List[Dict]] = None, video_id: str = None, video_info: Optional[Dict] = None, model: str = None) -> str:
+    def summarize_with_anthropic(self, transcript_content: str, chapters: Optional[List[Dict]] = None, video_id: str = None, video_info: Optional[Dict] = None, model: str = None, custom_prompt: str = None) -> str:
         """Generate summary using Anthropic's Claude API with enhanced chapter integration"""
         if not self.is_configured('anthropic'):
             raise Exception("Anthropic client not configured properly")
@@ -230,12 +235,12 @@ Please analyze this transcript:
         model_to_use = model or self.anthropic_model
         
         # Enhanced processing for chapter-based content
-        if chapters and len(chapters) > 1:
+        if chapters and len(chapters) > 1 and not custom_prompt:
             # Parse transcript content and organize by chapters
             chapter_organized_content = self._organize_transcript_by_chapters_for_ai(transcript_content, chapters)
-            prompt = self.create_summary_prompt(chapter_organized_content, chapters)
+            prompt = self.create_summary_prompt(chapter_organized_content, chapters, custom_prompt)
         else:
-            prompt = self.create_summary_prompt(transcript_content, chapters)
+            prompt = self.create_summary_prompt(transcript_content, chapters, custom_prompt)
         
         try:
             # Enhanced system prompt for chapter-aware summarization
@@ -261,18 +266,18 @@ Please analyze this transcript:
             print(f"Error during Anthropic summarization: {e}")
             raise Exception(f"Failed to generate summary with Anthropic: {str(e)}")
 
-    def summarize_with_openai(self, transcript_content: str, chapters: Optional[List[Dict]] = None, video_id: str = None, video_info: Optional[Dict] = None, model: str = None) -> str:
+    def summarize_with_openai(self, transcript_content: str, chapters: Optional[List[Dict]] = None, video_id: str = None, video_info: Optional[Dict] = None, model: str = None, custom_prompt: str = None) -> str:
         """Generate summary using OpenAI's chat completion API with enhanced chapter integration"""
         if not self.is_configured():
             raise Exception("OpenAI client not configured properly")
         
         # Enhanced processing for chapter-based content
-        if chapters and len(chapters) > 1:
+        if chapters and len(chapters) > 1 and not custom_prompt:
             # Parse transcript content and organize by chapters
             chapter_organized_content = self._organize_transcript_by_chapters_for_ai(transcript_content, chapters)
-            prompt = self.create_summary_prompt(chapter_organized_content, chapters)
+            prompt = self.create_summary_prompt(chapter_organized_content, chapters, custom_prompt)
         else:
-            prompt = self.create_summary_prompt(transcript_content, chapters)
+            prompt = self.create_summary_prompt(transcript_content, chapters, custom_prompt)
         
         try:
             # Enhanced system prompt for chapter-aware summarization
@@ -298,22 +303,22 @@ Please analyze this transcript:
             print(f"Error during OpenAI summarization: {e}")
             raise Exception(f"Failed to generate summary: {str(e)}")
     
-    def summarize_with_model(self, transcript_content: str, model: str, chapters: Optional[List[Dict]] = None, video_id: str = None, video_info: Optional[Dict] = None) -> str:
+    def summarize_with_model(self, transcript_content: str, model: str, chapters: Optional[List[Dict]] = None, video_id: str = None, video_info: Optional[Dict] = None, custom_prompt: str = None) -> str:
         """Generate summary using specified model (either OpenAI or Anthropic)"""
         # Determine provider from model name
         if model.startswith('claude') or model.startswith('anthropic'):
-            return self.summarize_with_anthropic(transcript_content, chapters, video_id, video_info, model)
+            return self.summarize_with_anthropic(transcript_content, chapters, video_id, video_info, model, custom_prompt)
         elif model.startswith('gpt') or model.startswith('openai'):
-            return self.summarize_with_openai(transcript_content, chapters, video_id, video_info, model)
+            return self.summarize_with_openai(transcript_content, chapters, video_id, video_info, model, custom_prompt)
         else:
             # Try to detect provider from available models
             available_models = self.get_available_models()
             for provider, model_list in available_models.items():
                 if model in model_list:
                     if provider == 'anthropic':
-                        return self.summarize_with_anthropic(transcript_content, chapters, video_id, video_info, model)
+                        return self.summarize_with_anthropic(transcript_content, chapters, video_id, video_info, model, custom_prompt)
                     elif provider == 'openai':
-                        return self.summarize_with_openai(transcript_content, chapters, video_id, video_info, model)
+                        return self.summarize_with_openai(transcript_content, chapters, video_id, video_info, model, custom_prompt)
             
             # Fallback to OpenAI if model not found
             raise Exception(f"Unknown model: {model}. Available models: {available_models}")
@@ -467,7 +472,7 @@ Please analyze this transcript:
 summarizer = TranscriptSummarizer()
 
 
-def summarize_transcript_with_chapters(transcript_content: str, chapters: Optional[List[Dict]] = None, video_id: str = None, video_info: Optional[Dict] = None) -> str:
+def summarize_transcript_with_chapters(transcript_content: str, chapters: Optional[List[Dict]] = None, video_id: str = None, video_info: Optional[Dict] = None, custom_prompt: str = None) -> str:
     """
     Convenience function to summarize transcript using the global summarizer
     
@@ -476,11 +481,12 @@ def summarize_transcript_with_chapters(transcript_content: str, chapters: Option
         chapters: List of chapter dictionaries (optional)
         video_id: YouTube video ID (optional)
         video_info: Video metadata (optional)
+        custom_prompt: Custom prompt to use instead of default (optional)
         
     Returns:
         Generated summary text
     """
-    return summarizer.summarize_with_openai(transcript_content, chapters, video_id, video_info)
+    return summarizer.summarize_with_openai(transcript_content, chapters, video_id, video_info, None, custom_prompt)
 
 
 def summarize_transcript_simple(transcript: List[Dict]) -> str:

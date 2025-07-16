@@ -72,6 +72,9 @@
                     <h3 style="margin: 0;">🤖 AI-Generated Summary:</h3>
                     {% if summarize_enabled %}
                         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <select id="promptSelect" style="padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; background: white;">
+                                <option value="">Loading prompts...</option>
+                            </select>
                             <select id="modelSelect" style="padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; background: white;">
                                 <option value="">Loading models...</option>
                             </select>
@@ -416,6 +419,42 @@
                 });
         }
         
+        // Load available prompts for regeneration
+        function loadAvailablePrompts() {
+            fetch('/settings/prompts')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success' && data.prompts) {
+                        const promptSelect = document.getElementById('promptSelect');
+                        if (promptSelect) {
+                            // Clear loading option
+                            promptSelect.innerHTML = '';
+                            
+                            // Add prompts
+                            data.prompts.forEach(prompt => {
+                                const option = document.createElement('option');
+                                option.value = prompt.id;
+                                option.textContent = prompt.name;
+                                
+                                // Select default prompt
+                                if (prompt.is_default) {
+                                    option.selected = true;
+                                }
+                                
+                                promptSelect.appendChild(option);
+                            });
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading prompts:', error);
+                    const promptSelect = document.getElementById('promptSelect');
+                    if (promptSelect) {
+                        promptSelect.innerHTML = '<option value="">Error loading prompts</option>';
+                    }
+                });
+        }
+
         // Load available models for regeneration
         function loadAvailableModels() {
             fetch('/api/models')
@@ -464,15 +503,21 @@
                 });
         }
         
-        // Regenerate summary with selected model
+        // Regenerate summary with selected model and prompt
         function regenerateSummaryWithModel(videoId) {
             const btn = document.getElementById('regenerateSummaryBtn');
             const modelSelect = document.getElementById('modelSelect');
+            const promptSelect = document.getElementById('promptSelect');
             const summarySection = document.getElementById('summary-section');
             
             const selectedModel = modelSelect.value;
+            const selectedPrompt = promptSelect.value;
             if (!selectedModel) {
                 alert('Please select a model first');
+                return;
+            }
+            if (!selectedPrompt) {
+                alert('Please select a prompt first');
                 return;
             }
             
@@ -481,7 +526,7 @@
             btn.disabled = true;
             btn.style.background = '#666';
             
-            // Make AJAX request to regenerate summary with selected model
+            // Make AJAX request to regenerate summary with selected model and prompt
             fetch('/api/summary/regenerate', {
                 method: 'POST',
                 headers: {
@@ -489,7 +534,8 @@
                 },
                 body: JSON.stringify({
                     video_id: videoId,
-                    model: selectedModel
+                    model: selectedModel,
+                    prompt_id: selectedPrompt
                 })
             })
                 .then(response => response.json())
@@ -501,6 +547,9 @@
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                                     <h3 style="margin: 0;">🤖 AI-Generated Summary: <small style="color: #666; font-weight: normal;">(${selectedModel})</small></h3>
                                     <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                        <select id="promptSelect" style="padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; background: white;">
+                                            <option value="">Loading prompts...</option>
+                                        </select>
                                         <select id="modelSelect" style="padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; background: white;">
                                             <option value="">Loading models...</option>
                                         </select>
@@ -514,7 +563,8 @@
                             <hr style="margin: 30px 0; border: 1px solid #ddd;">
                         `;
                         
-                        // Reload models for the new dropdown
+                        // Reload prompts and models for the new dropdowns
+                        loadAvailablePrompts();
                         loadAvailableModels();
                         
                         // Add H2 snippet icons to the regenerated summary
@@ -1117,6 +1167,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             initializeSnippets();
             addH2SnippetIcons();
+            loadAvailablePrompts(); // Load available AI prompts for summary regeneration
             loadAvailableModels(); // Load available AI models for summary regeneration
         });
     </script>

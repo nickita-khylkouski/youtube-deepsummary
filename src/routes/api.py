@@ -154,7 +154,7 @@ def summary():
 
 @api_bp.route('/summary/regenerate', methods=['POST'])
 def regenerate_summary():
-    """API endpoint to regenerate summary with specified model"""
+    """API endpoint to regenerate summary with specified model and optional custom prompt"""
     try:
         data = request.get_json()
         if not data:
@@ -165,6 +165,7 @@ def regenerate_summary():
         
         video_id = data.get('video_id')
         model = data.get('model')
+        prompt_id = data.get('prompt_id')
         
         if not video_id:
             return jsonify({
@@ -204,13 +205,33 @@ def regenerate_summary():
         video_info = cached_data['video_info']
         chapters = video_info.get('chapters')
         
-        # Generate new summary with specified model
+        # Get custom prompt if prompt_id is provided
+        custom_prompt = None
+        if prompt_id:
+            try:
+                prompt_id_int = int(prompt_id)
+                prompt_data = database_storage.get_ai_prompt_by_id(prompt_id_int)
+                if prompt_data:
+                    custom_prompt = prompt_data['prompt_text']
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Prompt with ID {prompt_id} not found'
+                    }), 404
+            except ValueError:
+                return jsonify({
+                    'success': False,
+                    'error': 'Invalid prompt_id format'
+                }), 400
+        
+        # Generate new summary with specified model and optional custom prompt
         summary = video_processor.summarizer.summarize_with_model(
             formatted_transcript, 
             model, 
             chapters, 
             video_id, 
-            video_info
+            video_info,
+            custom_prompt
         )
         
         # Save the new summary to database

@@ -1407,6 +1407,129 @@ class DatabaseStorage:
             traceback.print_exc()
             return False
 
+    # AI Prompts methods
+    def get_ai_prompts(self) -> List[Dict]:
+        """Get all AI prompts"""
+        try:
+            result = self.supabase.table('ai_prompts')\
+                .select('*')\
+                .order('is_default', desc=True)\
+                .order('name')\
+                .execute()
+            
+            return result.data if result.data else []
+            
+        except Exception as e:
+            print(f"Error getting AI prompts: {e}")
+            return []
+
+    def get_ai_prompt_by_id(self, prompt_id: int) -> Optional[Dict]:
+        """Get AI prompt by ID"""
+        try:
+            result = self.supabase.table('ai_prompts')\
+                .select('*')\
+                .eq('id', prompt_id)\
+                .execute()
+            
+            return result.data[0] if result.data else None
+            
+        except Exception as e:
+            print(f"Error getting AI prompt by ID {prompt_id}: {e}")
+            return None
+
+    def get_default_prompt(self) -> Optional[Dict]:
+        """Get the default AI prompt"""
+        try:
+            result = self.supabase.table('ai_prompts')\
+                .select('*')\
+                .eq('is_default', True)\
+                .execute()
+            
+            return result.data[0] if result.data else None
+            
+        except Exception as e:
+            print(f"Error getting default AI prompt: {e}")
+            return None
+
+    def create_ai_prompt(self, name: str, prompt_text: str, is_default: bool = False, description: str = None) -> Optional[int]:
+        """Create a new AI prompt"""
+        try:
+            prompt_data = {
+                'name': name,
+                'prompt_text': prompt_text,
+                'is_default': is_default,
+                'description': description
+            }
+            
+            result = self.supabase.table('ai_prompts')\
+                .insert(prompt_data)\
+                .execute()
+            
+            if result.data and len(result.data) > 0:
+                return result.data[0]['id']
+            return None
+            
+        except Exception as e:
+            print(f"Error creating AI prompt: {e}")
+            return None
+
+    def update_ai_prompt(self, prompt_id: int, name: str, prompt_text: str, is_default: bool = False, description: str = None) -> bool:
+        """Update an existing AI prompt"""
+        try:
+            update_data = {
+                'name': name,
+                'prompt_text': prompt_text,
+                'is_default': is_default,
+                'description': description,
+                'updated_at': datetime.now(timezone.utc).isoformat()
+            }
+            
+            result = self.supabase.table('ai_prompts')\
+                .update(update_data)\
+                .eq('id', prompt_id)\
+                .execute()
+            
+            return bool(result.data)
+            
+        except Exception as e:
+            print(f"Error updating AI prompt {prompt_id}: {e}")
+            return False
+
+    def delete_ai_prompt(self, prompt_id: int) -> bool:
+        """Delete an AI prompt (cannot delete default prompt)"""
+        try:
+            # Check if it's the default prompt
+            prompt = self.get_ai_prompt_by_id(prompt_id)
+            if prompt and prompt.get('is_default'):
+                print(f"Cannot delete default prompt {prompt_id}")
+                return False
+            
+            result = self.supabase.table('ai_prompts')\
+                .delete()\
+                .eq('id', prompt_id)\
+                .execute()
+            
+            return bool(result.data)
+            
+        except Exception as e:
+            print(f"Error deleting AI prompt {prompt_id}: {e}")
+            return False
+
+    def set_default_prompt(self, prompt_id: int) -> bool:
+        """Set a prompt as the default (unsets other defaults)"""
+        try:
+            # The database trigger will handle unsetting other defaults
+            result = self.supabase.table('ai_prompts')\
+                .update({'is_default': True})\
+                .eq('id', prompt_id)\
+                .execute()
+            
+            return bool(result.data)
+            
+        except Exception as e:
+            print(f"Error setting default prompt {prompt_id}: {e}")
+            return False
+
 
 # Global database storage instance
 database_storage = DatabaseStorage()

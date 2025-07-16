@@ -16,6 +16,7 @@ from src.routes.api import api_bp
 from src.routes.channels import channels_bp
 from src.routes.videos import videos_bp
 from src.routes.snippets import snippets_bp
+from src.routes.settings import settings_bp
 
 def create_app():
     """Application factory pattern"""
@@ -27,6 +28,7 @@ def create_app():
     app.register_blueprint(channels_bp)
     app.register_blueprint(videos_bp)
     app.register_blueprint(snippets_bp)
+    app.register_blueprint(settings_bp)
     
     return app
 
