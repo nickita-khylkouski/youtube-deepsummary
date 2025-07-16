@@ -96,12 +96,11 @@ class TranscriptSummarizer:
         models = {}
         
         if self.is_configured('openai'):
-            models['openai'] = ['gpt-4.1', 'gpt-4', 'gpt-3.5-turbo']
+            models['openai'] = ['gpt-4.1', 'gpt-4.1-mini', 'gpt-3.5-turbo']
         
         if self.is_configured('anthropic'):
             models['anthropic'] = [
                 'claude-sonnet-4-20250514',
-                'claude-opus-4-20250514',
                 'claude-3-5-sonnet-20241022'
             ]
         
