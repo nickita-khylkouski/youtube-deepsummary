@@ -33,6 +33,9 @@
                     {% if not has_transcript %}
                         <button id="extractTranscriptBtn" onclick="extractTranscript('{{ video_id }}')" style="background: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; display: inline-block; margin-right: 10px;">📝 Extract Transcript</button>
                     {% endif %}
+                    {% if not has_chapters %}
+                        <button id="extractChaptersBtn" onclick="extractChapters('{{ video_id }}')" style="background: #FF9800; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; display: inline-block; margin-right: 10px;">📚 Extract Chapters</button>
+                    {% endif %}
                     {% if summarize_enabled and has_transcript %}
                         <button id="generateSummaryBtn" onclick="generateSummary('{{ video_id }}')" style="background: #2196f3; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; display: inline-block; margin-right: 10px;">🤖 {% if summary %}Regenerate AI Summary{% else %}Generate AI Summary{% endif %}</button>
                     {% endif %}
@@ -1573,6 +1576,55 @@
             loadSummaryHistory('{{ video_id }}');
             {% endif %}
         });
+        
+        // Extract chapters functionality
+        function extractChapters(videoId) {
+            const btn = document.getElementById('extractChaptersBtn');
+            
+            // Update button to show loading state
+            btn.textContent = '⏳ Extracting...';
+            btn.disabled = true;
+            btn.style.background = '#666';
+            
+            // Make AJAX request to extract chapters
+            fetch(`/api/chapters/${videoId}?force_extract=true`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show success message briefly then reload page
+                        btn.textContent = '✅ Success!';
+                        btn.style.background = '#FF9800';
+                        
+                        // Reload the page after a short delay to show the extracted chapters
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        // Show error
+                        btn.textContent = '❌ Failed';
+                        btn.style.background = '#d32f2f';
+                        
+                        // Reset button after 3 seconds
+                        setTimeout(() => {
+                            btn.textContent = '📚 Extract Chapters';
+                            btn.disabled = false;
+                            btn.style.background = '#FF9800';
+                        }, 3000);
+                    }
+                })
+                .catch(error => {
+                    // Show error
+                    btn.textContent = '❌ Failed';
+                    btn.style.background = '#d32f2f';
+                    
+                    // Reset button after 3 seconds
+                    setTimeout(() => {
+                        btn.textContent = '📚 Extract Chapters';
+                        btn.disabled = false;
+                        btn.style.background = '#FF9800';
+                    }, 3000);
+                });
+        }
         
         // Extract transcript functionality
         function extractTranscript(videoId) {
