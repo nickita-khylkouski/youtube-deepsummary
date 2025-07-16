@@ -234,8 +234,19 @@ def regenerate_summary():
             custom_prompt
         )
         
-        # Save the new summary to database
-        database_storage.save_summary(video_id, summary, model)
+        # Get prompt name for history
+        prompt_name = None
+        if prompt_id:
+            try:
+                prompt_id_int = int(prompt_id)
+                prompt_data = database_storage.get_ai_prompt_by_id(prompt_id_int)
+                if prompt_data:
+                    prompt_name = prompt_data['name']
+            except:
+                pass
+
+        # Save the new summary to database (creates new history entry)
+        summary_id = database_storage.save_summary(video_id, summary, model, prompt_id, prompt_name)
         
         # Format the summary as HTML for frontend display
         summary_html = format_summary_html(summary)
@@ -264,6 +275,117 @@ def get_available_models():
             'success': True,
             'models': available_models
         })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route('/summary/history/<video_id>')
+def get_summary_history(video_id):
+    """API endpoint to get summary history for a video"""
+    try:
+        history = database_storage.get_summary_history(video_id)
+        
+        # Format the history for frontend display
+        formatted_history = []
+        for entry in history:
+            formatted_entry = {
+                'summary_id': entry['summary_id'],
+                'summary_text': format_summary_html(entry['summary_text']),
+                'model_used': entry['model_used'],
+                'prompt_name': entry['prompt_name'],
+                'is_current': entry['is_current'],
+                'version_number': entry['version_number'],
+                'created_at': entry['created_at'],
+                'updated_at': entry['updated_at']
+            }
+            formatted_history.append(formatted_entry)
+        
+        return jsonify({
+            'success': True,
+            'video_id': video_id,
+            'history': formatted_history
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route('/summary/set-current', methods=['POST'])
+def set_current_summary():
+    """API endpoint to set a specific summary as current"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No JSON data provided'
+            }), 400
+        
+        video_id = data.get('video_id')
+        summary_id = data.get('summary_id')
+        
+        if not video_id or not summary_id:
+            return jsonify({
+                'success': False,
+                'error': 'video_id and summary_id are required'
+            }), 400
+        
+        success = database_storage.set_current_summary(video_id, summary_id)
+        
+        if success:
+            # Get the updated summary data
+            summary_data = database_storage.get_summary_by_id(summary_id)
+            if summary_data:
+                summary_html = format_summary_html(summary_data['summary_text'])
+                return jsonify({
+                    'success': True,
+                    'video_id': video_id,
+                    'summary_id': summary_id,
+                    'summary': summary_html,
+                    'model_used': summary_data['model_used'],
+                    'prompt_name': summary_data['prompt_name']
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Summary not found after update'
+                }), 404
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to set current summary'
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route('/summary/delete/<int:summary_id>', methods=['DELETE'])
+def delete_summary(summary_id):
+    """API endpoint to delete a specific summary"""
+    try:
+        success = database_storage.delete_summary_by_id(summary_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'summary_id': summary_id,
+                'message': 'Summary deleted successfully'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to delete summary or summary not found'
+            }), 404
+            
     except Exception as e:
         return jsonify({
             'success': False,

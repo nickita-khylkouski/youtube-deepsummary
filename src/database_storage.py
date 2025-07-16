@@ -411,28 +411,38 @@ class DatabaseStorage:
             print(f"Database write error for {video_id}: {e}")
             raise
 
-    def save_summary(self, video_id: str, summary: str, model_used: str = 'gpt-4.1'):
+    def save_summary(self, video_id: str, summary: str, model_used: str = 'gpt-4.1', prompt_id: int = None, prompt_name: str = None):
         """
-        Save AI summary for a video
+        Save AI summary for a video (creates new history entry instead of overwriting)
 
         Args:
             video_id: YouTube video ID
             summary: Generated summary text
             model_used: AI model used for summary
+            prompt_id: ID of the prompt used (optional)
+            prompt_name: Name of the prompt used (optional)
         """
         try:
             summary_data = {
                 'video_id': video_id,
                 'summary_text': summary,
                 'model_used': model_used,
+                'prompt_id': prompt_id,
+                'prompt_name': prompt_name or 'Default Summary',
+                'is_current': True,
+                'created_at': datetime.now(timezone.utc).isoformat(),
                 'updated_at': datetime.now(timezone.utc).isoformat()
             }
 
-            # Delete existing summary and insert new one
-            self.supabase.table('summaries').delete().eq('video_id', video_id).execute()
-            self.supabase.table('summaries').insert(summary_data).execute()
+            # Insert new summary (trigger will handle version numbering and current flag management)
+            result = self.supabase.table('summaries').insert(summary_data).execute()
 
-            print(f"Summary saved for video {video_id}")
+            if result.data:
+                print(f"Summary saved for video {video_id} (version {result.data[0].get('version_number', 'unknown')})")
+                return result.data[0].get('summary_id')
+            else:
+                print(f"Failed to save summary for video {video_id}")
+                return None
 
         except Exception as e:
             print(f"Error saving summary for {video_id}: {e}")
@@ -440,7 +450,7 @@ class DatabaseStorage:
 
     def get_summary(self, video_id: str) -> Optional[str]:
         """
-        Get saved summary for a video
+        Get current saved summary for a video
 
         Args:
             video_id: YouTube video ID
@@ -449,7 +459,11 @@ class DatabaseStorage:
             Summary text or None if not found
         """
         try:
-            response = self.supabase.table('summaries').select('summary_text').eq('video_id', video_id).execute()
+            response = self.supabase.table('summaries')\
+                .select('summary_text')\
+                .eq('video_id', video_id)\
+                .eq('is_current', True)\
+                .execute()
 
             if response.data and len(response.data) > 0:
                 return response.data[0]['summary_text']
@@ -458,6 +472,100 @@ class DatabaseStorage:
         except Exception as e:
             print(f"Error getting summary for {video_id}: {e}")
             return None
+
+    def get_summary_history(self, video_id: str) -> List[Dict]:
+        """
+        Get all summary history for a video
+
+        Args:
+            video_id: YouTube video ID
+
+        Returns:
+            List of summary history entries
+        """
+        try:
+            response = self.supabase.table('summaries')\
+                .select('summary_id, summary_text, model_used, prompt_id, prompt_name, is_current, version_number, created_at, updated_at')\
+                .eq('video_id', video_id)\
+                .order('version_number', desc=True)\
+                .execute()
+
+            return response.data if response.data else []
+
+        except Exception as e:
+            print(f"Error getting summary history for {video_id}: {e}")
+            return []
+
+    def get_summary_by_id(self, summary_id: int) -> Optional[Dict]:
+        """
+        Get specific summary by ID
+
+        Args:
+            summary_id: Summary ID
+
+        Returns:
+            Summary data or None if not found
+        """
+        try:
+            response = self.supabase.table('summaries')\
+                .select('*')\
+                .eq('summary_id', summary_id)\
+                .execute()
+
+            if response.data and len(response.data) > 0:
+                return response.data[0]
+            return None
+
+        except Exception as e:
+            print(f"Error getting summary by ID {summary_id}: {e}")
+            return None
+
+    def set_current_summary(self, video_id: str, summary_id: int) -> bool:
+        """
+        Set a specific summary as current for a video
+
+        Args:
+            video_id: YouTube video ID
+            summary_id: Summary ID to set as current
+
+        Returns:
+            Success status
+        """
+        try:
+            # Update the specific summary to be current (trigger will handle others)
+            result = self.supabase.table('summaries')\
+                .update({'is_current': True})\
+                .eq('video_id', video_id)\
+                .eq('summary_id', summary_id)\
+                .execute()
+
+            return bool(result.data)
+
+        except Exception as e:
+            print(f"Error setting current summary for {video_id}: {e}")
+            return False
+
+    def delete_summary_by_id(self, summary_id: int) -> bool:
+        """
+        Delete a specific summary by ID
+
+        Args:
+            summary_id: Summary ID to delete
+
+        Returns:
+            Success status
+        """
+        try:
+            result = self.supabase.table('summaries')\
+                .delete()\
+                .eq('summary_id', summary_id)\
+                .execute()
+
+            return bool(result.data)
+
+        except Exception as e:
+            print(f"Error deleting summary {summary_id}: {e}")
+            return False
 
     def clear_expired(self):
         """
