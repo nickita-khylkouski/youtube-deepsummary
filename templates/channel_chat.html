@@ -850,13 +850,14 @@ class ModernChannelChat {
         let cleaned = content
             .replace(/.*Please provide the transcript[^.]*\./g, '')
             .replace(/.*Once you send the transcript[^.]*\./g, '')
+            .replace(/.*I need the transcript[^.]*\./g, '')
             .trim();
         
         // Format markdown
         let formatted = cleaned
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/#{1,3}\s+(.+)/g, '<h3>$1</h3>')
+            .replace(/^#{1,3}\s+(.+)$/gm, '<h3>$1</h3>')
             .replace(/^[-•]\s+(.+)$/gm, '<li>$1</li>');
         
         // Handle lists

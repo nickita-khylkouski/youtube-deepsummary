@@ -1638,6 +1638,135 @@ class DatabaseStorage:
             print(f"Error setting default prompt {prompt_id}: {e}")
             return False
 
+    # Chat-related methods
+    def save_channel_chat_message(self, channel_id: str, session_id: str, message_type: str, 
+                                 content: str, model_used: str = None, context_summary: str = None) -> bool:
+        """Save a chat message to the database"""
+        try:
+            # Check if the table exists first
+            try:
+                self.supabase.table('channel_chat').select('id').limit(1).execute()
+            except Exception as table_error:
+                if 'does not exist' in str(table_error) or 'relation' in str(table_error):
+                    print("channel_chat table doesn't exist. Please create it using sql/create_channel_chat_table.sql")
+                    return False
+                else:
+                    raise table_error
+            
+            message_data = {
+                'channel_id': channel_id,
+                'session_id': session_id,
+                'message_type': message_type,
+                'content': content,
+                'model_used': model_used,
+                'context_summary': context_summary
+            }
+            
+            result = self.supabase.table('channel_chat').insert(message_data).execute()
+            return bool(result.data)
+            
+        except Exception as e:
+            print(f"Error saving chat message: {e}")
+            return False
+    
+    def get_channel_chat_history(self, channel_id: str, session_id: str, limit: int = 50) -> List[Dict]:
+        """Get chat history for a specific channel and session"""
+        try:
+            result = self.supabase.table('channel_chat')\
+                .select('*')\
+                .eq('channel_id', channel_id)\
+                .eq('session_id', session_id)\
+                .order('created_at', desc=False)\
+                .limit(limit)\
+                .execute()
+            
+            return result.data if result.data else []
+            
+        except Exception as e:
+            print(f"Error getting chat history: {e}")
+            return []
+    
+    def get_channel_chat_sessions(self, channel_id: str, limit: int = 10) -> List[Dict]:
+        """Get recent chat sessions for a channel"""
+        try:
+            result = self.supabase.table('channel_chat')\
+                .select('session_id, created_at, message_type, content')\
+                .eq('channel_id', channel_id)\
+                .order('created_at', desc=True)\
+                .limit(limit * 2)\
+                .execute()
+            
+            # Group by session_id and get first message of each session
+            sessions = {}
+            for message in result.data:
+                session_id = message['session_id']
+                if session_id not in sessions:
+                    sessions[session_id] = {
+                        'session_id': session_id,
+                        'created_at': message['created_at'],
+                        'preview': message['content'][:100] + '...' if len(message['content']) > 100 else message['content']
+                    }
+            
+            return list(sessions.values())[:limit]
+            
+        except Exception as e:
+            print(f"Error getting chat sessions: {e}")
+            return []
+    
+    def delete_channel_chat_session(self, session_id: str) -> bool:
+        """Delete all messages in a chat session"""
+        try:
+            result = self.supabase.table('channel_chat')\
+                .delete()\
+                .eq('session_id', session_id)\
+                .execute()
+            
+            return bool(result.data)
+            
+        except Exception as e:
+            print(f"Error deleting chat session: {e}")
+            return False
+    
+    def get_channel_summaries_for_chat(self, channel_id: str) -> List[Dict]:
+        """Get all summaries for a channel to use as chat context"""
+        try:
+            # Get videos for this channel
+            videos_result = self.supabase.table('youtube_videos')\
+                .select('video_id, title')\
+                .eq('channel_id', channel_id)\
+                .execute()
+            
+            if not videos_result.data:
+                return []
+            
+            video_ids = [video['video_id'] for video in videos_result.data]
+            
+            # Get summaries for these videos
+            summaries_result = self.supabase.table('summaries')\
+                .select('video_id, summary_text, model_used')\
+                .in_('video_id', video_ids)\
+                .eq('is_current', True)\
+                .execute()
+            
+            # Combine with video titles
+            video_titles = {video['video_id']: video['title'] for video in videos_result.data}
+            
+            summaries = []
+            for summary in summaries_result.data:
+                video_id = summary['video_id']
+                summaries.append({
+                    'video_id': video_id,
+                    'video_title': video_titles.get(video_id, 'Unknown Title'),
+                    'summary_text': summary['summary_text'],
+                    'model_used': summary['model_used']
+                })
+            
+            return summaries
+            
+        except Exception as e:
+            print(f"Error getting channel summaries for chat: {e}")
+            return []
+
 
 # Global database storage instance
 database_storage = DatabaseStorage()
