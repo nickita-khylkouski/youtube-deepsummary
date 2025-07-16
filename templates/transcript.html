@@ -420,7 +420,7 @@
         }
         
         // Load available prompts for regeneration
-        function loadAvailablePrompts() {
+        function loadAvailablePrompts(selectedPromptId = null) {
             fetch('/settings/prompts')
                 .then(response => response.json())
                 .then(data => {
@@ -436,8 +436,10 @@
                                 option.value = prompt.id;
                                 option.textContent = prompt.name;
                                 
-                                // Select default prompt
-                                if (prompt.is_default) {
+                                // Select previously selected prompt, or default if none specified
+                                if (selectedPromptId && prompt.id == selectedPromptId) {
+                                    option.selected = true;
+                                } else if (!selectedPromptId && prompt.is_default) {
                                     option.selected = true;
                                 }
                                 
@@ -456,7 +458,7 @@
         }
 
         // Load available models for regeneration
-        function loadAvailableModels() {
+        function loadAvailableModels(selectedModelName = null) {
             fetch('/api/models')
                 .then(response => response.json())
                 .then(data => {
@@ -465,6 +467,8 @@
                         if (modelSelect) {
                             // Clear loading option
                             modelSelect.innerHTML = '';
+                            
+                            let modelSelected = false;
                             
                             // Add providers and models
                             for (const [provider, models] of Object.entries(data.models)) {
@@ -476,9 +480,13 @@
                                     option.value = model;
                                     option.textContent = model;
                                     
-                                    // Default to Claude Sonnet 4 if available
-                                    if (model === 'claude-sonnet-4-20250514') {
+                                    // Select previously selected model, or default to Claude Sonnet 4
+                                    if (selectedModelName && model === selectedModelName) {
                                         option.selected = true;
+                                        modelSelected = true;
+                                    } else if (!selectedModelName && model === 'claude-sonnet-4-20250514') {
+                                        option.selected = true;
+                                        modelSelected = true;
                                     }
                                     
                                     optgroup.appendChild(option);
@@ -487,8 +495,8 @@
                                 modelSelect.appendChild(optgroup);
                             }
                             
-                            // If no Claude model available, select first available model
-                            if (modelSelect.selectedIndex === -1 && modelSelect.options.length > 0) {
+                            // If no model was selected and no specific model requested, select first available
+                            if (!modelSelected && modelSelect.options.length > 0) {
                                 modelSelect.selectedIndex = 0;
                             }
                         }
@@ -563,9 +571,9 @@
                             <hr style="margin: 30px 0; border: 1px solid #ddd;">
                         `;
                         
-                        // Reload prompts and models for the new dropdowns
-                        loadAvailablePrompts();
-                        loadAvailableModels();
+                        // Reload prompts and models for the new dropdowns, preserving selections
+                        loadAvailablePrompts(selectedPrompt);
+                        loadAvailableModels(selectedModel);
                         
                         // Add H2 snippet icons to the regenerated summary
                         setTimeout(addH2SnippetIcons, 100);
