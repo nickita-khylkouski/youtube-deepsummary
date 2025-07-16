@@ -68,17 +68,20 @@
     <div id="summary-section" style="{% if not summary and not summary_error %}display: none;{% endif %}">
         {% if summary %}
             <div class="summary-section">
-                <!-- Summary Header with History Navigation -->
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
-                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <!-- Summary Header with History Navigation - Fixed 2-row layout -->
+                <div style="margin-bottom: 15px;">
+                    <!-- Row 1: Title and Summary Info -->
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
                         <h3 style="margin: 0;">🤖 AI-Generated Summary:</h3>
                         <div id="summary-info" style="font-size: 14px; color: #666;">
                             <!-- This will be populated with current summary info -->
                         </div>
                     </div>
+                    
+                    <!-- Row 2: Controls -->
                     {% if summarize_enabled %}
                         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                            <button id="historyBtn" onclick="toggleSummaryHistory()" style="background: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">📚 History</button>
+                            <button id="historyBtn" onclick="toggleSummaryHistory()" style="background: #6c757d; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; display: none;">📚 History</button>
                             <select id="promptSelect" style="padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; background: white;">
                                 <option value="">Loading prompts...</option>
                             </select>
@@ -1211,6 +1214,12 @@
                         // Enable keyboard navigation if we have multiple summaries
                         keyboardNavigationEnabled = summaryHistory.length > 1;
                         
+                        // Show/hide History button based on number of versions
+                        const historyBtn = document.getElementById('historyBtn');
+                        if (historyBtn) {
+                            historyBtn.style.display = summaryHistory.length > 1 ? 'inline-block' : 'none';
+                        }
+                        
                         // Update current summary ID for keyboard navigation
                         const currentSummary = summaryHistory.find(e => e.is_current);
                         if (currentSummary) {
@@ -1219,12 +1228,24 @@
                     } else {
                         historyList.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">No history found</div>';
                         keyboardNavigationEnabled = false;
+                        
+                        // Hide History button when no history found
+                        const historyBtn = document.getElementById('historyBtn');
+                        if (historyBtn) {
+                            historyBtn.style.display = 'none';
+                        }
                     }
                 })
                 .catch(error => {
                     console.error('Error loading summary history:', error);
                     historyList.innerHTML = '<div style="text-align: center; color: #d32f2f; padding: 20px;">Error loading history</div>';
                     keyboardNavigationEnabled = false;
+                    
+                    // Hide History button on error
+                    const historyBtn = document.getElementById('historyBtn');
+                    if (historyBtn) {
+                        historyBtn.style.display = 'none';
+                    }
                 });
         }
         
@@ -1345,12 +1366,18 @@
             const currentSummary = summaryHistory.find(e => e.is_current);
             
             if (currentSummary) {
-                summaryInfoDiv.innerHTML = `
+                let infoHtml = `
                     <span style="background: #f0f0f0; padding: 3px 8px; border-radius: 12px; font-size: 12px;">
                         v${currentSummary.version_number} | ${currentSummary.model_used} | ${currentSummary.prompt_name}
                     </span>
-                    <span style="font-size: 11px; color: #999; margin-left: 8px;">← → to navigate</span>
                 `;
+                
+                // Only show keyboard navigation hint if there are multiple versions
+                if (summaryHistory.length > 1) {
+                    infoHtml += `<span style="font-size: 11px; color: #999; margin-left: 8px;">← → to navigate</span>`;
+                }
+                
+                summaryInfoDiv.innerHTML = infoHtml;
             }
         }
 
