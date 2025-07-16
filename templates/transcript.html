@@ -1180,6 +1180,7 @@
         // Summary History Management Functions
         let summaryHistory = [];
         let currentSummaryId = null;
+        let keyboardNavigationEnabled = false;
         
         function toggleSummaryHistory() {
             const panel = document.getElementById('summary-history-panel');
@@ -1206,13 +1207,24 @@
                         summaryHistory = data.history;
                         renderSummaryHistory();
                         updateSummaryInfo();
+                        
+                        // Enable keyboard navigation if we have multiple summaries
+                        keyboardNavigationEnabled = summaryHistory.length > 1;
+                        
+                        // Update current summary ID for keyboard navigation
+                        const currentSummary = summaryHistory.find(e => e.is_current);
+                        if (currentSummary) {
+                            currentSummaryId = currentSummary.summary_id;
+                        }
                     } else {
                         historyList.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">No history found</div>';
+                        keyboardNavigationEnabled = false;
                     }
                 })
                 .catch(error => {
                     console.error('Error loading summary history:', error);
                     historyList.innerHTML = '<div style="text-align: center; color: #d32f2f; padding: 20px;">Error loading history</div>';
+                    keyboardNavigationEnabled = false;
                 });
         }
         
@@ -1257,7 +1269,7 @@
             historyList.innerHTML = historyHtml;
         }
         
-        function switchToSummary(summaryId) {
+        function switchToSummary(summaryId, keepHistoryOpen = false) {
             const entry = summaryHistory.find(e => e.summary_id === summaryId);
             if (!entry) return;
             
@@ -1283,11 +1295,16 @@
                     renderSummaryHistory();
                     updateSummaryInfo();
                     
+                    // Update current summary ID for keyboard navigation
+                    currentSummaryId = summaryId;
+                    
                     // Add snippet icons to the new summary
                     setTimeout(addH2SnippetIcons, 100);
                     
-                    // Close history panel
-                    toggleSummaryHistory();
+                    // Close history panel only if not keeping it open (e.g., for keyboard navigation)
+                    if (!keepHistoryOpen) {
+                        toggleSummaryHistory();
+                    }
                 } else {
                     alert('Error switching summary: ' + data.error);
                 }
@@ -1332,8 +1349,109 @@
                     <span style="background: #f0f0f0; padding: 3px 8px; border-radius: 12px; font-size: 12px;">
                         v${currentSummary.version_number} | ${currentSummary.model_used} | ${currentSummary.prompt_name}
                     </span>
+                    <span style="font-size: 11px; color: #999; margin-left: 8px;">← → to navigate</span>
                 `;
             }
+        }
+
+        // Keyboard navigation for summary history
+        function navigateSummaryHistory(direction) {
+            if (!keyboardNavigationEnabled || summaryHistory.length === 0) return;
+            
+            const currentIndex = summaryHistory.findIndex(e => e.is_current);
+            if (currentIndex === -1) return;
+            
+            let newIndex;
+            if (direction === 'left') {
+                // Go to previous version (higher version number)
+                newIndex = currentIndex - 1;
+                if (newIndex < 0) newIndex = summaryHistory.length - 1; // Wrap to last
+            } else if (direction === 'right') {
+                // Go to next version (lower version number)
+                newIndex = currentIndex + 1;
+                if (newIndex >= summaryHistory.length) newIndex = 0; // Wrap to first
+            } else {
+                return;
+            }
+            
+            const targetSummary = summaryHistory[newIndex];
+            if (targetSummary && targetSummary.summary_id !== currentSummaryId) {
+                switchToSummary(targetSummary.summary_id, true); // Keep history open during keyboard navigation
+            }
+        }
+
+        // Keyboard event handler
+        function handleKeyboardNavigation(event) {
+            // Only handle arrow keys when summary section is visible and has focus context
+            if (!keyboardNavigationEnabled) return;
+            
+            // Ignore if user is typing in an input field
+            if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT') {
+                return;
+            }
+            
+            if (event.key === 'ArrowLeft') {
+                event.preventDefault();
+                navigateSummaryHistory('left');
+                showNavigationFeedback('Previous version');
+            } else if (event.key === 'ArrowRight') {
+                event.preventDefault();
+                navigateSummaryHistory('right');
+                showNavigationFeedback('Next version');
+            }
+        }
+
+        // Show brief visual feedback for keyboard navigation
+        function showNavigationFeedback(message) {
+            const summarySection = document.getElementById('summary-section');
+            if (!summarySection) return;
+            
+            // Remove existing feedback
+            const existingFeedback = document.getElementById('nav-feedback');
+            if (existingFeedback) {
+                existingFeedback.remove();
+            }
+            
+            // Create feedback element
+            const feedback = document.createElement('div');
+            feedback.id = 'nav-feedback';
+            feedback.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-size: 14px;
+                z-index: 1000;
+                animation: fadeInOut 1.5s ease-in-out;
+            `;
+            feedback.textContent = message;
+            
+            // Add CSS animation
+            if (!document.getElementById('nav-feedback-styles')) {
+                const style = document.createElement('style');
+                style.id = 'nav-feedback-styles';
+                style.textContent = `
+                    @keyframes fadeInOut {
+                        0% { opacity: 0; transform: translateY(-10px); }
+                        20% { opacity: 1; transform: translateY(0); }
+                        80% { opacity: 1; transform: translateY(0); }
+                        100% { opacity: 0; transform: translateY(-10px); }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            document.body.appendChild(feedback);
+            
+            // Auto-remove after animation
+            setTimeout(() => {
+                if (feedback.parentNode) {
+                    feedback.parentNode.removeChild(feedback);
+                }
+            }, 1500);
         }
 
         // Initialize snippets functionality when page loads
@@ -1342,6 +1460,9 @@
             addH2SnippetIcons();
             loadAvailablePrompts(); // Load available AI prompts for summary regeneration
             loadAvailableModels(); // Load available AI models for summary regeneration
+            
+            // Add keyboard navigation event listener
+            document.addEventListener('keydown', handleKeyboardNavigation);
             
             // Load summary history if summary exists
             {% if summary %}
