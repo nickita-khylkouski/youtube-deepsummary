@@ -697,14 +697,21 @@ def import_channel_videos(channel_handle):
         print(f"Channel name: {channel_info['channel_name']}")
         
         data = request.get_json() if request.content_type == 'application/json' else {}
-        max_results = int(data.get('max_results', 5))
-        days_back = int(data.get('days_back', 30))  # Default to 30 days
         
-        # Validate parameters
-        if max_results > 50:  # Increased limit for time-based filtering
-            max_results = 50
+        # Get default values from import settings
+        import_settings = database_storage.get_import_settings()
+        default_max_results = import_settings.get('default_max_results', 20)
+        default_days_back = import_settings.get('default_days_back', 30)
+        max_results_limit = import_settings.get('max_results_limit', 50)
+        
+        max_results = int(data.get('max_results', default_max_results))
+        days_back = int(data.get('days_back', default_days_back))
+        
+        # Validate parameters using settings
+        if max_results > max_results_limit:
+            max_results = max_results_limit
         if days_back < 1 or days_back > 365:  # Reasonable range: 1 day to 1 year
-            days_back = 30
+            days_back = default_days_back
         
         # Check if YouTube API is configured
         if not youtube_api.is_available():

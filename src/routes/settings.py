@@ -86,3 +86,29 @@ def set_default_prompt(prompt_id):
             return jsonify({'status': 'error', 'message': 'Prompt not found'}), 404
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# Import Settings API endpoints
+@settings_bp.route('/import-settings')
+def get_import_settings():
+    """API endpoint to get all import settings."""
+    try:
+        settings = db_storage.get_import_settings()
+        return jsonify({'status': 'success', 'settings': settings})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@settings_bp.route('/import-settings', methods=['POST'])
+def update_import_settings():
+    """API endpoint to update import settings."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'status': 'error', 'message': 'No data provided'}), 400
+        
+        success = db_storage.update_import_settings_batch(data)
+        if success:
+            return jsonify({'status': 'success'})
+        else:
+            return jsonify({'status': 'error', 'message': 'Failed to update settings'}), 500
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500

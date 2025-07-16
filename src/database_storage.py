@@ -1638,6 +1638,106 @@ class DatabaseStorage:
             print(f"Error setting default prompt {prompt_id}: {e}")
             return False
 
+    # Import Settings Methods
+    def get_import_settings(self) -> Dict:
+        """Get all import settings"""
+        try:
+            response = self.supabase.table('import_settings').select('*').execute()
+            settings = {}
+            
+            for setting in response.data:
+                key = setting['setting_key']
+                value = setting['setting_value']
+                setting_type = setting.get('setting_type', 'string')
+                
+                # Convert value based on type
+                if setting_type == 'integer':
+                    settings[key] = int(value) if value else 0
+                elif setting_type == 'boolean':
+                    settings[key] = value.lower() == 'true' if value else False
+                else:
+                    settings[key] = value
+            
+            return settings
+        except Exception as e:
+            print(f"Error getting import settings: {e}")
+            return {}
+
+    def get_import_setting(self, key: str, default=None):
+        """Get a specific import setting"""
+        try:
+            response = self.supabase.table('import_settings').select('*').eq('setting_key', key).execute()
+            
+            if response.data:
+                setting = response.data[0]
+                value = setting['setting_value']
+                setting_type = setting.get('setting_type', 'string')
+                
+                # Convert value based on type
+                if setting_type == 'integer':
+                    return int(value) if value else default
+                elif setting_type == 'boolean':
+                    return value.lower() == 'true' if value else default
+                else:
+                    return value
+            
+            return default
+        except Exception as e:
+            print(f"Error getting import setting {key}: {e}")
+            return default
+
+    def update_import_setting(self, key: str, value, setting_type: str = 'string') -> bool:
+        """Update an import setting (insert if doesn't exist)"""
+        try:
+            # Convert value to string for storage
+            if isinstance(value, bool):
+                value_str = str(value).lower()
+            else:
+                value_str = str(value)
+            
+            # Try to update first
+            response = self.supabase.table('import_settings').update({
+                'setting_value': value_str,
+                'setting_type': setting_type,
+                'updated_at': datetime.now(timezone.utc).isoformat()
+            }).eq('setting_key', key).execute()
+            
+            # If no rows were updated, try to insert
+            if len(response.data) == 0:
+                setting_data = {
+                    'setting_key': key,
+                    'setting_value': value_str,
+                    'setting_type': setting_type,
+                    'created_at': datetime.now(timezone.utc).isoformat(),
+                    'updated_at': datetime.now(timezone.utc).isoformat()
+                }
+                
+                response = self.supabase.table('import_settings').insert(setting_data).execute()
+            
+            return len(response.data) > 0
+        except Exception as e:
+            print(f"Error updating import setting {key}: {e}")
+            return False
+
+    def update_import_settings_batch(self, settings: Dict) -> bool:
+        """Update multiple import settings at once"""
+        try:
+            for key, value in settings.items():
+                # Determine setting type based on value
+                if isinstance(value, bool):
+                    setting_type = 'boolean'
+                elif isinstance(value, int):
+                    setting_type = 'integer'
+                else:
+                    setting_type = 'string'
+                
+                self.update_import_setting(key, value, setting_type)
+            
+            return True
+        except Exception as e:
+            print(f"Error updating import settings batch: {e}")
+            return False
+
 
 # Global database storage instance
 database_storage = DatabaseStorage()
