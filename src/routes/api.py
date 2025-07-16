@@ -256,6 +256,8 @@ def regenerate_summary():
             'video_id': video_id,
             'summary': summary_html,
             'model_used': model,
+            'prompt_id': prompt_id,
+            'prompt_name': prompt_name,
             'from_cache': False
         })
         
@@ -295,6 +297,7 @@ def get_summary_history(video_id):
                 'summary_id': entry['summary_id'],
                 'summary_text': format_summary_html(entry['summary_text']),
                 'model_used': entry['model_used'],
+                'prompt_id': entry['prompt_id'],
                 'prompt_name': entry['prompt_name'],
                 'is_current': entry['is_current'],
                 'version_number': entry['version_number'],

@@ -469,6 +469,11 @@
                                 
                                 promptSelect.appendChild(option);
                             });
+                            
+                            // Update to current version after loading prompts (if history is loaded)
+                            if (summaryHistory.length > 0) {
+                                setTimeout(() => updateSelectorsToCurrentVersion(), 100);
+                            }
                         }
                     }
                 })
@@ -594,6 +599,11 @@
                             mainBtn.disabled = false;
                             mainBtn.style.background = '#2196f3';
                         }
+                        
+                        // After regeneration, ensure selectors match the new summary
+                        setTimeout(() => {
+                            updateSelectorsToCurrentVersion();
+                        }, 1000);
                     } else {
                         // Show error and restore controls
                         alert('Error regenerating summary: ' + data.error);
@@ -1225,6 +1235,11 @@
                         if (currentSummary) {
                             currentSummaryId = currentSummary.summary_id;
                         }
+                        
+                        // Update selectors to match current version after a delay to ensure dropdowns are loaded
+                        setTimeout(() => {
+                            updateSelectorsToCurrentVersion();
+                        }, 500);
                     } else {
                         historyList.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">No history found</div>';
                         keyboardNavigationEnabled = false;
@@ -1319,6 +1334,11 @@
                     // Update current summary ID for keyboard navigation
                     currentSummaryId = summaryId;
                     
+                    // Update prompt and model selectors to match current version
+                    setTimeout(() => {
+                        updateSelectorsToCurrentVersion();
+                    }, 100);
+                    
                     // Add snippet icons to the new summary
                     setTimeout(addH2SnippetIcons, 100);
                     
@@ -1366,9 +1386,10 @@
             const currentSummary = summaryHistory.find(e => e.is_current);
             
             if (currentSummary) {
+                const promptName = currentSummary.prompt_name || 'Default';
                 let infoHtml = `
                     <span style="background: #f0f0f0; padding: 3px 8px; border-radius: 12px; font-size: 12px;">
-                        v${currentSummary.version_number} | ${currentSummary.model_used} | ${currentSummary.prompt_name}
+                        v${currentSummary.version_number} | ${promptName} | ${currentSummary.model_used}
                     </span>
                 `;
                 
@@ -1378,6 +1399,48 @@
                 }
                 
                 summaryInfoDiv.innerHTML = infoHtml;
+            }
+        }
+
+        function updateSelectorsToCurrentVersion() {
+            const currentSummary = summaryHistory.find(e => e.is_current);
+            if (!currentSummary) return;
+            
+            // Update model selector
+            const modelSelect = document.getElementById('modelSelect');
+            if (modelSelect && currentSummary.model_used) {
+                for (let i = 0; i < modelSelect.options.length; i++) {
+                    if (modelSelect.options[i].value === currentSummary.model_used) {
+                        modelSelect.selectedIndex = i;
+                        modelSelect.value = currentSummary.model_used;
+                        break;
+                    }
+                }
+            }
+            
+            // Update prompt selector
+            const promptSelect = document.getElementById('promptSelect');
+            if (promptSelect) {
+                // For null prompt_id (legacy summaries), find the default prompt
+                if (!currentSummary.prompt_id) {
+                    for (let i = 0; i < promptSelect.options.length; i++) {
+                        const optionText = promptSelect.options[i].textContent.trim();
+                        if (optionText === 'Default Summary' || optionText === 'Default') {
+                            promptSelect.selectedIndex = i;
+                            promptSelect.value = promptSelect.options[i].value;
+                            break;
+                        }
+                    }
+                } else {
+                    // Match by prompt_id
+                    for (let i = 0; i < promptSelect.options.length; i++) {
+                        if (promptSelect.options[i].value == currentSummary.prompt_id) {
+                            promptSelect.selectedIndex = i;
+                            promptSelect.value = currentSummary.prompt_id;
+                            break;
+                        }
+                    }
+                }
             }
         }
 
