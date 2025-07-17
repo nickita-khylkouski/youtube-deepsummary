@@ -106,7 +106,7 @@ def video_by_url_path(channel_handle, url_path):
         # Add thumbnail URL
         thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
         
-        return render_template('transcript.html', 
+        return render_template('video.html', 
                              video_id=video_id,
                              video_title=video_title,
                              channel_name=channel_name,
