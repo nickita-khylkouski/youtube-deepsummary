@@ -31,7 +31,7 @@ class ProxyManager:
         
     def get_current_proxy_config(self) -> Optional[Dict[str, str]]:
         """
-        Get current proxy configuration for requests
+        Get current proxy configuration for requests (using rotating endpoint)
         
         Returns:
             Dictionary with proxy configuration or None if no proxy available
@@ -40,10 +40,10 @@ class ProxyManager:
             print("🔴 No Webshare proxy configured, falling back to legacy proxy")
             return Config.get_proxy_config()
         
-        # Get current proxy URL
-        proxy_url = Config.get_webshare_proxy_url(self.current_proxy)
+        # Get rotating proxy URL (automatically assigns random IP)
+        proxy_url = Config.get_webshare_proxy_url(1)  # proxy_number is ignored for rotate endpoint
         if proxy_url:
-            print(f"🌐 Using proxy: {Config.PROXY_USERNAME}-{self.current_proxy}@{Config.PROXY_HOST}:{Config.PROXY_PORT}")
+            print(f"🌐 Using rotating proxy: {Config.PROXY_USERNAME}-rotate@{Config.PROXY_HOST}:{Config.PROXY_PORT}")
             return {
                 'http': proxy_url,
                 'https': proxy_url
@@ -53,7 +53,7 @@ class ProxyManager:
     
     def get_current_proxy_for_ytdlp(self) -> Optional[str]:
         """
-        Get current proxy configuration for yt-dlp
+        Get current proxy configuration for yt-dlp (using rotating endpoint)
         
         Returns:
             Proxy URL string for yt-dlp or None if no proxy available
@@ -63,32 +63,35 @@ class ProxyManager:
                 return f"http://{Config.YOUTUBE_PROXY}"
             return None
         
-        proxy_url = Config.get_webshare_proxy_url(self.current_proxy)
+        proxy_url = Config.get_webshare_proxy_url(1)  # proxy_number is ignored for rotate endpoint
         if proxy_url:
-            print(f"🌐 Using yt-dlp proxy: {Config.PROXY_USERNAME}-{self.current_proxy}@{Config.PROXY_HOST}:{Config.PROXY_PORT}")
+            print(f"🌐 Using yt-dlp rotating proxy: {Config.PROXY_USERNAME}-rotate@{Config.PROXY_HOST}:{Config.PROXY_PORT}")
             return proxy_url
         
         return None
     
     def mark_proxy_failed(self, proxy_number: Optional[int] = None):
         """
-        Mark a proxy as failed and rotate to next one
+        Mark a proxy attempt as failed (with rotating endpoint, we just wait before retry)
         
         Args:
-            proxy_number: Specific proxy number to mark as failed, or current if None
+            proxy_number: Ignored for rotating endpoint, kept for compatibility
         """
-        if proxy_number is None:
-            proxy_number = self.current_proxy
-        
-        self.failed_proxies.add(proxy_number)
-        print(f"🔴 Marked proxy {Config.PROXY_USERNAME}-{proxy_number} as failed")
-        
-        # Rotate to next proxy
-        self.rotate_proxy()
+        if Config.is_webshare_proxy_configured():
+            print(f"🔴 Proxy attempt failed, rotating endpoint will assign new IP on retry")
+            # With rotating endpoint, we don't need to track specific failed proxies
+            # The service automatically assigns a different IP from the pool
+        else:
+            # Legacy proxy handling
+            if proxy_number is None:
+                proxy_number = self.current_proxy
+            self.failed_proxies.add(proxy_number)
+            print(f"🔴 Marked proxy {proxy_number} as failed")
+            self.rotate_proxy()
     
     def rotate_proxy(self) -> bool:
         """
-        Rotate to the next available proxy
+        Rotate to the next available proxy (or wait for rotating endpoint)
         
         Returns:
             True if successfully rotated, False if no proxies available
@@ -97,25 +100,32 @@ class ProxyManager:
             print("🔴 No Webshare proxy configured for rotation")
             return False
         
-        # Find next available proxy
-        attempts = 0
-        while attempts < self.max_proxies:
-            self.current_proxy = (self.current_proxy % self.max_proxies) + 1
+        if Config.is_webshare_proxy_configured():
+            # With rotating endpoint, we just update the timestamp
+            # The endpoint automatically assigns different IPs
+            print(f"🔄 Rotating endpoint ready for new IP assignment")
+            self.last_rotation_time = time.time()
+            return True
+        else:
+            # Legacy proxy rotation logic
+            attempts = 0
+            while attempts < self.max_proxies:
+                self.current_proxy = (self.current_proxy % self.max_proxies) + 1
+                
+                if self.current_proxy not in self.failed_proxies:
+                    print(f"🔄 Rotated to proxy: {Config.PROXY_USERNAME}-{self.current_proxy}")
+                    self.last_rotation_time = time.time()
+                    return True
+                
+                attempts += 1
             
-            if self.current_proxy not in self.failed_proxies:
-                print(f"🔄 Rotated to proxy: {Config.PROXY_USERNAME}-{self.current_proxy}")
-                self.last_rotation_time = time.time()
-                return True
-            
-            attempts += 1
-        
-        # All proxies failed, reset and try again
-        print("⚠️ All proxies failed, resetting failed proxy list")
-        self.failed_proxies.clear()
-        self.current_proxy = random.randint(1, self.max_proxies)
-        print(f"🔄 Reset to random proxy: {Config.PROXY_USERNAME}-{self.current_proxy}")
-        self.last_rotation_time = time.time()
-        return True
+            # All proxies failed, reset and try again
+            print("⚠️ All proxies failed, resetting failed proxy list")
+            self.failed_proxies.clear()
+            self.current_proxy = random.randint(1, self.max_proxies)
+            print(f"🔄 Reset to random proxy: {Config.PROXY_USERNAME}-{self.current_proxy}")
+            self.last_rotation_time = time.time()
+            return True
     
     def should_rotate(self) -> bool:
         """
@@ -145,23 +155,20 @@ class ProxyManager:
     
     def test_proxy(self, proxy_number: Optional[int] = None) -> Tuple[bool, str]:
         """
-        Test if a specific proxy is working
+        Test if the rotating proxy endpoint is working
         
         Args:
-            proxy_number: Proxy number to test, or current if None
+            proxy_number: Ignored for rotating endpoint, kept for compatibility
             
         Returns:
             Tuple of (success, message)
         """
-        if proxy_number is None:
-            proxy_number = self.current_proxy
-        
         if not Config.is_webshare_proxy_configured():
             return False, "No Webshare proxy configured"
         
         try:
             import requests
-            proxy_url = Config.get_webshare_proxy_url(proxy_number)
+            proxy_url = Config.get_webshare_proxy_url(1)  # proxy_number ignored for rotate
             if not proxy_url:
                 return False, "Failed to generate proxy URL"
             
@@ -178,7 +185,7 @@ class ProxyManager:
             )
             
             if response.status_code == 200:
-                return True, f"Proxy {Config.PROXY_USERNAME}-{proxy_number} is working"
+                return True, f"Rotating proxy {Config.PROXY_USERNAME}-rotate is working"
             else:
                 return False, f"Proxy returned status code {response.status_code}"
                 

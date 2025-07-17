@@ -362,8 +362,7 @@ class YouTubeAPI:
                 playlist_request = self.service.playlistItems().list(
                     part='snippet',
                     playlistId=uploads_playlist_id,
-                    maxResults=max_results,
-                    order='date'
+                    maxResults=max_results
                 )
                 playlist_response = playlist_request.execute()
                 

@@ -27,7 +27,8 @@
       "Bash(true)",
       "Bash(git fetch:*)",
       "Bash(git merge:*)",
-      "Bash(printenv)"
+      "Bash(printenv)",
+      "Bash(git push:*)"
     ],
     "deny": []
   }

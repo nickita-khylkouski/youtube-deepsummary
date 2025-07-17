@@ -71,8 +71,9 @@ class Config:
     
     @classmethod
     def get_webshare_proxy_url(cls, proxy_number: int = 1):
-        """Get Webshare proxy URL with rotating proxy number"""
+        """Get Webshare proxy URL with rotating proxy endpoint"""
         if cls.is_webshare_proxy_configured():
-            username = f"{cls.PROXY_USERNAME}-{proxy_number}"
+            # Use rotating endpoint for automatic IP rotation
+            username = f"{cls.PROXY_USERNAME}-rotate"
             return f"http://{username}:{cls.PROXY_PASSWORD}@{cls.PROXY_HOST}:{cls.PROXY_PORT}/"
         return None
