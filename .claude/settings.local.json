@@ -24,7 +24,9 @@
       "WebFetch(domain:docs.anthropic.com)",
       "Bash(curl:*)",
       "Bash(unzip:*)",
-      "Bash(true)"
+      "Bash(true)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)"
     ],
     "deny": []
   }
