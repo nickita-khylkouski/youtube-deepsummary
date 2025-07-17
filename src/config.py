@@ -33,6 +33,12 @@ class Config:
     YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY')
     YOUTUBE_PROXY = os.getenv('YOUTUBE_PROXY')
     
+    # Webshare proxy configuration
+    PROXY_USERNAME = os.getenv('PROXY_USERNAME')
+    PROXY_PASSWORD = os.getenv('PROXY_PASSWORD')
+    PROXY_HOST = os.getenv('PROXY_HOST', 'p.webshare.io')
+    PROXY_PORT = int(os.getenv('PROXY_PORT', 80))
+    
     @classmethod
     def is_openai_configured(cls):
         """Check if OpenAI API is configured"""
@@ -56,4 +62,17 @@ class Config:
                 'http': f'http://{cls.YOUTUBE_PROXY}',
                 'https': f'http://{cls.YOUTUBE_PROXY}'
             }
+        return None
+    
+    @classmethod
+    def is_webshare_proxy_configured(cls):
+        """Check if Webshare proxy is configured"""
+        return bool(cls.PROXY_USERNAME and cls.PROXY_PASSWORD)
+    
+    @classmethod
+    def get_webshare_proxy_url(cls, proxy_number: int = 1):
+        """Get Webshare proxy URL with rotating proxy number"""
+        if cls.is_webshare_proxy_configured():
+            username = f"{cls.PROXY_USERNAME}-{proxy_number}"
+            return f"http://{username}:{cls.PROXY_PASSWORD}@{cls.PROXY_HOST}:{cls.PROXY_PORT}/"
         return None

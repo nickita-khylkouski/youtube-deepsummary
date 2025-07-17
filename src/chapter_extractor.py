@@ -9,18 +9,20 @@ and provides fallback methods for chapter detection.
 import os
 import re
 from typing import List, Dict, Optional
+from src.proxy_manager import proxy_manager
 
 
 class ChapterExtractor:
-    """Handles chapter extraction from YouTube videos"""
+    """Handles chapter extraction from YouTube videos with proxy rotation"""
     
     def __init__(self):
         """Initialize the chapter extractor with proxy configuration"""
-        self.proxy = os.getenv('YOUTUBE_PROXY')
+        self.max_retries = 3
     
     def extract_video_info(self, video_id: str) -> Dict[str, any]:
         """
         Extract comprehensive video information including title, chapters, and metadata using yt-dlp
+        with proxy rotation support
         
         Args:
             video_id: YouTube video ID
@@ -28,64 +30,90 @@ class ChapterExtractor:
         Returns:
             Dictionary containing video information including chapters
         """
+        print(f"🎬 Extracting video info for: {video_id}")
+        
         try:
             import yt_dlp
-            print(f"yt_dlp imported successfully for video {video_id}")
+            print(f"📦 yt-dlp imported successfully")
             
-            # Configure yt-dlp options
-            ydl_opts = {
-                'quiet': True,
-                'no_warnings': True,
-                'extract_flat': False,
-            }
-            
-            # Add proxy configuration if available
-            if self.proxy:
-                ydl_opts['proxy'] = f'http://{self.proxy}'
-                print(f"Using proxy for video info extraction: {self.proxy}")
-            else:
-                print("No proxy configured for video info extraction")
-            
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                video_info = ydl.extract_info(
-                    f'https://www.youtube.com/watch?v={video_id}', 
-                    download=False
-                )
-                
-                # Extract title
-                title = video_info.get('title', 'Unknown Title')
-                
-                # Extract chapters
-                chapters = video_info.get('chapters', [])
-                formatted_chapters = None
-                
-                if chapters:
-                    formatted_chapters = []
-                    for chapter in chapters:
-                        formatted_chapters.append({
-                            'title': chapter.get('title', 'Unknown Chapter'),
-                            'time': chapter.get('start_time', 0)
-                        })
-                
-                return {
-                    'title': title,
-                    'chapters': formatted_chapters,
-                    'duration': video_info.get('duration'),
-                    'channel_name': video_info.get('channel', video_info.get('uploader', 'Unknown Channel')),
-                    'channel_id': video_info.get('channel_id'),
-                    'description': video_info.get('description', ''),
-                    'view_count': video_info.get('view_count'),
-                    'like_count': video_info.get('like_count'),
-                    'upload_date': video_info.get('upload_date'),
-                    'thumbnail': video_info.get('thumbnail'),
-                    'tags': video_info.get('tags', [])
-                }
+            # Try with proxy rotation
+            for attempt in range(self.max_retries):
+                try:
+                    # Get current proxy for yt-dlp
+                    proxy_url = proxy_manager.get_current_proxy_for_ytdlp()
+                    
+                    # Configure yt-dlp options
+                    ydl_opts = {
+                        'quiet': True,
+                        'no_warnings': True,
+                        'extract_flat': False,
+                    }
+                    
+                    # Add proxy configuration if available
+                    if proxy_url:
+                        ydl_opts['proxy'] = proxy_url
+                        proxy_info = proxy_manager.get_proxy_info()
+                        print(f"🌐 yt-dlp attempt {attempt + 1}: Using proxy {proxy_info['current_proxy']}")
+                    else:
+                        print(f"🔄 yt-dlp attempt {attempt + 1}: No proxy configured")
+                    
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        video_info = ydl.extract_info(
+                            f'https://www.youtube.com/watch?v={video_id}', 
+                            download=False
+                        )
+                        
+                        # Extract title
+                        title = video_info.get('title', 'Unknown Title')
+                        
+                        # Extract chapters
+                        chapters = video_info.get('chapters', [])
+                        formatted_chapters = None
+                        
+                        if chapters:
+                            formatted_chapters = []
+                            for chapter in chapters:
+                                formatted_chapters.append({
+                                    'title': chapter.get('title', 'Unknown Chapter'),
+                                    'time': chapter.get('start_time', 0)
+                                })
+                            print(f"📋 Found {len(formatted_chapters)} chapters")
+                        else:
+                            print("📋 No chapters found in video")
+                        
+                        result = {
+                            'title': title,
+                            'chapters': formatted_chapters,
+                            'duration': video_info.get('duration'),
+                            'channel_name': video_info.get('channel', video_info.get('uploader', 'Unknown Channel')),
+                            'channel_id': video_info.get('channel_id'),
+                            'description': video_info.get('description', ''),
+                            'view_count': video_info.get('view_count'),
+                            'like_count': video_info.get('like_count'),
+                            'upload_date': video_info.get('upload_date'),
+                            'thumbnail': video_info.get('thumbnail'),
+                            'tags': video_info.get('tags', [])
+                        }
+                        
+                        print(f"✅ Successfully extracted video info: {title}")
+                        return result
+                        
+                except Exception as e:
+                    print(f"🔴 yt-dlp attempt {attempt + 1} failed: {str(e)}")
+                    
+                    if attempt < self.max_retries - 1:
+                        # Mark proxy as failed and rotate to next one
+                        proxy_manager.mark_proxy_failed()
+                        print(f"🔄 Rotating to next proxy for retry...")
+                    else:
+                        print(f"❌ All {self.max_retries} yt-dlp attempts failed")
+                        raise e
                 
         except ImportError:
-            print("yt-dlp not available, falling back to description parsing")
+            print("⚠️ yt-dlp not available, falling back to description parsing")
             return self._extract_info_fallback(video_id)
         except Exception as e:
-            print(f"Error extracting video info with yt-dlp: {e}")
+            print(f"🔴 Error extracting video info with yt-dlp: {e}")
             return self._extract_info_fallback(video_id)
     
     def extract_chapters_only(self, video_id: str) -> Optional[List[Dict]]:
