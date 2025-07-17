@@ -3,7 +3,6 @@ Import Video API endpoint
 Handles complete video import/retrieval (transcript, metadata, chapters)
 """
 from flask import jsonify
-from ..chapter_extractor import extract_video_info
 from ..database_storage import database_storage
 from ..video_processing import video_processor
 from ..utils.helpers import format_summary_html
@@ -24,15 +23,8 @@ def import_video(video_id):
         else:
             print(f"API: Database MISS for video: {video_id}, importing complete video data")
             
-            # Extract channel_id from video_info if available
-            try:
-                video_info = extract_video_info(video_id)
-                channel_id = video_info.get('channel_id') if video_info else None
-            except Exception:
-                channel_id = None
-            
-            # Use consolidated import function for full processing
-            result = video_processor.process_video_complete(video_id, channel_id)
+            # Use consolidated import function for full processing (let it handle getting channel_id)
+            result = video_processor.process_video_complete(video_id, channel_id=None)
             
             if result['status'] == 'error':
                 return jsonify({

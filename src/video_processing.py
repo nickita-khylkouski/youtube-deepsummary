@@ -72,6 +72,10 @@ class VideoProcessor:
                 formatted_transcript = "Transcript extraction is disabled in import settings."
             
             # Store in database
+            # Get channel_id from video_info if not provided
+            if not channel_id and video_info:
+                channel_id = video_info.get('channel_id')
+            
             # Get channel information if channel_id is available
             channel_info = None
             if channel_id:
