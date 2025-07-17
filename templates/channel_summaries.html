@@ -613,7 +613,7 @@ function regenerateChannelSummary(videoId, title) {
     regenerateBtn.disabled = true;
     
     // Make AJAX request to regenerate summary
-    fetch(`/api/transcript/${videoId}`)
+    fetch(`/api/import-video/${videoId}`)
         .then(response => response.json())
         .then(data => {
             if (data.formatted_transcript) {
@@ -681,7 +681,7 @@ function regenerateCurrentSummary() {
     modalBtn.disabled = true;
     
     // Make AJAX request to regenerate summary
-    fetch(`/api/transcript/${currentVideoId}`)
+    fetch(`/api/import-video/${currentVideoId}`)
         .then(response => response.json())
         .then(data => {
             if (data.formatted_transcript) {

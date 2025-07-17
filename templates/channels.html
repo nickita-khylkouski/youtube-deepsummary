@@ -299,7 +299,7 @@ async function importChannelVideos(channelHandle) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                max_results: 5  // Default to 5 videos
+                max_results: 5  // Will be overridden by server-side defaults if not specified
             })
         });
         

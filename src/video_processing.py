@@ -25,36 +25,66 @@ class VideoProcessor:
         """Download transcript for given video ID using transcript extractor"""
         return self.transcript_extractor.extract_transcript(video_id)
     
-    def process_video_complete(self, video_id, channel_id=None):
+    def process_video_complete(self, video_id, channel_id=None, force_transcript_extraction=False):
         """Process a video completely: get transcript, video info, and AI summary"""
         try:
-            # Check if video already exists in database
+            # Check if video already exists in database (unless forcing transcript extraction)
             cached_data = database_storage.get(video_id)
-            if cached_data:
+            if cached_data and not force_transcript_extraction:
                 print(f"Video {video_id} already processed, skipping")
                 return {'status': 'exists', 'video_id': video_id}
             
-            # Get transcript
-            print(f"Getting transcript for {video_id}")
-            transcript = self.get_transcript(video_id)
+            # Get import settings to check if features are enabled
+            import_settings = database_storage.get_import_settings()
+            # Prioritize camelCase settings (from frontend) over underscore settings (original)
+            enable_transcript_extraction = force_transcript_extraction or import_settings.get('enableTranscriptExtraction', import_settings.get('enable_transcript_extraction', True))
+            enable_auto_summary = import_settings.get('enableAutoSummary', import_settings.get('enable_auto_summary', True))
+            enable_chapter_extraction = import_settings.get('enableChapterExtraction', import_settings.get('enable_chapter_extraction', True))
             
-            # Get video info and chapters
+            if force_transcript_extraction:
+                print(f"Force transcript extraction enabled for {video_id}")
+            print(f"Import settings - Transcript extraction: {enable_transcript_extraction}, Auto summary: {enable_auto_summary}, Chapter extraction: {enable_chapter_extraction}")
+            
+            # Get video info (always needed for metadata)
             print(f"Getting video info for {video_id}")
-            video_info = self.chapter_extractor.extract_video_info(video_id)
+            video_info = self.chapter_extractor.extract_video_info(video_id, extract_chapters=enable_chapter_extraction)
             
-            # Format transcript
-            formatted_transcript = self.transcript_formatter.format_for_readability(transcript, video_info.get('chapters'))
+            if not enable_chapter_extraction:
+                print(f"Chapter extraction disabled for {video_id} (disabled in settings)")
+            
+            # Get transcript only if enabled
+            transcript = None
+            formatted_transcript = None
+            if enable_transcript_extraction:
+                print(f"Getting transcript for {video_id}")
+                try:
+                    transcript = self.get_transcript(video_id)
+                    # Format transcript
+                    formatted_transcript = self.transcript_formatter.format_for_readability(transcript, video_info.get('chapters'))
+                except Exception as e:
+                    print(f"Failed to get transcript for {video_id}: {e}")
+                    # Continue without transcript if it fails
+                    transcript = []
+                    formatted_transcript = "Transcript extraction failed or not available."
+            else:
+                print(f"Skipping transcript extraction for {video_id} (disabled in settings)")
+                transcript = []
+                formatted_transcript = "Transcript extraction is disabled in import settings."
             
             # Store in database
+            # Get channel_id from video_info if not provided
+            if not channel_id and video_info:
+                channel_id = video_info.get('channel_id')
+            
             # Get channel information if channel_id is available
             channel_info = None
             if channel_id:
                 channel_info = youtube_api.get_channel_info(channel_id)
             database_storage.set(video_id, transcript, video_info, formatted_transcript, channel_id, channel_info)
             
-            # Generate AI summary if summarizer is configured
+            # Generate AI summary if summarizer is configured and auto summary is enabled
             summary_generated = False
-            if self.summarizer and self.summarizer.is_configured():
+            if enable_auto_summary and self.summarizer and self.summarizer.is_configured():
                 try:
                     print(f"Generating AI summary for {video_id}")
                     summary = self.summarizer.summarize_with_openai(formatted_transcript, 
@@ -66,12 +96,15 @@ class VideoProcessor:
                     print(f"AI summary generated and saved for {video_id}")
                 except Exception as e:
                     print(f"Failed to generate summary for {video_id}: {e}")
+            elif not enable_auto_summary:
+                print(f"Skipping AI summary generation for {video_id} (disabled in settings)")
             
             return {
                 'status': 'processed',
                 'video_id': video_id,
                 'title': video_info.get('title', ''),
-                'summary_generated': summary_generated
+                'summary_generated': summary_generated,
+                'transcript_extracted': enable_transcript_extraction and transcript is not None
             }
             
         except Exception as e:

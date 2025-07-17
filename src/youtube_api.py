@@ -97,14 +97,122 @@ class YouTubeAPI:
         channel_info = self.get_channel_info(channel_id)
         return channel_info['handle'] if channel_info else None
     
-    def get_channel_videos(self, channel_name, max_results=5):
-        """Get latest videos from a channel using YouTube Data API"""
+    def get_video_info(self, video_id):
+        """Get comprehensive video information from YouTube Data API"""
+        if not self.service:
+            return None
+        
+        try:
+            # Request comprehensive video information
+            video_request = self.service.videos().list(
+                part='snippet,contentDetails,statistics',
+                id=video_id
+            )
+            video_response = video_request.execute()
+            
+            if not video_response.get('items'):
+                return None
+            
+            item = video_response['items'][0]
+            snippet = item.get('snippet', {})
+            content_details = item.get('contentDetails', {})
+            statistics = item.get('statistics', {})
+            
+            # Parse duration from ISO 8601 format (PT4M13S -> 253 seconds)
+            duration_seconds = None
+            if 'duration' in content_details:
+                duration_seconds = self._parse_iso8601_duration(content_details['duration'])
+            
+            # Get the best thumbnail URL
+            thumbnail_url = None
+            thumbnails = snippet.get('thumbnails', {})
+            # Priority: maxresdefault > high > medium > default
+            for quality in ['maxresdefault', 'high', 'medium', 'default']:
+                if quality in thumbnails:
+                    thumbnail_url = thumbnails[quality]['url']
+                    break
+            
+            # Parse published date
+            published_at = snippet.get('publishedAt')
+            upload_date = None
+            if published_at:
+                try:
+                    from datetime import datetime
+                    # Convert from ISO format to YYYYMMDD format (yt-dlp compatible)
+                    dt = datetime.fromisoformat(published_at.replace('Z', '+00:00'))
+                    upload_date = dt.strftime('%Y%m%d')
+                except:
+                    upload_date = published_at
+            
+            return {
+                'title': snippet.get('title', 'Unknown Title'),
+                'description': snippet.get('description', ''),
+                'channel_name': snippet.get('channelTitle', 'Unknown Channel'),
+                'channel_id': snippet.get('channelId'),
+                'duration': duration_seconds,
+                'upload_date': upload_date,
+                'published_at': published_at,
+                'thumbnail': thumbnail_url,
+                'tags': snippet.get('tags', []),
+                'category_id': snippet.get('categoryId'),
+                'view_count': int(statistics.get('viewCount', 0)) if statistics.get('viewCount') else None,
+                'like_count': int(statistics.get('likeCount', 0)) if statistics.get('likeCount') else None,
+                'comment_count': int(statistics.get('commentCount', 0)) if statistics.get('commentCount') else None,
+                'definition': content_details.get('definition'),  # 'hd' or 'sd'
+                'caption': content_details.get('caption') == 'true',  # Boolean
+                'licensed_content': content_details.get('licensedContent') == 'true',
+                'api_source': 'youtube_data_api'
+            }
+            
+        except Exception as e:
+            print(f"Error fetching video info from YouTube Data API for {video_id}: {e}")
+            return None
+    
+    def _parse_iso8601_duration(self, duration_str):
+        """
+        Parse ISO 8601 duration string (PT4M13S) to seconds
+        
+        Args:
+            duration_str: ISO 8601 duration string like 'PT4M13S'
+            
+        Returns:
+            Duration in seconds (int) or None if parsing fails
+        """
+        import re
+        
+        if not duration_str:
+            return None
+        
+        # Pattern to match PT1H2M3S, PT2M3S, PT3S, etc.
+        pattern = r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?'
+        match = re.match(pattern, duration_str)
+        
+        if not match:
+            return None
+        
+        hours = int(match.group(1)) if match.group(1) else 0
+        minutes = int(match.group(2)) if match.group(2) else 0
+        seconds = int(match.group(3)) if match.group(3) else 0
+        
+        return hours * 3600 + minutes * 60 + seconds
+    
+    def get_channel_videos(self, channel_name, max_results=5, days_back=30):
+        """Get latest videos from a channel using YouTube Data API within specified time range"""
         if not self.service:
             raise Exception("YouTube Data API not available or not configured")
         
         try:
-            # First, try to get the channel ID from the database
+            # Get import settings
             from .database_storage import database_storage
+            import_settings = database_storage.get_import_settings()
+            
+            # Apply settings if available
+            if import_settings:
+                max_results = min(max_results, import_settings.get('max_results_limit', 50))
+                if import_settings.get('log_import_operations', True):
+                    print(f"Using import settings: max_results={max_results}, days_back={days_back}")
+            
+            # First, try to get the channel ID from the database
             actual_channel_id = None
             
             # Check if we have a channel record with this name
@@ -193,92 +301,145 @@ class YouTubeAPI:
             # Now get the latest videos from the specific channel using the channel ID
             print(f"Fetching videos for channel ID: {actual_channel_id}")
             
-            # Method 1: Try to get the uploads playlist for this channel
-            try:
-                channel_request = self.service.channels().list(
-                    part='contentDetails',
-                    id=actual_channel_id
-                )
-                channel_response = channel_request.execute()
-                
-                if channel_response.get('items'):
-                    uploads_playlist_id = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
-                    print(f"Found uploads playlist: {uploads_playlist_id}")
-                    
-                    # Get videos from the uploads playlist
-                    playlist_request = self.service.playlistItems().list(
-                        part='snippet',
-                        playlistId=uploads_playlist_id,
-                        maxResults=max_results,
-                        order='date'
-                    )
-                    playlist_response = playlist_request.execute()
-                    
-                    videos = []
-                    for item in playlist_response.get('items', []):
-                        video_id = item['snippet']['resourceId']['videoId']
-                        snippet = item['snippet']
-                        
-                        videos.append({
-                            'video_id': video_id,
-                            'title': snippet.get('title', ''),
-                            'description': snippet.get('description', ''),
-                            'published_at': snippet.get('publishedAt', ''),
-                            'thumbnail_url': snippet.get('thumbnails', {}).get('medium', {}).get('url', ''),
-                            'channel_name': snippet.get('channelTitle', channel_name),
-                            'channel_id': actual_channel_id
-                        })
-                    
-                    if videos:
-                        print(f"Found {len(videos)} videos from uploads playlist")
-                        return videos
-                        
-            except Exception as e:
-                print(f"Uploads playlist method failed: {e}, trying activities API")
+            # Get import strategy from settings
+            primary_strategy = import_settings.get('import_strategy', 'uploads_playlist') if import_settings else 'uploads_playlist'
+            fallback_strategies = import_settings.get('fallback_strategies', 'activities_api,search_api') if import_settings else 'activities_api,search_api'
             
-            # Method 2: Use the activities endpoint to get the most recent uploads
-            try:
-                activities_request = self.service.activities().list(
-                    part='snippet,contentDetails',
-                    channelId=actual_channel_id,
+            # Convert fallback strategies string to list
+            if isinstance(fallback_strategies, str):
+                fallback_strategies = [s.strip() for s in fallback_strategies.split(',')]
+            
+            # Create ordered list of strategies to try
+            strategies_to_try = [primary_strategy] + [s for s in fallback_strategies if s != primary_strategy]
+            
+            if import_settings.get('log_import_operations', True):
+                print(f"Using import strategies: {strategies_to_try}")
+            
+            # Try each strategy in order
+            for strategy in strategies_to_try:
+                videos = self._try_import_strategy(strategy, actual_channel_id, channel_name, max_results, days_back)
+                if videos:
+                    return videos
+            
+            # If all strategies failed, return empty list
+            print("All import strategies failed")
+            return []
+            
+        except Exception as e:
+            print(f"Error fetching channel videos: {e}")
+            raise Exception(f"Failed to fetch videos from channel: {str(e)}")
+
+    def _try_import_strategy(self, strategy, channel_id, channel_name, max_results, days_back):
+        """Try a specific import strategy and return videos if successful"""
+        try:
+            if strategy == 'uploads_playlist':
+                return self._try_uploads_playlist_strategy(channel_id, channel_name, max_results)
+            elif strategy == 'activities_api':
+                return self._try_activities_api_strategy(channel_id, channel_name, max_results, days_back)
+            elif strategy == 'search_api':
+                return self._try_search_api_strategy(channel_id, channel_name, max_results, days_back)
+            else:
+                print(f"Unknown import strategy: {strategy}")
+                return []
+        except Exception as e:
+            print(f"Strategy {strategy} failed: {e}")
+            return []
+
+    def _try_uploads_playlist_strategy(self, channel_id, channel_name, max_results):
+        """Try to get videos using uploads playlist strategy"""
+        try:
+            channel_request = self.service.channels().list(
+                part='contentDetails',
+                id=channel_id
+            )
+            channel_response = channel_request.execute()
+            
+            if channel_response.get('items'):
+                uploads_playlist_id = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
+                print(f"Found uploads playlist: {uploads_playlist_id}")
+                
+                # Get videos from the uploads playlist
+                playlist_request = self.service.playlistItems().list(
+                    part='snippet',
+                    playlistId=uploads_playlist_id,
                     maxResults=max_results,
-                    publishedAfter=(datetime.utcnow() - timedelta(days=60)).isoformat() + 'Z'  # Last 60 days
+                    order='date'
                 )
-                activities_response = activities_request.execute()
+                playlist_response = playlist_request.execute()
                 
                 videos = []
-                for item in activities_response.get('items', []):
-                    if (item['snippet']['type'] == 'upload' and 
-                        'contentDetails' in item and 
-                        'upload' in item['contentDetails']):
-                        
-                        video_id = item['contentDetails']['upload']['videoId']
-                        snippet = item['snippet']
-                        
-                        videos.append({
-                            'video_id': video_id,
-                            'title': snippet.get('title', ''),
-                            'description': snippet.get('description', ''),
-                            'published_at': snippet.get('publishedAt', ''),
-                            'thumbnail_url': snippet.get('thumbnails', {}).get('medium', {}).get('url', ''),
-                            'channel_name': snippet.get('channelTitle', channel_name),
-                            'channel_id': actual_channel_id
-                        })
+                for item in playlist_response.get('items', []):
+                    video_id = item['snippet']['resourceId']['videoId']
+                    snippet = item['snippet']
+                    
+                    videos.append({
+                        'video_id': video_id,
+                        'title': snippet.get('title', ''),
+                        'description': snippet.get('description', ''),
+                        'published_at': snippet.get('publishedAt', ''),
+                        'thumbnail_url': snippet.get('thumbnails', {}).get('medium', {}).get('url', ''),
+                        'channel_name': snippet.get('channelTitle', channel_name),
+                        'channel_id': channel_id
+                    })
                 
                 if videos:
-                    print(f"Found {len(videos)} recent uploads using activities API")
+                    print(f"Found {len(videos)} videos from uploads playlist")
                     return videos
                     
-            except Exception as e:
-                print(f"Activities API failed: {e}, falling back to search")
+        except Exception as e:
+            print(f"Uploads playlist method failed: {e}")
+        
+        return []
+
+    def _try_activities_api_strategy(self, channel_id, channel_name, max_results, days_back):
+        """Try to get videos using activities API strategy"""
+        try:
+            activities_request = self.service.activities().list(
+                part='snippet,contentDetails',
+                channelId=channel_id,
+                maxResults=max_results,
+                publishedAfter=(datetime.utcnow() - timedelta(days=days_back)).isoformat() + 'Z'
+            )
+            activities_response = activities_request.execute()
             
-            # Fallback: use search API with the specific channel ID
+            videos = []
+            for item in activities_response.get('items', []):
+                if (item['snippet']['type'] == 'upload' and 
+                    'contentDetails' in item and 
+                    'upload' in item['contentDetails']):
+                    
+                    video_id = item['contentDetails']['upload']['videoId']
+                    snippet = item['snippet']
+                    
+                    videos.append({
+                        'video_id': video_id,
+                        'title': snippet.get('title', ''),
+                        'description': snippet.get('description', ''),
+                        'published_at': snippet.get('publishedAt', ''),
+                        'thumbnail_url': snippet.get('thumbnails', {}).get('medium', {}).get('url', ''),
+                        'channel_name': snippet.get('channelTitle', channel_name),
+                        'channel_id': channel_id
+                    })
+            
+            if videos:
+                print(f"Found {len(videos)} recent uploads using activities API")
+                return videos
+                
+        except Exception as e:
+            print(f"Activities API failed: {e}")
+        
+        return []
+
+    def _try_search_api_strategy(self, channel_id, channel_name, max_results, days_back):
+        """Try to get videos using search API strategy"""
+        try:
             search_request = self.service.search().list(
                 part='snippet',
-                channelId=actual_channel_id,
+                channelId=channel_id,
                 type='video',
                 order='date',
-                maxResults=max_results
+                maxResults=max_results,
+                publishedAfter=(datetime.utcnow() - timedelta(days=days_back)).isoformat() + 'Z'
             )
             search_response = search_request.execute()
             
@@ -296,15 +457,17 @@ class YouTubeAPI:
                         'published_at': snippet.get('publishedAt', ''),
                         'thumbnail_url': snippet.get('thumbnails', {}).get('medium', {}).get('url', ''),
                         'channel_name': snippet.get('channelTitle', channel_name),
-                        'channel_id': actual_channel_id
+                        'channel_id': channel_id
                     })
             
-            print(f"Found {len(videos)} videos using search API")
-            return videos
-            
+            if videos:
+                print(f"Found {len(videos)} videos using search API")
+                return videos
+                
         except Exception as e:
-            print(f"Error fetching channel videos: {e}")
-            raise Exception(f"Failed to fetch videos from channel: {str(e)}")
+            print(f"Search API failed: {e}")
+        
+        return []
 
 
 # Global YouTube API instance

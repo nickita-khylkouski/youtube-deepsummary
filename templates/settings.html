@@ -59,6 +59,23 @@
         .alert-dismissible .btn-close {
             font-size: 0.75rem;
         }
+        .fallback-strategy-item {
+            transition: all 0.2s ease;
+            border-radius: 6px;
+            padding: 8px;
+        }
+        .fallback-strategy-item:hover {
+            background-color: #e9ecef;
+        }
+        .fallback-strategy-item.disabled {
+            opacity: 0.6;
+        }
+        .fallback-strategy-item .form-check-label {
+            font-weight: 500;
+        }
+        #fallbackStrategiesList {
+            min-height: 120px;
+        }
     </style>
 </head>
 <body>
@@ -92,6 +109,11 @@
             <li class="nav-item">
                 <a class="nav-link active" href="#prompts" data-bs-toggle="tab">
                     <i class="fas fa-robot me-2"></i>AI Prompts
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#import-settings" data-bs-toggle="tab">
+                    <i class="fas fa-download me-2"></i>Video Imports
                 </a>
             </li>
         </ul>
@@ -153,6 +175,253 @@
                     </div>
                     {% endfor %}
                 </div>
+            </div>
+            
+            <!-- Video Imports Tab -->
+            <div class="tab-pane fade" id="import-settings">
+                <!-- Import Settings Header -->
+                <form id="importSettingsForm">
+                    <div class="row mb-3">
+                        <div class="col">
+                            <h3>Video Import Settings</h3>
+                            <p class="text-muted">Configure how videos are imported from YouTube channels and processed.</p>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <!-- Basic Import Settings -->
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Basic Settings</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="defaultMaxResults" class="form-label">Default Max Results</label>
+                                        <input type="number" class="form-control" id="defaultMaxResults" name="default_max_results" min="1" max="100" value="20">
+                                        <div class="form-text">Default number of videos to import per channel</div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="defaultDaysBack" class="form-label">Default Days Back</label>
+                                        <input type="number" class="form-control" id="defaultDaysBack" name="default_days_back" min="1" max="365" value="30">
+                                        <div class="form-text">Default time range in days to look back for videos</div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="maxResultsLimit" class="form-label">Max Results Limit</label>
+                                        <input type="number" class="form-control" id="maxResultsLimit" name="max_results_limit" min="1" max="100" value="50">
+                                        <div class="form-text">Maximum number of videos that can be imported in one request</div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="importTimeout" class="form-label">Import Timeout (seconds)</label>
+                                        <input type="number" class="form-control" id="importTimeout" name="import_timeout" min="30" max="1800" value="300">
+                                        <div class="form-text">Timeout in seconds for import operations</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Processing Settings -->
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Processing Options</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="enableAutoSummary" name="enable_auto_summary" checked>
+                                            <label class="form-check-label" for="enableAutoSummary">
+                                                Enable Auto Summary
+                                            </label>
+                                            <div class="form-text">Automatically generate AI summaries for imported videos</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="enableTranscriptExtraction" name="enable_transcript_extraction" checked>
+                                            <label class="form-check-label" for="enableTranscriptExtraction">
+                                                Enable Transcript Extraction
+                                            </label>
+                                            <div class="form-text">Extract transcripts for imported videos</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="enableChapterExtraction" name="enable_chapter_extraction" checked>
+                                            <label class="form-check-label" for="enableChapterExtraction">
+                                                Enable Chapter Extraction
+                                            </label>
+                                            <div class="form-text">Extract video chapters for imported videos</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="skipExistingVideos" name="skip_existing_videos" checked>
+                                            <label class="form-check-label" for="skipExistingVideos">
+                                                Skip Existing Videos
+                                            </label>
+                                            <div class="form-text">Skip videos that already exist in the database</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <!-- Import Strategy Settings -->
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-search me-2"></i>Import Strategy</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="importStrategy" class="form-label">Primary Strategy</label>
+                                        <select class="form-select" id="importStrategy" name="import_strategy">
+                                            <option value="uploads_playlist">Uploads Playlist</option>
+                                            <option value="activities_api">Activities API</option>
+                                            <option value="search_api">Search API</option>
+                                        </select>
+                                        <div class="form-text">Primary strategy for finding videos</div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Fallback Strategies</label>
+                                        <div class="form-text mb-2">Select and reorder fallback strategies to try when the primary strategy fails</div>
+                                        <div id="fallbackStrategiesList" class="border rounded p-3" style="background-color: #f8f9fa;">
+                                            <div class="fallback-strategy-item d-flex align-items-center mb-2" data-strategy="activities_api">
+                                                <div class="form-check me-3">
+                                                    <input class="form-check-input" type="checkbox" id="fallback_activities_api" checked>
+                                                    <label class="form-check-label" for="fallback_activities_api">
+                                                        Activities API
+                                                    </label>
+                                                </div>
+                                                <div class="ms-auto">
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm me-1" onclick="moveFallbackStrategy(this, 'up')" title="Move up">
+                                                        <i class="fas fa-chevron-up"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="moveFallbackStrategy(this, 'down')" title="Move down">
+                                                        <i class="fas fa-chevron-down"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="fallback-strategy-item d-flex align-items-center mb-2" data-strategy="search_api">
+                                                <div class="form-check me-3">
+                                                    <input class="form-check-input" type="checkbox" id="fallback_search_api" checked>
+                                                    <label class="form-check-label" for="fallback_search_api">
+                                                        Search API
+                                                    </label>
+                                                </div>
+                                                <div class="ms-auto">
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm me-1" onclick="moveFallbackStrategy(this, 'up')" title="Move up">
+                                                        <i class="fas fa-chevron-up"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="moveFallbackStrategy(this, 'down')" title="Move down">
+                                                        <i class="fas fa-chevron-down"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="fallback-strategy-item d-flex align-items-center" data-strategy="uploads_playlist">
+                                                <div class="form-check me-3">
+                                                    <input class="form-check-input" type="checkbox" id="fallback_uploads_playlist">
+                                                    <label class="form-check-label" for="fallback_uploads_playlist">
+                                                        Uploads Playlist
+                                                    </label>
+                                                </div>
+                                                <div class="ms-auto">
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm me-1" onclick="moveFallbackStrategy(this, 'up')" title="Move up">
+                                                        <i class="fas fa-chevron-up"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="moveFallbackStrategy(this, 'down')" title="Move down">
+                                                        <i class="fas fa-chevron-down"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <!-- Hidden input to store the final comma-separated value -->
+                                        <input type="hidden" id="fallbackStrategies" name="fallback_strategies" value="activities_api,search_api">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Advanced Settings -->
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-sliders-h me-2"></i>Advanced Settings</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="batchProcessing" name="batch_processing" checked>
+                                            <label class="form-check-label" for="batchProcessing">
+                                                Batch Processing
+                                            </label>
+                                            <div class="form-text">Process videos in batches for better performance</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="batchSize" class="form-label">Batch Size</label>
+                                        <input type="number" class="form-control" id="batchSize" name="batch_size" min="1" max="20" value="5">
+                                        <div class="form-text">Number of videos to process in each batch</div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="retryFailedImports" name="retry_failed_imports" checked>
+                                            <label class="form-check-label" for="retryFailedImports">
+                                                Retry Failed Imports
+                                            </label>
+                                            <div class="form-text">Retry failed video imports</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="maxRetryAttempts" class="form-label">Max Retry Attempts</label>
+                                        <input type="number" class="form-control" id="maxRetryAttempts" name="max_retry_attempts" min="1" max="10" value="3">
+                                        <div class="form-text">Maximum number of retry attempts for failed imports</div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="enableProgressTracking" name="enable_progress_tracking" checked>
+                                            <label class="form-check-label" for="enableProgressTracking">
+                                                Enable Progress Tracking
+                                            </label>
+                                            <div class="form-text">Show progress updates during import operations</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="logImportOperations" name="log_import_operations" checked>
+                                            <label class="form-check-label" for="logImportOperations">
+                                                Log Import Operations
+                                            </label>
+                                            <div class="form-text">Log detailed information about import operations</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col text-end">
+                            <button type="button" class="btn btn-primary" onclick="saveImportSettings()">
+                                <i class="fas fa-save me-2"></i>Save Settings
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -356,6 +625,194 @@
                 console.error('Error saving prompt:', error);
                 showAlert(`Error ${isEdit ? 'updating' : 'creating'} prompt`, 'danger');
             });
+        });
+
+        // Import Settings Functions
+        function loadImportSettings() {
+            fetch('/settings/import-settings')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        populateImportSettingsForm(data.settings);
+                    } else {
+                        showAlert('Error loading import settings', 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading import settings:', error);
+                    showAlert('Error loading import settings', 'danger');
+                });
+        }
+
+        function populateImportSettingsForm(settings) {
+            // Populate form fields with current settings
+            for (const [key, value] of Object.entries(settings)) {
+                if (key === 'fallbackStrategies') {
+                    // Handle fallback strategies specially
+                    populateFallbackStrategiesFromValue(value);
+                } else {
+                    const element = document.getElementById(key);
+                    if (element) {
+                        if (element.type === 'checkbox') {
+                            element.checked = value;
+                        } else {
+                            element.value = value;
+                        }
+                    }
+                }
+            }
+        }
+
+        function saveImportSettings() {
+            // Manually collect all form values instead of using FormData
+            const settings = {};
+            
+            // Define all the form field IDs and their expected types
+            const formFields = [
+                { id: 'defaultMaxResults', type: 'number' },
+                { id: 'defaultDaysBack', type: 'number' },
+                { id: 'maxResultsLimit', type: 'number' },
+                { id: 'importTimeout', type: 'number' },
+                { id: 'enableAutoSummary', type: 'checkbox' },
+                { id: 'enableTranscriptExtraction', type: 'checkbox' },
+                { id: 'enableChapterExtraction', type: 'checkbox' },
+                { id: 'skipExistingVideos', type: 'checkbox' },
+                { id: 'importStrategy', type: 'select' },
+                { id: 'fallbackStrategies', type: 'text' },
+                { id: 'batchProcessing', type: 'checkbox' },
+                { id: 'batchSize', type: 'number' },
+                { id: 'retryFailedImports', type: 'checkbox' },
+                { id: 'maxRetryAttempts', type: 'number' },
+                { id: 'enableProgressTracking', type: 'checkbox' },
+                { id: 'logImportOperations', type: 'checkbox' }
+            ];
+            
+            // Collect values from each field
+            formFields.forEach(field => {
+                const element = document.getElementById(field.id);
+                if (element) {
+                    console.log(`Found element ${field.id}:`, element);
+                    
+                    if (field.type === 'checkbox') {
+                        settings[field.id] = element.checked;
+                        console.log(`Checkbox ${field.id}:`, element.checked);
+                    } else if (field.type === 'number') {
+                        settings[field.id] = parseInt(element.value) || 0;
+                        console.log(`Number ${field.id}:`, settings[field.id]);
+                    } else if (field.type === 'select') {
+                        settings[field.id] = element.value;
+                        console.log(`Select ${field.id}:`, element.value);
+                    } else {
+                        settings[field.id] = element.value;
+                        console.log(`Text ${field.id}:`, element.value);
+                    }
+                } else {
+                    console.warn(`Element not found: ${field.id}`);
+                }
+            });
+            
+            console.log('Final settings object:', settings);
+
+            // Show loading state
+            const saveButton = document.querySelector('button[onclick="saveImportSettings()"]');
+            const originalText = saveButton.innerHTML;
+            saveButton.disabled = true;
+            saveButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+
+            fetch('/settings/import-settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(settings)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert('Import settings saved successfully');
+                } else {
+                    showAlert(data.message || 'Error saving import settings', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving import settings:', error);
+                showAlert('Error saving import settings', 'danger');
+            })
+            .finally(() => {
+                // Reset button state
+                saveButton.disabled = false;
+                saveButton.innerHTML = originalText;
+            });
+        }
+
+        // Fallback Strategies Functions
+        function moveFallbackStrategy(button, direction) {
+            const item = button.closest('.fallback-strategy-item');
+            const container = item.parentNode;
+            
+            if (direction === 'up' && item.previousElementSibling) {
+                container.insertBefore(item, item.previousElementSibling);
+            } else if (direction === 'down' && item.nextElementSibling) {
+                container.insertBefore(item.nextElementSibling, item);
+            }
+            
+            updateFallbackStrategiesValue();
+        }
+        
+        function updateFallbackStrategiesValue() {
+            const container = document.getElementById('fallbackStrategiesList');
+            const items = container.querySelectorAll('.fallback-strategy-item');
+            const strategies = [];
+            
+            items.forEach(item => {
+                const checkbox = item.querySelector('input[type="checkbox"]');
+                if (checkbox.checked) {
+                    strategies.push(item.dataset.strategy);
+                }
+            });
+            
+            document.getElementById('fallbackStrategies').value = strategies.join(',');
+            console.log('Updated fallback strategies:', strategies.join(','));
+        }
+        
+        function initializeFallbackStrategies() {
+            // Add event listeners to checkboxes
+            const checkboxes = document.querySelectorAll('#fallbackStrategiesList input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', updateFallbackStrategiesValue);
+            });
+            
+            // Initial update
+            updateFallbackStrategiesValue();
+        }
+        
+        function populateFallbackStrategiesFromValue(value) {
+            if (!value) return;
+            
+            const strategies = value.split(',').map(s => s.trim()).filter(s => s);
+            const container = document.getElementById('fallbackStrategiesList');
+            
+            // First, uncheck all checkboxes
+            const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = false);
+            
+            // Then check and reorder based on the value
+            strategies.forEach((strategy, index) => {
+                const item = container.querySelector(`[data-strategy="${strategy}"]`);
+                if (item) {
+                    const checkbox = item.querySelector('input[type="checkbox"]');
+                    checkbox.checked = true;
+                    
+                    // Move to correct position
+                    container.appendChild(item);
+                }
+            });
+        }
+
+        // Load import settings when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeFallbackStrategies();
+            loadImportSettings();
         });
     </script>
 </body>

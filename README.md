@@ -20,6 +20,7 @@ A comprehensive toolkit for downloading YouTube transcripts with multiple implem
 - **Real-time Processing**: AJAX-based summarization without page reloads
 - **Chapter Organization**: Automatic video chapter detection and structured display
 - **Dual View Modes**: Toggle between readable paragraphs and detailed timestamps
+- **Video Import Settings**: Configurable import strategies and processing options via Settings page
 
 ### Advanced Features
 - **Persistent Database Storage**: Supabase integration with tables for videos, transcripts, chapters, summaries, and memory snippets
@@ -310,6 +311,34 @@ The Channel Overview feature provides dedicated pages for each YouTube channel, 
 ## Channel Video Import
 
 The Channel Video Import feature allows you to automatically fetch the latest videos from any YouTube channel and process them with transcripts and AI summaries.
+
+### Import Settings Configuration
+
+The application provides comprehensive configuration options for video imports through the Settings page (`/settings` → Video Imports tab):
+
+#### Basic Settings
+- **Default Max Results**: Number of videos to import per channel (default: 20)
+- **Default Days Back**: Time range in days to look back for videos (default: 30)
+- **Max Results Limit**: Maximum videos that can be imported in one request (default: 50)
+- **Import Timeout**: Timeout in seconds for import operations (default: 300)
+
+#### Processing Options
+- **Enable Auto Summary**: Automatically generate AI summaries for imported videos
+- **Enable Transcript Extraction**: Extract transcripts for imported videos
+- **Enable Chapter Extraction**: Extract video chapters for imported videos
+- **Skip Existing Videos**: Skip videos that already exist in the database
+
+#### Import Strategy
+- **Primary Strategy**: Choose between `uploads_playlist`, `activities_api`, or `search_api`
+- **Fallback Strategies**: Comma-separated list of fallback strategies to try
+
+#### Advanced Settings
+- **Batch Processing**: Process videos in batches for better performance
+- **Batch Size**: Number of videos to process in each batch (default: 5)
+- **Retry Failed Imports**: Retry failed video imports
+- **Max Retry Attempts**: Maximum retry attempts for failed imports (default: 3)
+- **Enable Progress Tracking**: Show progress updates during import operations
+- **Log Import Operations**: Log detailed information about import operations
 
 ### Features
 - **Automatic Discovery**: Import up to 20 latest videos from any YouTube channel
