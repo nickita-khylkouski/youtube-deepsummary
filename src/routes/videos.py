@@ -69,15 +69,15 @@ def video_by_url_path(channel_handle, url_path):
         video_id = video['video_id']
         
         # Get full video data from database
-        cached_data = database_storage.get(video_id)
+        video_data = database_storage.get(video_id)
         
-        if not cached_data:
+        if not video_data:
             return render_template('error.html', 
                                  error_message="Video data not found"), 404
         
-        transcript = cached_data['transcript']
-        video_info = cached_data['video_info']
-        formatted_transcript_text = cached_data['formatted_transcript']
+        transcript = video_data['transcript']
+        video_info = video_data['video_info']
+        formatted_transcript_text = video_data['formatted_transcript']
         
         # Check if transcript exists
         has_transcript = transcript and len(transcript) > 0
@@ -90,10 +90,17 @@ def video_by_url_path(channel_handle, url_path):
         has_chapters = chapters and len(chapters) > 0
         channel_name = video['channel_name']
         
-        # Get enhanced channel information from cached data
+        # Get enhanced channel information from video data or use basic video data
         channel_info = None
-        if 'youtube_channels' in cached_data.get('video_info', {}):
-            channel_info = cached_data['video_info']['youtube_channels']
+        if 'youtube_channels' in video_data.get('video_info', {}):
+            channel_info = video_data['video_info']['youtube_channels']
+        else:
+            # Use channel info from video data (already fetched)
+            channel_info = {
+                'handle': video.get('handle', '').lstrip('@'),
+                'channel_name': video.get('channel_name'),
+                'channel_id': video.get('channel_id')
+            }
         
         # Get summary from database and convert markdown to HTML
         summary = database_storage.get_summary(video_id)

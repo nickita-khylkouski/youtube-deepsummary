@@ -18,7 +18,7 @@
                         {% if channel_info and channel_info.handle %}
                             <strong><a href="/@{{ channel_info.handle }}" style="color: #0066cc; text-decoration: none;">{{ channel_info.channel_name or 'Unknown Channel' }}</a></strong>
                         {% elif channel_info and channel_info.channel_name %}
-                            <strong><a href="/@{{ channel_info.handle }}" style="color: #0066cc; text-decoration: none;">{{ channel_info.channel_name }}</a></strong>
+                            <strong><a href="/channels" style="color: #0066cc; text-decoration: none;">{{ channel_info.channel_name }}</a></strong>
                         {% else %}
                             <strong><a href="/channels" style="color: #0066cc; text-decoration: none;">Unknown Channel</a></strong>
                         {% endif %}
