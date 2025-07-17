@@ -1738,6 +1738,113 @@ class DatabaseStorage:
             print(f"Error updating import settings batch: {e}")
             return False
 
+    # ===== Summarizer Settings Methods =====
+
+    def get_summarizer_settings(self) -> Dict:
+        """Get all summarizer settings"""
+        try:
+            response = self.supabase.table('summarizer_settings').select('*').execute()
+            settings = {}
+            
+            for setting in response.data:
+                key = setting['setting_key']
+                value = setting['setting_value']
+                setting_type = setting.get('setting_type', 'string')
+                
+                # Convert value based on type
+                if setting_type == 'integer':
+                    settings[key] = int(value) if value else 0
+                elif setting_type == 'float':
+                    settings[key] = float(value) if value else 0.0
+                elif setting_type == 'boolean':
+                    settings[key] = value.lower() == 'true' if value else False
+                else:
+                    settings[key] = value
+            
+            return settings
+        except Exception as e:
+            print(f"Error getting summarizer settings: {e}")
+            return {}
+
+    def get_summarizer_setting(self, key: str, default=None):
+        """Get a specific summarizer setting"""
+        try:
+            response = self.supabase.table('summarizer_settings').select('*').eq('setting_key', key).execute()
+            
+            if response.data:
+                setting = response.data[0]
+                value = setting['setting_value']
+                setting_type = setting.get('setting_type', 'string')
+                
+                # Convert value based on type
+                if setting_type == 'integer':
+                    return int(value) if value else default
+                elif setting_type == 'float':
+                    return float(value) if value else default
+                elif setting_type == 'boolean':
+                    return value.lower() == 'true' if value else default
+                else:
+                    return value
+            
+            return default
+        except Exception as e:
+            print(f"Error getting summarizer setting {key}: {e}")
+            return default
+
+    def update_summarizer_setting(self, key: str, value, setting_type: str = 'string') -> bool:
+        """Update a summarizer setting (insert if doesn't exist)"""
+        try:
+            # Convert value to string for storage
+            if isinstance(value, bool):
+                value_str = str(value).lower()
+            else:
+                value_str = str(value)
+            
+            # Try to update first
+            response = self.supabase.table('summarizer_settings').update({
+                'setting_value': value_str,
+                'setting_type': setting_type,
+                'updated_at': datetime.now(timezone.utc).isoformat()
+            }).eq('setting_key', key).execute()
+            
+            # If no rows were updated, try to insert
+            if len(response.data) == 0:
+                setting_data = {
+                    'setting_key': key,
+                    'setting_value': value_str,
+                    'setting_type': setting_type,
+                    'created_at': datetime.now(timezone.utc).isoformat(),
+                    'updated_at': datetime.now(timezone.utc).isoformat()
+                }
+                
+                response = self.supabase.table('summarizer_settings').insert(setting_data).execute()
+            
+            return len(response.data) > 0
+        except Exception as e:
+            print(f"Error updating summarizer setting {key}: {e}")
+            return False
+
+    def update_summarizer_settings_batch(self, settings: Dict) -> bool:
+        """Update multiple summarizer settings at once"""
+        try:
+            for key, value in settings.items():
+                # Determine setting type based on value
+                if isinstance(value, bool):
+                    setting_type = 'boolean'
+                elif isinstance(value, int):
+                    setting_type = 'integer'
+                elif isinstance(value, float):
+                    setting_type = 'float'
+                else:
+                    setting_type = 'string'
+                
+                self.update_summarizer_setting(key, value, setting_type)
+            
+            return True
+        except Exception as e:
+            print(f"Error updating summarizer settings batch: {e}")
+            return False
+
 
 # Global database storage instance
 database_storage = DatabaseStorage()

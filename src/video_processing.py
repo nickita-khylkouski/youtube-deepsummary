@@ -87,11 +87,12 @@ class VideoProcessor:
             if enable_auto_summary and self.summarizer and self.summarizer.is_configured():
                 try:
                     print(f"Generating AI summary for {video_id}")
-                    summary = self.summarizer.summarize_with_openai(formatted_transcript, 
-                                                                 chapters=video_info.get('chapters'), 
-                                                                 video_id=video_id, 
-                                                                 video_info=video_info)
-                    database_storage.save_summary(video_id, summary)
+                    summary = self.summarizer.summarize_with_preferred_provider(formatted_transcript, 
+                                                                             chapters=video_info.get('chapters'), 
+                                                                             video_id=video_id, 
+                                                                             video_info=video_info)
+                    # Save summary with the correct model information
+                    database_storage.save_summary(video_id, summary, self.summarizer.model)
                     summary_generated = True
                     print(f"AI summary generated and saved for {video_id}")
                 except Exception as e:
@@ -139,11 +140,11 @@ class VideoProcessor:
         
         # Generate new summary using provided formatted transcript text
         print(f"Generating new summary for video {video_id}")
-        summary = self.summarizer.summarize_with_openai(formatted_transcript, chapters=chapters, video_id=video_id, video_info=video_info)
+        summary = self.summarizer.summarize_with_preferred_provider(formatted_transcript, chapters=chapters, video_id=video_id, video_info=video_info)
         
-        # Save the summary to database
+        # Save the summary to database with correct model information
         try:
-            database_storage.save_summary(video_id, summary)
+            database_storage.save_summary(video_id, summary, self.summarizer.model)
             print(f"Summary saved to database for video {video_id}")
         except Exception as e:
             print(f"Warning: Failed to save summary to database: {e}")

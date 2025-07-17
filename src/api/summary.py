@@ -19,7 +19,12 @@ def summary_legacy(video_id):
             }), 400
         
         transcript = video_processor.get_transcript(video_id)
-        summary = video_processor.summarizer.summarize_transcript(transcript)
+        # Convert transcript to formatted text
+        transcript_text = "\n".join([
+            f"[{entry.get('formatted_time', '00:00')}] {entry.get('text', '')}" 
+            for entry in transcript
+        ])
+        summary = video_processor.summarizer.summarize_with_preferred_provider(transcript_text)
         
         return jsonify({
             'success': True,
