@@ -30,87 +30,85 @@
     <div class="channels-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
         {% for channel in channels %}
             <div class="channel-card" style="background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); display: flex; flex-direction: column; height: 100%;">
-                <div style="display: flex; flex-direction: column; flex: 1;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                        <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
-                            {% if channel.thumbnail_url %}
-                                <img src="{{ channel.thumbnail_url }}" 
-                                     alt="{{ channel.name }} thumbnail" 
-                                     style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid #f0f0f0;">
-                            {% else %}
-                                <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; flex-shrink: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                        {% if channel.thumbnail_url %}
+                            <img src="{{ channel.thumbnail_url }}" 
+                                 alt="{{ channel.name }} thumbnail" 
+                                 style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid #f0f0f0;">
+                        {% else %}
+                            <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; flex-shrink: 0;">
                                 {{ channel.name[0]|upper if channel.name else '📺' }}
                             </div>
-                            {% endif %}
-                            <div style="flex: 1; min-width: 0;">
-                                <h3 style="margin: 0 0 4px 0; font-size: 16px; line-height: 1.2;">
-                                    <a href="/{{ channel.handle }}" style="color: #333; text-decoration: none;">{{ channel.name }}</a>
-                                </h3>
-                                <div style="display: flex; gap: 6px; flex-wrap: nowrap; align-items: center;">
-                                    <a href="/{{ channel.handle }}/videos" style="background: #e3f2fd; color: #1976d2; padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; white-space: nowrap; text-decoration: none; transition: all 0.2s;">
-                                        {{ channel.video_count }} video{{ 's' if channel.video_count != 1 else '' }}
+                        {% endif %}
+                        <div style="flex: 1; min-width: 0;">
+                            <h3 style="margin: 0 0 4px 0; font-size: 16px; line-height: 1.2;">
+                                <a href="/{{ channel.handle }}" style="color: #333; text-decoration: none;">{{ channel.name }}</a>
+                            </h3>
+                            <div style="display: flex; gap: 6px; flex-wrap: nowrap; align-items: center;">
+                                <a href="/{{ channel.handle }}/videos" style="background: #e3f2fd; color: #1976d2; padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; white-space: nowrap; text-decoration: none; transition: all 0.2s;">
+                                    {{ channel.video_count }} video{{ 's' if channel.video_count != 1 else '' }}
+                                </a>
+                                {% if channel.summary_count > 0 %}
+                                    <a href="/{{ channel.handle }}/summaries" style="background: #e8f5e8; color: #2e7d32; padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; white-space: nowrap; text-decoration: none; transition: all 0.2s;">
+                                        {{ channel.summary_count }} summarized
                                     </a>
-                                    {% if channel.summary_count > 0 %}
-                                        <a href="/{{ channel.handle }}/summaries" style="background: #e8f5e8; color: #2e7d32; padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; white-space: nowrap; text-decoration: none; transition: all 0.2s;">
-                                            {{ channel.summary_count }} summarized
-                                        </a>
-                                    {% endif %}
-                                </div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Recent videos from this channel - Compact version -->
-                    <div style="border-top: 1px solid #f0f0f0; padding-top: 4px; padding-bottom: 0;">
-                        {% if channel.recent_videos %}
-                            <h4 style="margin: 0 0 3px 0; font-size: 12px; color: #666;">Recent Videos:</h4>
-                            <div style="display: grid; gap: 2px;">
-                                {% for video_id, video in channel.recent_videos.items() %}
-                                    {% if loop.index <= 2 %}
-                                        <div style="display: flex; align-items: center; gap: 6px; padding: 0px;">
-                                            {% if video.video_info.thumbnail_url %}
-                                                <img src="{{ video.video_info.thumbnail_url }}" 
-                                                     alt="Video thumbnail" 
-                                                     style="width: 36px; height: 27px; object-fit: cover; border-radius: 3px; flex-shrink: 0;">
-                                            {% endif %}
-                                            <div style="flex: 1; min-width: 0;">
-                                                <div style="font-size: 11px; font-weight: 500; line-height: 1.0; margin-bottom: 0px;">
-                                                    <a href="{% if video.url_path and channel.handle %}/{{ channel.handle }}/{{ video.url_path }}{% else %}/watch?v={{ video.video_id }}{% endif %}" style="color: #333; text-decoration: none;">
-                                                        {% if video.video_info.title %}
-                                                            {{ video.video_info.title[:45] }}{% if video.video_info.title|length > 45 %}...{% endif %}
-                                                        {% else %}
-                                                            Video {{ video.video_id }}
-                                                        {% endif %}
-                                                    </a>
-                                                </div>
-                                                <div style="font-size: 9px; color: #666;">
-                                                    {% if video.has_summary %}
-                                                        <span style="background: #e8f5e8; color: #2e7d32; padding: 1px 4px; border-radius: 6px; margin-right: 4px; font-size: 9px;">📝</span>
+                </div>
+                
+                <!-- Recent videos from this channel - Compact version -->
+                <div style="border-top: 1px solid #f0f0f0; padding-top: 4px; padding-bottom: 6px;">
+                    {% if channel.recent_videos %}
+                        <h4 style="margin: 0 0 3px 0; font-size: 12px; color: #666;">Recent Videos:</h4>
+                        <div style="display: grid; gap: 2px;">
+                            {% for video_id, video in channel.recent_videos.items() %}
+                                {% if loop.index <= 2 %}
+                                    <div style="display: flex; align-items: center; gap: 6px; padding: 0px;">
+                                        {% if video.video_info.thumbnail_url %}
+                                            <img src="{{ video.video_info.thumbnail_url }}" 
+                                                 alt="Video thumbnail" 
+                                                 style="width: 36px; height: 27px; object-fit: cover; border-radius: 3px; flex-shrink: 0;">
+                                        {% endif %}
+                                        <div style="flex: 1; min-width: 0;">
+                                            <div style="font-size: 11px; font-weight: 500; line-height: 1.0; margin-bottom: 0px;">
+                                                <a href="{% if video.url_path and channel.handle %}/{{ channel.handle }}/{{ video.url_path }}{% else %}/watch?v={{ video.video_id }}{% endif %}" style="color: #333; text-decoration: none;">
+                                                    {% if video.video_info.title %}
+                                                        {{ video.video_info.title[:45] }}{% if video.video_info.title|length > 45 %}...{% endif %}
+                                                    {% else %}
+                                                        Video {{ video.video_id }}
                                                     {% endif %}
-                                                    {% if video.video_info.duration %}
-                                                        {{ "%.0f"|format(video.video_info.duration // 60) }}:{{ "%02.0f"|format(video.video_info.duration % 60) }}
-                                                    {% endif %}
-                                                </div>
+                                                </a>
+                                            </div>
+                                            <div style="font-size: 9px; color: #666;">
+                                                {% if video.has_summary %}
+                                                    <span style="background: #e8f5e8; color: #2e7d32; padding: 1px 4px; border-radius: 6px; margin-right: 4px; font-size: 9px;">📝</span>
+                                                {% endif %}
+                                                {% if video.video_info.duration %}
+                                                    {{ "%.0f"|format(video.video_info.duration // 60) }}:{{ "%02.0f"|format(video.video_info.duration % 60) }}
+                                                {% endif %}
                                             </div>
                                         </div>
-                                    {% endif %}
-                                {% endfor %}
-                                {% if channel.video_count > 2 %}
-                                    <div style="font-size: 11px; color: #999; font-style: italic; padding: 0px 0; margin-top: 2px;">
-                                        +{{ channel.video_count - 2 }} more video{{ 's' if (channel.video_count - 2) != 1 else '' }}
                                     </div>
                                 {% endif %}
-                            </div>
-                        {% else %}
-                            <div style="color: #999; font-size: 12px; text-align: center; padding: 2px 0;">
-                                No recent videos
-                            </div>
-                        {% endif %}
-                    </div>
+                            {% endfor %}
+                            {% if channel.video_count > 2 %}
+                                <div style="font-size: 11px; color: #999; font-style: italic; padding: 0px 0; margin-top: 2px;">
+                                    +{{ channel.video_count - 2 }} more video{{ 's' if (channel.video_count - 2) != 1 else '' }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <div style="color: #999; font-size: 12px; text-align: center; padding: 2px 0;">
+                            No recent videos
+                        </div>
+                    {% endif %}
                 </div>
                 
                 <!-- Actions -->
-                <div style="border-top: 1px solid #f0f0f0; padding-top: 8px; margin-top: auto; margin-bottom: 6px;">
+                <div style="border-top: 1px solid #f0f0f0; padding-top: 8px; margin-top: 8px; margin-bottom: 6px;">
                     <div class="actions-section" style="display: flex; justify-content: center;">
                         <button onclick="importChannelVideos('{{ channel.handle }}')" 
                                 style="background: #4caf50; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.2s; width: 100%;">
