@@ -479,3 +479,173 @@ def import_channel_videos(channel_handle):
             'success': False,
             'error': str(e)
         }), 500
+
+
+@api_bp.route('/@<channel_handle>/chat', methods=['POST'])
+def chat_with_channel(channel_handle):
+    """API endpoint to chat with AI using channel summaries as context"""
+    try:
+        # Get channel info by handle
+        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return jsonify({
+                'success': False,
+                'error': f'Channel not found: {channel_handle}'
+            }), 404
+        
+        # Get request data
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No request data provided'
+            }), 400
+        
+        user_message = data.get('message', '').strip()
+        selected_model = data.get('model', 'gpt-4.1-mini')
+        
+        if not user_message:
+            return jsonify({
+                'success': False,
+                'error': 'No message provided'
+            }), 400
+        
+        # Get all videos for this channel
+        channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
+        if not channel_videos:
+            return jsonify({
+                'success': False,
+                'error': 'No videos found for this channel'
+            }), 404
+        
+        # Gather all AI summaries for context (NOT transcripts as requested)
+        summaries_context = []
+        total_tokens_estimate = 0
+        max_tokens_for_context = 20000  # Leave room for prompt and response
+        
+        for video in channel_videos:
+            summary = database_storage.get_summary(video['video_id'])
+            if summary:
+                # Truncate very long summaries to manage token usage
+                truncated_summary = summary[:2000] + "..." if len(summary) > 2000 else summary
+                
+                # Add video metadata for better context
+                video_context = f"""
+Video: {video['title']}
+Published: {video.get('published_at', 'Unknown')}
+Summary: {truncated_summary}
+"""
+                
+                # Rough token estimate (1 token ≈ 4 characters)
+                context_tokens = len(video_context) // 4
+                
+                if total_tokens_estimate + context_tokens > max_tokens_for_context:
+                    print(f"Token limit reached, using {len(summaries_context)} of {len(channel_videos)} videos")
+                    break
+                    
+                summaries_context.append(video_context)
+                total_tokens_estimate += context_tokens
+        
+        if not summaries_context:
+            return jsonify({
+                'success': False,
+                'error': 'No AI summaries found for this channel. Generate some summaries first.'
+            }), 404
+        
+        # Prepare context for AI
+        context = f"""You are an AI assistant with access to AI summaries from the YouTube channel "{channel_info['channel_name']}". 
+
+Here are all the AI summaries from this channel's videos:
+
+{chr(10).join(summaries_context)}
+
+Based on these summaries, please answer the user's question about this channel's content. You have comprehensive knowledge of all topics, themes, and insights covered in this channel's videos.
+
+User question: {user_message}"""
+        
+        # Use the summarizer to chat (it handles multiple AI providers)
+        try:
+            response = video_processor.summarizer.summarize_with_model(
+                transcript_content=context,
+                model=selected_model,
+                chapters=None,
+                custom_prompt="""You are a helpful AI assistant answering questions about a YouTube channel based on AI summaries of its videos. 
+
+Format your responses with proper markdown for readability:
+- Use bullet points (-) for lists
+- Use **bold text** for emphasis
+- Use clear section headers when appropriate
+- Structure information logically with line breaks
+- Be conversational, helpful, and reference specific videos when relevant
+
+Always format your response with clear structure and markdown formatting."""
+            )
+            
+            return jsonify({
+                'success': True,
+                'response': response,
+                'model_used': selected_model,
+                'channel_name': channel_info['channel_name'],
+                'summaries_count': len(summaries_context),
+                'total_videos': len(channel_videos),
+                'tokens_estimate': total_tokens_estimate
+            })
+            
+        except Exception as e:
+            error_message = str(e)
+            
+            # If still hitting token limits, try with fewer summaries
+            if 'rate_limit_exceeded' in error_message or 'Request too large' in error_message:
+                if len(summaries_context) > 2:
+                    # Retry with only the most recent 2 summaries
+                    reduced_context = summaries_context[:2]
+                    reduced_context_str = f"""You are an AI assistant with access to AI summaries from the YouTube channel "{channel_info['channel_name']}". 
+
+Here are some AI summaries from this channel's videos (showing {len(reduced_context)} most recent):
+
+{chr(10).join(reduced_context)}
+
+Based on these summaries, please answer the user's question about this channel's content. Note: This is a subset of the channel's content due to length limits.
+
+User question: {user_message}"""
+                    
+                    try:
+                        response = video_processor.summarizer.summarize_with_model(
+                            transcript_content=reduced_context_str,
+                            model=selected_model,
+                            chapters=None,
+                            custom_prompt="You are a helpful AI assistant answering questions about a YouTube channel based on AI summaries of its videos. Be conversational, helpful, and reference specific videos when relevant. Note that you only have access to a subset of the channel's content."
+                        )
+                        
+                        return jsonify({
+                            'success': True,
+                            'response': response + "\n\n*Note: Response based on limited summaries due to token constraints.*",
+                            'model_used': selected_model,
+                            'channel_name': channel_info['channel_name'],
+                            'summaries_count': len(reduced_context),
+                            'total_videos': len(channel_videos),
+                            'tokens_estimate': sum(len(ctx) // 4 for ctx in reduced_context),
+                            'truncated': True
+                        })
+                    except Exception as retry_error:
+                        return jsonify({
+                            'success': False,
+                            'error': f'AI model error (even with reduced context): {str(retry_error)}'
+                        }), 500
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Content too large for selected model. Try using a model with higher token limits or contact support.'
+                    }), 400
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': f'AI model error: {error_message}'
+                }), 500
+            
+    except Exception as e:
+        print(f"Error in chat endpoint: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

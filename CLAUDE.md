@@ -214,6 +214,10 @@ OPENAI_MODEL=gpt-4.1        # Optional, defaults to gpt-4.1
 OPENAI_MAX_TOKENS=100000    # Optional, defaults to 100000 (NOTE: max_tokens is now ignored to avoid API limits)
 OPENAI_TEMPERATURE=0.7      # Optional, defaults to 0.7
 
+# Optional for Claude/Anthropic models
+ANTHROPIC_API_KEY=your_anthropic_api_key
+ANTHROPIC_MODEL=claude-3-5-sonnet-20241022    # Optional, defaults to claude-3-5-sonnet-20241022
+
 # Required for database storage
 SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_anon_key
@@ -341,6 +345,29 @@ docker run -p 33079:33079 \
 - **Proper markdown rendering**: Server-side conversion of markdown to HTML for proper formatting
 - **Bullet point processing**: Automatic conversion of bullet points (`•`) to proper HTML lists
 - **Consistent formatting**: Both individual video pages and channel summary pages use unified markdown processing
+
+### AI Chat Interface Features
+- **Channel-Based Conversations**: Interactive chat interface available on channel overview pages
+- **Multi-Model Support**: Choose between OpenAI GPT models and **Claude models** (Claude Sonnet 4, Claude 3.5 Sonnet)
+- **Claude Integration**: Full support for Anthropic's Claude models with enhanced conversation quality
+- **Context-Aware Responses**: Uses all channel AI summaries as conversation context for intelligent responses
+- **Smart Markdown Formatting**: 
+  - Real-time markdown-to-HTML conversion for properly formatted responses
+  - Structured lists, bold text, headers, and section breaks
+  - Enhanced readability with proper spacing and typography
+- **Model Selection**: Easy dropdown to choose preferred AI model with friendly display names
+- **Responsive Design**: Modal-based chat interface optimized for both desktop and mobile
+- **Smart Defaults**: Claude Sonnet 4 automatically selected when available for optimal experience
+
+#### Chat Setup Requirements
+```bash
+# Required for Claude models
+ANTHROPIC_API_KEY=your_anthropic_api_key
+ANTHROPIC_MODEL=claude-sonnet-4-20250514  # Optional, defaults to claude-3-5-sonnet-20241022
+
+# OpenAI models also supported
+OPENAI_API_KEY=your_openai_api_key
+```
 
 ## Database Schema
 

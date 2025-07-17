@@ -196,6 +196,34 @@
         </div>
         {% endif %}
         
+        {% if summary_count > 0 %}
+        <div class="chat-dropdown" style="position: relative; display: inline-block;">
+            <button onclick="toggleChatDropdown()" 
+                    style="background: #ff9800; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 8px;">
+                💬 Chat with Channel <span style="font-size: 12px;">▼</span>
+            </button>
+            <div id="chatDropdown" class="chat-dropdown-content" style="display: none; position: absolute; background: white; min-width: 250px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 8px; z-index: 1; top: 100%; left: 0; margin-top: 5px;">
+                <div style="padding: 16px; border-bottom: 1px solid #eee;">
+                    <div style="font-size: 14px; font-weight: 500; color: #333; margin-bottom: 8px;">Select AI Model:</div>
+                    <select id="chatModelSelect" 
+                            style="background: white; border: 1px solid #e0e0e0; padding: 8px 12px; border-radius: 6px; font-size: 14px; cursor: pointer; width: 100%;"
+                            onmousedown="event.stopPropagation();">
+                        <option value="">Loading models...</option>
+                    </select>
+                    <div style="font-size: 12px; color: #666; margin-top: 6px;">
+                        💡 Chat uses AI summaries as context<br>
+                        🤖 Claude models provide enhanced conversation quality
+                    </div>
+                </div>
+                <button onclick="openChannelChat('{{ channel_info.handle }}', '{{ channel_info.channel_name }}')" 
+                        style="background: #ff9800; color: white; border: none; padding: 12px 16px; border-radius: 0 0 8px 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s; width: 100%; text-align: left;"
+                        onmousedown="event.stopPropagation();">
+                    💬 Start Chat
+                </button>
+            </div>
+        </div>
+        {% endif %}
+        
         {% if videos_without_summaries_count > 0 %}
         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
             <select id="summaryModelSelect" style="padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; background: white;">
@@ -248,7 +276,38 @@
         border: 1px solid #ddd;
     }
     
-
+    /* Chat interface styling */
+    #chatMessages {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    #chatMessages ul {
+        margin: 8px 0 !important;
+        padding-left: 20px !important;
+        list-style-type: disc !important;
+    }
+    
+    #chatMessages li {
+        margin-bottom: 4px !important;
+        margin-left: 0 !important;
+        line-height: 1.5 !important;
+    }
+    
+    #chatMessages h1, #chatMessages h2, #chatMessages h3 {
+        font-weight: 600 !important;
+        margin-top: 16px !important;
+        margin-bottom: 8px !important;
+    }
+    
+    #chatMessages p {
+        margin: 8px 0 !important;
+        line-height: 1.6 !important;
+    }
+    
+    #chatMessages strong {
+        font-weight: 600 !important;
+        color: #2c3e50 !important;
+    }
     
     /* Mobile responsive */
     @media (max-width: 768px) {
@@ -308,8 +367,10 @@ function toggleImportDropdown() {
 document.addEventListener('click', function(event) {
     const importDropdown = document.getElementById('importDropdown');
     const exportDropdown = document.getElementById('exportDropdown');
+    const chatDropdown = document.getElementById('chatDropdown');
     const importButton = event.target.closest('.import-dropdown');
     const exportButton = event.target.closest('.export-dropdown');
+    const chatButton = event.target.closest('.chat-dropdown');
     
     if (!importButton && importDropdown && importDropdown.style.display === 'block') {
         importDropdown.style.display = 'none';
@@ -317,6 +378,10 @@ document.addEventListener('click', function(event) {
     
     if (!exportButton && exportDropdown && exportDropdown.style.display === 'block') {
         exportDropdown.style.display = 'none';
+    }
+    
+    if (!chatButton && chatDropdown && chatDropdown.style.display === 'block') {
+        chatDropdown.style.display = 'none';
     }
 });
 
@@ -592,7 +657,337 @@ function showNotification(message, type) {
 // Load models when page loads
 document.addEventListener('DOMContentLoaded', function() {
     loadAvailableModels();
+    loadChatModels();
 });
+
+// Chat dropdown functionality
+function toggleChatDropdown() {
+    const dropdown = document.getElementById('chatDropdown');
+    if (dropdown.style.display === 'none') {
+        dropdown.style.display = 'block';
+    } else {
+        dropdown.style.display = 'none';
+    }
+}
+
+// Load available models for chat
+function loadChatModels() {
+    fetch('/api/models')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.models) {
+                const modelSelect = document.getElementById('chatModelSelect');
+                if (modelSelect) {
+                    // Clear loading option
+                    modelSelect.innerHTML = '';
+                    
+                    // Add providers and models
+                    for (const [provider, models] of Object.entries(data.models)) {
+                        const optgroup = document.createElement('optgroup');
+                        optgroup.label = provider.charAt(0).toUpperCase() + provider.slice(1);
+                        
+                        models.forEach(model => {
+                            const option = document.createElement('option');
+                            option.value = model;
+                            
+                            // Use friendly display names for models
+                            let displayName = model;
+                            if (model === 'claude-sonnet-4-20250514') {
+                                displayName = 'Claude Sonnet 4 (Latest) 🤖';
+                            } else if (model === 'claude-3-5-sonnet-20241022') {
+                                displayName = 'Claude 3.5 Sonnet 🤖';
+                            } else if (model === 'gpt-4.1-mini') {
+                                displayName = 'GPT-4.1 Mini';
+                            } else if (model === 'gpt-4.1') {
+                                displayName = 'GPT-4.1';
+                            } else if (model === 'gpt-3.5-turbo') {
+                                displayName = 'GPT-3.5 Turbo';
+                            }
+                            
+                            option.textContent = displayName;
+                            
+                            // Default to Claude Sonnet 4 or GPT-4.1-mini for chat if available
+                            if (model === 'claude-sonnet-4-20250514' || 
+                                (model === 'gpt-4.1-mini' && !modelSelect.querySelector('[selected]'))) {
+                                option.selected = true;
+                            }
+                            
+                            optgroup.appendChild(option);
+                        });
+                        
+                        modelSelect.appendChild(optgroup);
+                    }
+                    
+                    // If no GPT-4o mini available, select first available model
+                    if (modelSelect.selectedIndex === -1 && modelSelect.options.length > 0) {
+                        modelSelect.selectedIndex = 0;
+                    }
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading chat models:', error);
+            const modelSelect = document.getElementById('chatModelSelect');
+            if (modelSelect) {
+                modelSelect.innerHTML = '<option value="">Error loading models</option>';
+            }
+        });
+}
+
+// Open channel chat modal
+function openChannelChat(channelHandle, channelName) {
+    const modelSelect = document.getElementById('chatModelSelect');
+    const selectedModel = modelSelect.value;
+    
+    if (!selectedModel) {
+        alert('Please select a model first');
+        return;
+    }
+    
+    // Close the dropdown
+    document.getElementById('chatDropdown').style.display = 'none';
+    
+    // Create chat modal
+    createChatModal(channelHandle, channelName, selectedModel);
+}
+
+// Create and show chat modal
+function createChatModal(channelHandle, channelName, selectedModel) {
+    // Remove existing modal if any
+    const existingModal = document.getElementById('chatModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.id = 'chatModal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        box-sizing: border-box;
+    `;
+    
+    // Create modal content
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = `
+        background: white;
+        border-radius: 12px;
+        width: 100%;
+        max-width: 800px;
+        height: 80vh;
+        max-height: 600px;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    `;
+    
+    modalContent.innerHTML = `
+        <div style="padding: 20px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between;">
+            <h3 style="margin: 0; color: #333;">💬 Chat with ${channelName}</h3>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <span style="font-size: 14px; color: #666;">Model: ${selectedModel}</span>
+                <button onclick="closeChatModal()" style="background: #f44336; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">✕ Close</button>
+            </div>
+        </div>
+        <div id="chatMessages" style="flex: 1; padding: 20px; overflow-y: auto; background: #f9f9f9;">
+            <div style="text-align: center; color: #666; margin: 20px 0;">
+                <p>💡 This AI assistant has context of all AI summaries from <strong>${channelName}</strong> videos.</p>
+                <p>Ask questions about the channel's content, themes, or specific topics covered!</p>
+            </div>
+        </div>
+        <div style="padding: 20px; border-top: 1px solid #eee; display: flex; gap: 10px;">
+            <input type="text" id="chatInput" placeholder="Ask about ${channelName}..." 
+                   style="flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+            <button onclick="sendChatMessage('${channelHandle}', '${selectedModel}')" 
+                    style="background: #ff9800; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                Send
+            </button>
+        </div>
+    `;
+    
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+    
+    // Focus on input
+    document.getElementById('chatInput').focus();
+    
+    // Add enter key listener
+    document.getElementById('chatInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            sendChatMessage(channelHandle, selectedModel);
+        }
+    });
+    
+    // Close modal when clicking overlay
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            closeChatModal();
+        }
+    });
+}
+
+// Close chat modal
+function closeChatModal() {
+    const modal = document.getElementById('chatModal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// Send chat message
+async function sendChatMessage(channelHandle, selectedModel) {
+    const input = document.getElementById('chatInput');
+    const message = input.value.trim();
+    
+    if (!message) return;
+    
+    // Clear input
+    input.value = '';
+    
+    // Add user message to chat
+    addChatMessage('user', message);
+    
+    // Add loading message
+    const loadingId = addChatMessage('assistant', '💭 Thinking...');
+    
+    try {
+        const response = await fetch(`/api/@${channelHandle}/chat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: message,
+                model: selectedModel
+            })
+        });
+        
+        const result = await response.json();
+        
+        // Remove loading message
+        const loadingElement = document.getElementById(loadingId);
+        if (loadingElement) {
+            loadingElement.remove();
+        }
+        
+        if (result.success) {
+            let responseText = result.response;
+            
+            // Add context information if available
+            if (result.summaries_count && result.total_videos) {
+                const contextInfo = result.truncated 
+                    ? `\n\n💡 *Based on ${result.summaries_count} of ${result.total_videos} videos (truncated due to length)*`
+                    : `\n\n💡 *Based on ${result.summaries_count} of ${result.total_videos} videos*`;
+                responseText += contextInfo;
+            }
+            
+            addChatMessage('assistant', responseText);
+        } else {
+            addChatMessage('assistant', `❌ Error: ${result.error}`);
+        }
+        
+    } catch (error) {
+        console.error('Chat error:', error);
+        
+        // Remove loading message
+        const loadingElement = document.getElementById(loadingId);
+        if (loadingElement) {
+            loadingElement.remove();
+        }
+        
+        addChatMessage('assistant', `❌ Failed to send message: ${error.message}`);
+    }
+}
+
+// Add message to chat
+function addChatMessage(sender, message) {
+    const messagesContainer = document.getElementById('chatMessages');
+    const messageId = 'msg_' + Date.now();
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.id = messageId;
+    messageDiv.style.cssText = `
+        margin-bottom: 15px;
+        padding: 12px;
+        border-radius: 8px;
+        max-width: 80%;
+        line-height: 1.6;
+        word-wrap: break-word;
+        ${sender === 'user' 
+            ? 'background: #ff9800; color: white; margin-left: auto; text-align: right;' 
+            : 'background: white; color: #333; margin-right: auto; border: 1px solid #eee;'
+        }
+    `;
+    
+    if (sender === 'user') {
+        messageDiv.innerHTML = `<strong>You:</strong> ${escapeHtml(message)}`;
+    } else {
+        // For AI messages, convert markdown to HTML for better formatting
+        const formattedMessage = convertMarkdownToHtml(message);
+        messageDiv.innerHTML = `<strong>AI:</strong><div style="margin-top: 8px;">${formattedMessage}</div>`;
+    }
+    
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    return messageId;
+}
+
+// Helper function to escape HTML for user messages
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Convert markdown to HTML for AI responses
+function convertMarkdownToHtml(markdown) {
+    // Basic markdown-to-HTML conversion for common patterns
+    let html = markdown
+        // Headers
+        .replace(/^### (.+$)/gm, '<h3 style="margin: 16px 0 8px 0; color: #333; font-size: 16px; font-weight: 600;">$1</h3>')
+        .replace(/^## (.+$)/gm, '<h2 style="margin: 20px 0 10px 0; color: #333; font-size: 18px; font-weight: 600;">$1</h2>')
+        .replace(/^# (.+$)/gm, '<h1 style="margin: 24px 0 12px 0; color: #333; font-size: 20px; font-weight: 600;">$1</h1>')
+        
+        // Bold and italic
+        .replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight: 600; color: #2c3e50;">$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        
+        // Section headers with colons (like "Main Focus Areas:")
+        .replace(/^([A-Z][^:\n]*:)$/gm, '<h3 style="margin: 16px 0 8px 0; color: #2c3e50; font-size: 16px; font-weight: 600;">$1</h3>')
+        
+        // Lists - handle bullet points and hyphens
+        .replace(/^[-*+] (.+$)/gm, '<li style="margin-bottom: 4px; line-height: 1.5;">$1</li>')
+        
+        // Numbered lists
+        .replace(/^\d+\. (.+$)/gm, '<li style="margin-bottom: 4px; line-height: 1.5;">$1</li>')
+        
+        // Convert double line breaks to paragraph breaks
+        .replace(/\n\n/g, '</p><p style="margin: 12px 0; line-height: 1.6;">')
+        
+        // Convert single line breaks to <br> but preserve list structure
+        .replace(/(?<!<\/li>)\n(?!<li>)/g, '<br>');
+    
+    // Wrap consecutive <li> elements in <ul> tags
+    html = html.replace(/(<li[^>]*>.*?<\/li>(?:\s*<li[^>]*>.*?<\/li>)*)/gs, '<ul style="margin: 8px 0 16px 0; padding-left: 20px; list-style-type: disc;">$1</ul>');
+    
+    // Wrap content in paragraphs if it doesn't start with a block element
+    if (!html.startsWith('<h') && !html.startsWith('<ul') && !html.startsWith('<ol') && !html.startsWith('<p')) {
+        html = '<p style="margin: 12px 0; line-height: 1.6;">' + html + '</p>';
+    }
+    
+    return html;
+}
 
 // Export dropdown functionality
 function toggleExportDropdown() {
