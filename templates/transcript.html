@@ -3,6 +3,52 @@
 {% block title %}{% if video_title %}{{ video_title }}{% else %}{{ video_id }}{% endif %} - YouTube Deep Summary{% endblock %}
 
 {% block content %}
+    <style>
+        /* Custom tooltip styles */
+        .h2-snippet-icon {
+            position: relative;
+            cursor: pointer;
+            margin-left: 8px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            background: #f0f0f0;
+            transition: background-color 0.2s;
+        }
+        
+        .h2-snippet-icon:hover {
+            background: #e0e0e0;
+        }
+        
+        .h2-snippet-icon[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            margin-bottom: 5px;
+            pointer-events: none;
+        }
+        
+        .h2-snippet-icon[data-tooltip]:hover::before {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 4px solid transparent;
+            border-top-color: #333;
+            margin-bottom: 1px;
+            pointer-events: none;
+        }
+    </style>
+    
     <div class="video-info">
         <div style="display: flex; align-items: flex-start; gap: 20px; margin-bottom: 20px;">
             <div style="flex-shrink: 0;">
@@ -30,13 +76,7 @@
                 <p><strong>YouTube URL:</strong> <a href="https://www.youtube.com/watch?v={{ video_id }}" target="_blank">https://www.youtube.com/watch?v={{ video_id }}</a></p>
                 <p style="margin-top: 10px;">
                     <a href="https://www.youtube.com/watch?v={{ video_id }}" target="_blank" style="background: #ff0000; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; display: inline-block; margin-right: 10px;">▶️ Watch on YouTube</a>
-                    {% if not has_transcript %}
-                        <button id="extractTranscriptBtn" onclick="extractTranscript('{{ video_id }}')" style="background: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; display: inline-block; margin-right: 10px;">📝 Extract Transcript</button>
-                    {% endif %}
-                    {% if not has_chapters %}
-                        <button id="extractChaptersBtn" onclick="extractChapters('{{ video_id }}')" style="background: #FF9800; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; display: inline-block; margin-right: 10px;">📚 Extract Chapters</button>
-                    {% endif %}
-                    {% if summarize_enabled and has_transcript %}
+                    {% if summarize_enabled %}
                         <button id="generateSummaryBtn" onclick="generateSummary('{{ video_id }}')" style="background: #2196f3; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; display: inline-block; margin-right: 10px;">🤖 {% if summary %}Regenerate AI Summary{% else %}Generate AI Summary{% endif %}</button>
                     {% endif %}
                     <button onclick="deleteVideo('{{ video_id }}', '{{ video_title|e }}')" style="background: #d32f2f; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; display: inline-block;">🗑️ Delete Video</button>
@@ -140,43 +180,33 @@
         </div>
     {% endif %}
     
-    {% if has_transcript %}
-        <div class="transcript-options" style="margin: 20px 0;">
-            <button onclick="toggleTranscriptView()" id="toggleBtn" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">
-                📖 Switch to Detailed View
-            </button>
-            <button onclick="copyTranscriptToClipboard()" id="copyBtn" style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-                📋 Copy Transcript
-            </button>
+    <div class="transcript-options" style="margin: 20px 0;">
+        <button onclick="toggleTranscriptView()" id="toggleBtn" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+            📖 Switch to Detailed View
+        </button>
+        <button onclick="copyTranscriptToClipboard()" id="copyBtn" style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+            📋 Copy Transcript
+        </button>
+    </div>
+    
+    <h3>📝 Transcript ({{ transcript|length }} entries):</h3>
+    
+    <!-- Formatted readable transcript (default view) -->
+    <div id="formatted-transcript" class="transcript-container" style="display: block;">
+        <div class="formatted-text" style="background: #f9f9f9; padding: 15px; border-radius: 5px; line-height: 1.6; font-family: Georgia, serif;">
+            <div id="formatted-transcript-content" style="white-space: pre-wrap; font-family: Georgia, serif; margin: 0;">{{ formatted_transcript|safe }}</div>
         </div>
-        
-        <h3>📝 Transcript ({{ transcript|length }} entries):</h3>
-        
-        <!-- Formatted readable transcript (default view) -->
-        <div id="formatted-transcript" class="transcript-container" style="display: block;">
-            <div class="formatted-text" style="background: #f9f9f9; padding: 15px; border-radius: 5px; line-height: 1.6; font-family: Georgia, serif;">
-                <div id="formatted-transcript-content" style="white-space: pre-wrap; font-family: Georgia, serif; margin: 0;">{{ formatted_transcript|safe }}</div>
+    </div>
+    
+    <!-- Detailed timestamp transcript (hidden by default) -->
+    <div id="detailed-transcript" class="transcript-container" style="display: none;">
+        {% for entry in transcript %}
+            <div class="transcript-entry" data-time="{{ entry.time|int }}" id="timestamp-{{ entry.time|int }}">
+                <div class="timestamp">[{{ entry.formatted_time }}] ({{ "%.2f"|format(entry.time) }}s)</div>
+                <div class="text">{{ entry.text }}</div>
             </div>
-        </div>
-        
-        <!-- Detailed timestamp transcript (hidden by default) -->
-        <div id="detailed-transcript" class="transcript-container" style="display: none;">
-            {% for entry in transcript %}
-                <div class="transcript-entry" data-time="{{ entry.time|int }}" id="timestamp-{{ entry.time|int }}">
-                    <div class="timestamp">[{{ entry.formatted_time }}] ({{ "%.2f"|format(entry.time) }}s)</div>
-                    <div class="text">{{ entry.text }}</div>
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 8px; margin: 20px 0;">
-            <h3 style="color: #666; margin-bottom: 20px;">📝 No Transcript Available</h3>
-            <p style="color: #888; margin-bottom: 20px;">Click the "Extract Transcript" button above to download the transcript for this video.</p>
-            <div id="extraction-status" style="display: none; margin-top: 20px;">
-                <p style="color: #0066cc;">⏳ Extracting transcript... Please wait.</p>
-            </div>
-        </div>
-    {% endif %}
+        {% endfor %}
+    </div>
     
     <script>
         function toggleTranscriptView() {
@@ -198,19 +228,11 @@
         }
         
         function scrollToChapter(chapterTime) {
-            // Check if transcript elements exist
             const formattedDiv = document.getElementById('formatted-transcript');
             const detailedDiv = document.getElementById('detailed-transcript');
-            
-            // If no transcript is available, just open YouTube at the chapter timestamp
-            if (!formattedDiv && !detailedDiv) {
-                window.open(`https://www.youtube.com/watch?v={{ video_id }}&t=${chapterTime}s`, '_blank');
-                return;
-            }
-            
             const chapterId = 'chapter-' + chapterTime;
             
-            if (formattedDiv && formattedDiv.style.display !== 'none') {
+            if (formattedDiv.style.display !== 'none') {
                 // In formatted view - scroll to the chapter anchor
                 const chapterAnchor = document.getElementById(chapterId);
                 if (chapterAnchor) {
@@ -228,7 +250,7 @@
                     const formattedContent = document.getElementById('formatted-transcript-content');
                     formattedContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
-            } else if (detailedDiv) {
+            } else {
                 // In detailed view - find the closest timestamp entry
                 const timestampEntries = document.querySelectorAll('.transcript-entry[data-time]');
                 let closestEntry = null;
@@ -257,9 +279,6 @@
                         closestEntry.style.paddingLeft = '';
                     }, 2000);
                 }
-            } else {
-                // No transcript available, open YouTube at chapter timestamp
-                window.open(`https://www.youtube.com/watch?v={{ video_id }}&t=${chapterTime}s`, '_blank');
             }
         }
         
@@ -457,17 +476,11 @@
                     }
                 })
                 .catch(error => {
-                    // Show error but keep the regenerate button
-                    summarySection.innerHTML = `
-                        <div class="summary-error">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                                <h3 style="margin: 0;">❌ Summary Error:</h3>
-                                <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
-                            </div>
-                            <p style="color: #d32f2f;">Failed to generate summary: ${error.message}</p>
-                        </div>
-                        <hr style="margin: 30px 0; border: 1px solid #ddd;">
-                                            `;
+                    console.error('Error regenerating summary:', error);
+                    alert('Failed to regenerate summary: ' + error.message);
+                    btn.textContent = '🔄 Regenerate';
+                    btn.disabled = false;
+                    btn.style.background = '#ff9800';
                 });
         }
         
@@ -764,6 +777,15 @@
             document.addEventListener('mouseup', handleTextSelection);
             document.addEventListener('keyup', handleTextSelection);
             
+            // Hide button when clicking outside
+            document.addEventListener('click', function(e) {
+                const button = document.getElementById('saveSnippetBtn');
+                if (button && !button.contains(e.target) && !buttonClickInProgress) {
+                    hideSaveSnippetButton();
+                    window.getSelection().removeAllRanges();
+                }
+            });
+            
             // Create the save snippet modal
             createSaveSnippetModal();
         }
@@ -777,6 +799,9 @@
             // Add a small delay to prevent rapid button creation/removal
             selectionTimeout = setTimeout(() => {
                 const selection = window.getSelection();
+                
+                // Always hide existing button first
+                hideSaveSnippetButton();
                 
                 if (selection.toString().trim().length > 0) {
                     // Check if selection is within a summary content area or transcript content
@@ -803,11 +828,6 @@
                         // Show save snippet button
                         showSaveSnippetButton(selection);
                     }
-                } else {
-                    // Don't hide button if click is in progress
-                    if (!buttonClickInProgress) {
-                        hideSaveSnippetButton();
-                    }
                 }
             }, 100); // 100ms delay
         }
@@ -826,7 +846,13 @@
         }
         
         function showSaveSnippetButton(selection) {
-            hideSaveSnippetButton(); // Remove any existing button
+            // Always hide any existing button first
+            hideSaveSnippetButton();
+            
+            // Don't show button if no text is selected
+            if (!selection.toString().trim()) {
+                return;
+            }
             
             const range = selection.getRangeAt(0);
             const rect = range.getBoundingClientRect();
@@ -835,9 +861,9 @@
             button.id = 'saveSnippetBtn';
             button.innerHTML = '💾 Save as Snippet';
             button.style.cssText = `
-                position: fixed;
-                top: ${rect.bottom + 5}px;
-                left: ${rect.left}px;
+                position: absolute;
+                top: ${rect.bottom + window.scrollY + 5}px;
+                left: ${rect.left + window.scrollX}px;
                 background: #4CAF50;
                 color: white;
                 border: none;
@@ -865,19 +891,11 @@
             
             document.body.appendChild(button);
             buttonCreateTime = Date.now();
-            
-            // Auto-hide after 10 seconds
-            setTimeout(hideSaveSnippetButton, 10000);
         }
         
         function hideSaveSnippetButton() {
             const existingButton = document.getElementById('saveSnippetBtn');
             if (existingButton) {
-                // Don't remove the button if it was created less than 2 seconds ago
-                const timeSinceCreation = Date.now() - buttonCreateTime;
-                if (timeSinceCreation < 2000) {
-                    return;
-                }
                 existingButton.remove();
             }
         }
@@ -1062,7 +1080,7 @@
                 const icon = document.createElement('span');
                 icon.className = 'h2-snippet-icon';
                 icon.innerHTML = '💾';
-                icon.title = 'Save this section as snippet';
+                icon.setAttribute('data-tooltip', 'Save this section as snippet');
                 icon.setAttribute('data-h2-index', index);
                 
                 // Add click handler
@@ -1582,128 +1600,26 @@
             // Add keyboard navigation event listener
             document.addEventListener('keydown', handleKeyboardNavigation);
             
+            // Add scroll event listener to update snippet button position
+            window.addEventListener('scroll', updateSnippetButtonPosition);
+            
             // Load summary history if summary exists
             {% if summary %}
             loadSummaryHistory('{{ video_id }}');
             {% endif %}
         });
         
-        // Extract chapters functionality
-        function extractChapters(videoId) {
-            const btn = document.getElementById('extractChaptersBtn');
-            
-            // Update button to show loading state
-            btn.textContent = '⏳ Extracting...';
-            btn.disabled = true;
-            btn.style.background = '#666';
-            
-            // Make AJAX request to extract chapters
-            fetch(`/api/chapters/${videoId}?extract_chapters=true`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Show success message briefly then reload page
-                        btn.textContent = '✅ Success!';
-                        btn.style.background = '#FF9800';
-                        
-                        // Reload the page after a short delay to show the extracted chapters
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 1000);
-                    } else {
-                        // Show error
-                        btn.textContent = '❌ Failed';
-                        btn.style.background = '#d32f2f';
-                        
-                        // Reset button after 3 seconds
-                        setTimeout(() => {
-                            btn.textContent = '📚 Extract Chapters';
-                            btn.disabled = false;
-                            btn.style.background = '#FF9800';
-                        }, 3000);
-                    }
-                })
-                .catch(error => {
-                    // Show error
-                    btn.textContent = '❌ Failed';
-                    btn.style.background = '#d32f2f';
-                    
-                    // Reset button after 3 seconds
-                    setTimeout(() => {
-                        btn.textContent = '📚 Extract Chapters';
-                        btn.disabled = false;
-                        btn.style.background = '#FF9800';
-                    }, 3000);
-                });
-        }
-        
-        // Extract transcript functionality
-        function extractTranscript(videoId) {
-            const btn = document.getElementById('extractTranscriptBtn');
-            const statusDiv = document.getElementById('extraction-status');
-            
-            // Update button to show loading state
-            btn.textContent = '⏳ Extracting...';
-            btn.disabled = true;
-            btn.style.background = '#666';
-            
-            // Show extraction status
-            if (statusDiv) {
-                statusDiv.style.display = 'block';
+        // Update snippet button position on scroll
+        function updateSnippetButtonPosition() {
+            const button = document.getElementById('saveSnippetBtn');
+            if (button && window.getSelection().rangeCount > 0) {
+                const selection = window.getSelection();
+                const range = selection.getRangeAt(0);
+                const rect = range.getBoundingClientRect();
+                
+                button.style.top = `${rect.bottom + window.scrollY + 5}px`;
+                button.style.left = `${rect.left + window.scrollX}px`;
             }
-            
-            // Make AJAX request to extract transcript
-            fetch(`/api/transcript/${videoId}?extract_transcript=true`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Show success message briefly then reload page
-                        btn.textContent = '✅ Success!';
-                        btn.style.background = '#4CAF50';
-                        
-                        // Reload the page after a short delay to show the extracted transcript
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 1000);
-                    } else {
-                        // Show error
-                        btn.textContent = '❌ Failed';
-                        btn.style.background = '#d32f2f';
-                        
-                        if (statusDiv) {
-                            statusDiv.innerHTML = `<p style="color: #d32f2f;">❌ Failed to extract transcript: ${data.error}</p>`;
-                        }
-                        
-                        // Reset button after 3 seconds
-                        setTimeout(() => {
-                            btn.textContent = '📝 Extract Transcript';
-                            btn.disabled = false;
-                            btn.style.background = '#4CAF50';
-                            if (statusDiv) {
-                                statusDiv.style.display = 'none';
-                            }
-                        }, 3000);
-                    }
-                })
-                .catch(error => {
-                    // Show error
-                    btn.textContent = '❌ Failed';
-                    btn.style.background = '#d32f2f';
-                    
-                    if (statusDiv) {
-                        statusDiv.innerHTML = `<p style="color: #d32f2f;">❌ Network error: ${error.message}</p>`;
-                    }
-                    
-                    // Reset button after 3 seconds
-                    setTimeout(() => {
-                        btn.textContent = '📝 Extract Transcript';
-                        btn.disabled = false;
-                        btn.style.background = '#4CAF50';
-                        if (statusDiv) {
-                            statusDiv.style.display = 'none';
-                        }
-                    }, 3000);
-                });
         }
         
         // Delete video functionality
