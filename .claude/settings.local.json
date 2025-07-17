@@ -26,7 +26,8 @@
       "Bash(unzip:*)",
       "Bash(true)",
       "Bash(git fetch:*)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash(printenv)"
     ],
     "deny": []
   }

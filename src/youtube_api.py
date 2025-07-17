@@ -97,6 +97,105 @@ class YouTubeAPI:
         channel_info = self.get_channel_info(channel_id)
         return channel_info['handle'] if channel_info else None
     
+    def get_video_info(self, video_id):
+        """Get comprehensive video information from YouTube Data API"""
+        if not self.service:
+            return None
+        
+        try:
+            # Request comprehensive video information
+            video_request = self.service.videos().list(
+                part='snippet,contentDetails,statistics',
+                id=video_id
+            )
+            video_response = video_request.execute()
+            
+            if not video_response.get('items'):
+                return None
+            
+            item = video_response['items'][0]
+            snippet = item.get('snippet', {})
+            content_details = item.get('contentDetails', {})
+            statistics = item.get('statistics', {})
+            
+            # Parse duration from ISO 8601 format (PT4M13S -> 253 seconds)
+            duration_seconds = None
+            if 'duration' in content_details:
+                duration_seconds = self._parse_iso8601_duration(content_details['duration'])
+            
+            # Get the best thumbnail URL
+            thumbnail_url = None
+            thumbnails = snippet.get('thumbnails', {})
+            # Priority: maxresdefault > high > medium > default
+            for quality in ['maxresdefault', 'high', 'medium', 'default']:
+                if quality in thumbnails:
+                    thumbnail_url = thumbnails[quality]['url']
+                    break
+            
+            # Parse published date
+            published_at = snippet.get('publishedAt')
+            upload_date = None
+            if published_at:
+                try:
+                    from datetime import datetime
+                    # Convert from ISO format to YYYYMMDD format (yt-dlp compatible)
+                    dt = datetime.fromisoformat(published_at.replace('Z', '+00:00'))
+                    upload_date = dt.strftime('%Y%m%d')
+                except:
+                    upload_date = published_at
+            
+            return {
+                'title': snippet.get('title', 'Unknown Title'),
+                'description': snippet.get('description', ''),
+                'channel_name': snippet.get('channelTitle', 'Unknown Channel'),
+                'channel_id': snippet.get('channelId'),
+                'duration': duration_seconds,
+                'upload_date': upload_date,
+                'published_at': published_at,
+                'thumbnail': thumbnail_url,
+                'tags': snippet.get('tags', []),
+                'category_id': snippet.get('categoryId'),
+                'view_count': int(statistics.get('viewCount', 0)) if statistics.get('viewCount') else None,
+                'like_count': int(statistics.get('likeCount', 0)) if statistics.get('likeCount') else None,
+                'comment_count': int(statistics.get('commentCount', 0)) if statistics.get('commentCount') else None,
+                'definition': content_details.get('definition'),  # 'hd' or 'sd'
+                'caption': content_details.get('caption') == 'true',  # Boolean
+                'licensed_content': content_details.get('licensedContent') == 'true',
+                'api_source': 'youtube_data_api'
+            }
+            
+        except Exception as e:
+            print(f"Error fetching video info from YouTube Data API for {video_id}: {e}")
+            return None
+    
+    def _parse_iso8601_duration(self, duration_str):
+        """
+        Parse ISO 8601 duration string (PT4M13S) to seconds
+        
+        Args:
+            duration_str: ISO 8601 duration string like 'PT4M13S'
+            
+        Returns:
+            Duration in seconds (int) or None if parsing fails
+        """
+        import re
+        
+        if not duration_str:
+            return None
+        
+        # Pattern to match PT1H2M3S, PT2M3S, PT3S, etc.
+        pattern = r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?'
+        match = re.match(pattern, duration_str)
+        
+        if not match:
+            return None
+        
+        hours = int(match.group(1)) if match.group(1) else 0
+        minutes = int(match.group(2)) if match.group(2) else 0
+        seconds = int(match.group(3)) if match.group(3) else 0
+        
+        return hours * 3600 + minutes * 60 + seconds
+    
     def get_channel_videos(self, channel_name, max_results=5, days_back=30):
         """Get latest videos from a channel using YouTube Data API within specified time range"""
         if not self.service:

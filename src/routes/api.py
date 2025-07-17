@@ -10,262 +10,51 @@ from ..youtube_api import youtube_api
 from ..snippet_manager import snippet_manager
 from ..utils.helpers import extract_video_id, format_summary_html
 from ..config import Config
+from ..api.import_video import import_video
+from ..api.transcript import transcript_only
+from ..api.chapters import chapters_only
+from ..api.summary import (
+    summary_legacy, summary_from_data, regenerate_summary, 
+    get_summary_history, set_current_summary, delete_summary
+)
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 
+@api_bp.route('/import-video/<video_id>')
+def import_video_route(video_id):
+    """Route wrapper for import video functionality"""
+    return import_video(video_id)
+
+
 @api_bp.route('/transcript/<video_id>')
-def transcript(video_id):
-    """API endpoint to get transcript as JSON"""
-    try:
-        # Check database first for API endpoint too
-        cached_data = database_storage.get(video_id)
-        
-        if cached_data:
-            print(f"API: Using cached data for video: {video_id}")
-            transcript = cached_data['transcript']
-            video_info = cached_data['video_info']
-            formatted_transcript = cached_data['formatted_transcript']
-            chapters = video_info.get('chapters')
-        else:
-            print(f"API: Database MISS for video: {video_id}, downloading fresh data")
-            
-            # Extract channel_id from video_info if available
-            try:
-                video_info = extract_video_info(video_id)
-                channel_id = video_info.get('channel_id') if video_info else None
-            except Exception:
-                channel_id = None
-            
-            # Use consolidated import function
-            result = video_processor.process_video_complete(video_id, channel_id)
-            
-            if result['status'] == 'error':
-                return jsonify({
-                    'success': False,
-                    'error': f"Failed to import video: {result['error']}"
-                }), 500
-            
-            # Get the data that was just stored
-            cached_data = database_storage.get(video_id)
-            transcript = cached_data['transcript']
-            formatted_transcript = cached_data['formatted_transcript']
-            video_info = cached_data['video_info']
-            chapters = video_info.get('chapters')
-        
-        thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
-        
-        # Get enhanced video data with channel information
-        enhanced_video_data = database_storage.get(video_id)
-        channel_info = None
-        if enhanced_video_data and 'video_info' in enhanced_video_data:
-            if 'youtube_channels' in enhanced_video_data['video_info']:
-                channel_info = enhanced_video_data['video_info']['youtube_channels']
-        
-        return jsonify({
-            'success': True,
-            'video_id': video_id,
-            'video_title': video_info.get('title'),
-            'video_duration': video_info.get('duration'),
-            'channel_info': channel_info,
-            'transcript': transcript,
-            'formatted_transcript': formatted_transcript,
-            'chapters': chapters,
-            'thumbnail_url': thumbnail_url,
-            'proxy_used': Config.YOUTUBE_PROXY
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+def transcript_route(video_id):
+    """Route wrapper for transcript functionality"""
+    return transcript_only(video_id)
+
+
+@api_bp.route('/chapters/<video_id>')
+def chapters_route(video_id):
+    """Route wrapper for chapters functionality"""
+    return chapters_only(video_id)
 
 
 @api_bp.route('/summary/<video_id>')
-def summary_legacy(video_id):
-    """API endpoint to get transcript summary as JSON (legacy - downloads transcript)"""
-    try:
-        if not video_processor.summarizer or not video_processor.summarizer.is_configured():
-            return jsonify({
-                'success': False,
-                'error': 'OpenAI API key not configured'
-            }), 400
-        
-        transcript = video_processor.get_transcript(video_id)
-        summary = video_processor.summarizer.summarize_transcript(transcript)
-        
-        return jsonify({
-            'success': True,
-            'video_id': video_id,
-            'summary': summary,
-            'proxy_used': Config.YOUTUBE_PROXY
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+def summary_legacy_route(video_id):
+    """Route wrapper for legacy summary functionality"""
+    return summary_legacy(video_id)
 
 
 @api_bp.route('/summary', methods=['POST'])
-def summary():
-    """API endpoint to generate summary from provided transcript data"""
-    try:
-        if not video_processor.summarizer or not video_processor.summarizer.is_configured():
-            return jsonify({
-                'success': False,
-                'error': 'OpenAI API key not configured'
-            }), 400
-        
-        data = request.get_json()
-        if not data:
-            return jsonify({
-                'success': False,
-                'error': 'No JSON data provided'
-            }), 400
-        
-        video_id = data.get('video_id')
-        formatted_transcript = data.get('formatted_transcript')
-        force_regenerate = data.get('force_regenerate', False)
-        
-        if not video_id or not formatted_transcript:
-            return jsonify({
-                'success': False,
-                'error': 'video_id and formatted_transcript are required'
-            }), 400
-        
-        summary, from_cache = video_processor.generate_summary(video_id, formatted_transcript, force_regenerate)
-        
-        # Format the summary as HTML for frontend display
-        summary_html = format_summary_html(summary)
-        
-        return jsonify({
-            'success': True,
-            'video_id': video_id,
-            'summary': summary_html,
-            'from_cache': from_cache
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+def summary_route():
+    """Route wrapper for summary generation functionality"""
+    return summary_from_data()
 
 
 @api_bp.route('/summary/regenerate', methods=['POST'])
-def regenerate_summary():
-    """API endpoint to regenerate summary with specified model and optional custom prompt"""
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({
-                'success': False,
-                'error': 'No JSON data provided'
-            }), 400
-        
-        video_id = data.get('video_id')
-        model = data.get('model')
-        prompt_id = data.get('prompt_id')
-        
-        if not video_id:
-            return jsonify({
-                'success': False,
-                'error': 'video_id is required'
-            }), 400
-        
-        if not model:
-            return jsonify({
-                'success': False,
-                'error': 'model is required'
-            }), 400
-        
-        # Check if model is supported
-        available_models = video_processor.summarizer.get_available_models()
-        model_found = False
-        for provider_models in available_models.values():
-            if model in provider_models:
-                model_found = True
-                break
-        
-        if not model_found:
-            return jsonify({
-                'success': False,
-                'error': f'Model not available. Available models: {available_models}'
-            }), 400
-        
-        # Get existing video data
-        cached_data = database_storage.get(video_id)
-        if not cached_data:
-            return jsonify({
-                'success': False,
-                'error': 'Video not found in database'
-            }), 404
-        
-        formatted_transcript = cached_data['formatted_transcript']
-        video_info = cached_data['video_info']
-        chapters = video_info.get('chapters')
-        
-        # Get custom prompt if prompt_id is provided
-        custom_prompt = None
-        if prompt_id:
-            try:
-                prompt_id_int = int(prompt_id)
-                prompt_data = database_storage.get_ai_prompt_by_id(prompt_id_int)
-                if prompt_data:
-                    custom_prompt = prompt_data['prompt_text']
-                else:
-                    return jsonify({
-                        'success': False,
-                        'error': f'Prompt with ID {prompt_id} not found'
-                    }), 404
-            except ValueError:
-                return jsonify({
-                    'success': False,
-                    'error': 'Invalid prompt_id format'
-                }), 400
-        
-        # Generate new summary with specified model and optional custom prompt
-        summary = video_processor.summarizer.summarize_with_model(
-            formatted_transcript, 
-            model, 
-            chapters, 
-            video_id, 
-            video_info,
-            custom_prompt
-        )
-        
-        # Get prompt name for history
-        prompt_name = None
-        if prompt_id:
-            try:
-                prompt_id_int = int(prompt_id)
-                prompt_data = database_storage.get_ai_prompt_by_id(prompt_id_int)
-                if prompt_data:
-                    prompt_name = prompt_data['name']
-            except:
-                pass
-
-        # Save the new summary to database (creates new history entry)
-        summary_id = database_storage.save_summary(video_id, summary, model, prompt_id, prompt_name)
-        
-        # Format the summary as HTML for frontend display
-        summary_html = format_summary_html(summary)
-        
-        return jsonify({
-            'success': True,
-            'video_id': video_id,
-            'summary': summary_html,
-            'model_used': model,
-            'prompt_id': prompt_id,
-            'prompt_name': prompt_name,
-            'from_cache': False
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+def regenerate_summary_route():
+    """Route wrapper for summary regeneration functionality"""
+    return regenerate_summary()
 
 
 @api_bp.route('/models')
@@ -285,115 +74,21 @@ def get_available_models():
 
 
 @api_bp.route('/summary/history/<video_id>')
-def get_summary_history(video_id):
-    """API endpoint to get summary history for a video"""
-    try:
-        history = database_storage.get_summary_history(video_id)
-        
-        # Format the history for frontend display
-        formatted_history = []
-        for entry in history:
-            formatted_entry = {
-                'summary_id': entry['summary_id'],
-                'summary_text': format_summary_html(entry['summary_text']),
-                'model_used': entry['model_used'],
-                'prompt_id': entry['prompt_id'],
-                'prompt_name': entry['prompt_name'],
-                'is_current': entry['is_current'],
-                'version_number': entry['version_number'],
-                'created_at': entry['created_at'],
-                'updated_at': entry['updated_at']
-            }
-            formatted_history.append(formatted_entry)
-        
-        return jsonify({
-            'success': True,
-            'video_id': video_id,
-            'history': formatted_history
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+def get_summary_history_route(video_id):
+    """Route wrapper for summary history functionality"""
+    return get_summary_history(video_id)
 
 
 @api_bp.route('/summary/set-current', methods=['POST'])
-def set_current_summary():
-    """API endpoint to set a specific summary as current"""
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({
-                'success': False,
-                'error': 'No JSON data provided'
-            }), 400
-        
-        video_id = data.get('video_id')
-        summary_id = data.get('summary_id')
-        
-        if not video_id or not summary_id:
-            return jsonify({
-                'success': False,
-                'error': 'video_id and summary_id are required'
-            }), 400
-        
-        success = database_storage.set_current_summary(video_id, summary_id)
-        
-        if success:
-            # Get the updated summary data
-            summary_data = database_storage.get_summary_by_id(summary_id)
-            if summary_data:
-                summary_html = format_summary_html(summary_data['summary_text'])
-                return jsonify({
-                    'success': True,
-                    'video_id': video_id,
-                    'summary_id': summary_id,
-                    'summary': summary_html,
-                    'model_used': summary_data['model_used'],
-                    'prompt_name': summary_data['prompt_name']
-                })
-            else:
-                return jsonify({
-                    'success': False,
-                    'error': 'Summary not found after update'
-                }), 404
-        else:
-            return jsonify({
-                'success': False,
-                'error': 'Failed to set current summary'
-            }), 500
-            
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+def set_current_summary_route():
+    """Route wrapper for set current summary functionality"""
+    return set_current_summary()
 
 
 @api_bp.route('/summary/delete/<int:summary_id>', methods=['DELETE'])
-def delete_summary(summary_id):
-    """API endpoint to delete a specific summary"""
-    try:
-        success = database_storage.delete_summary_by_id(summary_id)
-        
-        if success:
-            return jsonify({
-                'success': True,
-                'summary_id': summary_id,
-                'message': 'Summary deleted successfully'
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'error': 'Failed to delete summary or summary not found'
-            }), 404
-            
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+def delete_summary_route(summary_id):
+    """Route wrapper for delete summary functionality"""
+    return delete_summary(summary_id)
 
 
 @api_bp.route('/cache/info')
@@ -730,6 +425,9 @@ def import_channel_videos(channel_handle):
                 'error': f'No videos found for channel: {channel_handle}'
             }), 404
         
+        # Get import settings for processing behavior
+        skip_existing_videos = import_settings.get('skip_existing_videos', True)
+        
         # Process each video
         results = []
         processed_count = 0
@@ -740,6 +438,20 @@ def import_channel_videos(channel_handle):
             video_id = video['video_id']
             channel_id = video.get('channel_id')
             print(f"Processing video: {video_id} - {video['title']}")
+            
+            # Check if video already exists and skip if configured
+            if skip_existing_videos:
+                existing_video = database_storage.get(video_id)
+                if existing_video:
+                    print(f"Skipping existing video: {video_id}")
+                    results.append({
+                        'status': 'exists',
+                        'video_id': video_id,
+                        'title': video['title'],
+                        'message': 'Video already exists in database'
+                    })
+                    skipped_count += 1
+                    continue
             
             result = video_processor.process_video_complete(video_id, channel_id)
             results.append(result)
