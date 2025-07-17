@@ -92,12 +92,28 @@ def video_by_url_path(channel_handle, url_path):
         
         # Get enhanced channel information from video data or use basic video data
         channel_info = None
-        if 'youtube_channels' in video_data.get('video_info', {}):
+        if 'youtube_channels' in video_data.get('video_info', {}) and video_data['video_info']['youtube_channels']:
+            # Use channel info from database (preferred)
             channel_info = video_data['video_info']['youtube_channels']
+            # Ensure handle is properly processed
+            if channel_info.get('handle'):
+                channel_info['handle'] = channel_info['handle'].lstrip('@')
+                if not channel_info['handle']:
+                    channel_info['handle'] = None
         else:
-            # Use channel info from video data (already fetched)
+            # Use channel info from video data (fallback)
+            video_handle = video.get('handle', '')
+            if video_handle:
+                # Remove leading @ if present
+                video_handle = video_handle.lstrip('@')
+                # Ensure handle is not empty after stripping
+                if not video_handle:
+                    video_handle = None
+            else:
+                video_handle = None
+            
             channel_info = {
-                'handle': video.get('handle', '').lstrip('@'),
+                'handle': video_handle,
                 'channel_name': video.get('channel_name'),
                 'channel_id': video.get('channel_id')
             }

@@ -295,7 +295,7 @@ class DatabaseStorage:
             if channel_id:
                 try:
                     channel_response = self.supabase.table('youtube_channels')\
-                        .select('channel_name, channel_id, thumbnail_url')\
+                        .select('channel_name, channel_id, thumbnail_url, handle')\
                         .eq('channel_id', channel_id)\
                         .execute()
                     
