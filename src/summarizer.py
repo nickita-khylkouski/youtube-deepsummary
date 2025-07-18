@@ -307,6 +307,9 @@ Please analyze this transcript:
         if not self.is_configured():
             raise Exception("OpenAI client not configured properly")
         
+        # Use provided model or default from database settings
+        model_to_use = model or self.model
+        
         # Enhanced processing for chapter-based content (if enabled in settings)
         if (self.enable_chapter_awareness and chapters and len(chapters) > 1 and not custom_prompt):
             # Parse transcript content and organize by chapters
@@ -325,7 +328,7 @@ Please analyze this transcript:
                 system_prompt = "You are a helpful assistant that creates clear, comprehensive summaries of educational video transcripts. Focus on extracting key insights, actionable advice, and important details while maintaining readability and creating a well-structured summary."
             
             response = self.client.chat.completions.create(
-                model=self.model,
+                model=model_to_use,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
