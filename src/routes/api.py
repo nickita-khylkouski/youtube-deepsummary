@@ -61,10 +61,34 @@ def regenerate_summary_route():
 def get_available_models():
     """API endpoint to get available AI models"""
     try:
-        available_models = video_processor.summarizer.get_available_models()
+        available_models_dict = video_processor.summarizer.get_available_models()
+        
+        # Convert dictionary format to array format expected by frontend
+        models_array = []
+        for provider, models in available_models_dict.items():
+            for model_id in models:
+                # Create friendly display names
+                if model_id == 'claude-sonnet-4-20250514':
+                    display_name = 'Claude Sonnet 4'
+                elif model_id == 'claude-3-5-sonnet-20241022':
+                    display_name = 'Claude 3.5 Sonnet'
+                elif model_id == 'gpt-4.1':
+                    display_name = 'GPT-4.1'
+                elif model_id == 'gpt-4.1-mini':
+                    display_name = 'GPT-4.1 Mini'
+                elif model_id == 'gpt-3.5-turbo':
+                    display_name = 'GPT-3.5 Turbo'
+                else:
+                    display_name = model_id
+                
+                models_array.append({
+                    'id': model_id,
+                    'name': display_name
+                })
+        
         return jsonify({
             'success': True,
-            'models': available_models
+            'models': models_array
         })
     except Exception as e:
         return jsonify({
