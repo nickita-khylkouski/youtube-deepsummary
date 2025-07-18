@@ -90,6 +90,136 @@ def delete_summary_route(summary_id):
     return delete_summary(summary_id)
 
 
+@api_bp.route('/chapter-summary', methods=['POST'])
+def generate_chapter_summary():
+    """API endpoint to generate summary for a specific chapter"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+        video_id = data.get('video_id')
+        chapter_time = data.get('chapter_time')
+        chapter_title = data.get('chapter_title')
+
+        if not video_id or chapter_time is None:
+            return jsonify({'success': False, 'error': 'video_id and chapter_time are required'}), 400
+
+        # Get the video data including transcript and chapters
+        video_data = database_storage.get(video_id)
+        if not video_data:
+            return jsonify({'success': False, 'error': 'Video not found'}), 404
+
+        transcript = video_data.get('transcript')
+        chapters = video_data.get('video_info', {}).get('chapters')
+        
+        if not transcript:
+            return jsonify({'success': False, 'error': 'No transcript available for this video'}), 400
+
+        if not chapters:
+            return jsonify({'success': False, 'error': 'No chapters available for this video'}), 400
+
+        # Extract transcript for the specific chapter
+        chapter_transcript = extract_chapter_transcript(transcript, chapters, chapter_time)
+        
+        if not chapter_transcript:
+            return jsonify({'success': False, 'error': 'Could not extract transcript for this chapter'}), 400
+
+        # Check if chapter summary already exists
+        existing_summary = database_storage.get_chapter_summary(video_id, chapter_time)
+        if existing_summary:
+            # Return existing summary
+            formatted_summary = format_summary_html(existing_summary['summary_text'])
+            return jsonify({
+                'success': True,
+                'summary': formatted_summary,
+                'chapter_title': chapter_title,
+                'video_id': video_id,
+                'cached': True
+            })
+
+        # Generate summary for the chapter
+        summary = video_processor.summarizer.summarize_chapter(
+            chapter_transcript, 
+            chapter_title,
+            video_id,
+            video_data.get('video_info', {})
+        )
+
+        # Save the summary to database
+        summary_id = database_storage.save_chapter_summary(
+            video_id, 
+            chapter_time, 
+            chapter_title, 
+            summary,
+            video_processor.summarizer.model
+        )
+
+        if not summary_id:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to save chapter summary to database'
+            }), 500
+
+        # Format the summary for display
+        formatted_summary = format_summary_html(summary)
+
+        return jsonify({
+            'success': True,
+            'summary': formatted_summary,
+            'chapter_title': chapter_title,
+            'video_id': video_id,
+            'cached': False
+        })
+
+    except Exception as e:
+        print(f"Error generating chapter summary: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+def extract_chapter_transcript(transcript, chapters, chapter_time):
+    """Extract transcript text for a specific chapter"""
+    try:
+        # Find the current chapter and next chapter
+        current_chapter = None
+        next_chapter = None
+        
+        for i, chapter in enumerate(chapters):
+            if chapter['time'] == chapter_time:
+                current_chapter = chapter
+                if i + 1 < len(chapters):
+                    next_chapter = chapters[i + 1]
+                break
+        
+        if not current_chapter:
+            return None
+        
+        # Determine the time range for this chapter
+        start_time = current_chapter['time']
+        end_time = next_chapter['time'] if next_chapter else float('inf')
+        
+        # Extract transcript entries within this time range
+        chapter_entries = []
+        for entry in transcript:
+            entry_time = entry.get('time', 0)
+            if start_time <= entry_time < end_time:
+                chapter_entries.append(entry)
+        
+        # Convert to formatted text
+        chapter_text = ""
+        for entry in chapter_entries:
+            chapter_text += f"{entry.get('text', '')} "
+        
+        return chapter_text.strip()
+        
+    except Exception as e:
+        print(f"Error extracting chapter transcript: {e}")
+        return None
+
+
 @api_bp.route('/cache/info')
 def cache_info():
     """API endpoint to get database statistics"""

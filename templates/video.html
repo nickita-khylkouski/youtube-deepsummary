@@ -119,14 +119,37 @@
             <h3>📚 Video Chapters ({{ chapters|length }} chapters):</h3>
             <ul style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0; list-style: none;">
                 {% for chapter in chapters %}
-                    <li style="margin-bottom: 8px;">
+                    <li style="margin-bottom: 8px; position: relative;">
                         • <strong>{{ chapter.title }}</strong> - 
                         <a href="javascript:void(0)" onclick="scrollToChapter({{ chapter.time|int }})" style="color: #0066cc; text-decoration: underline; margin-right: 8px;" title="Go to transcript section">{{ "%.0f"|format(chapter.time // 60) }}:{{ "%02.0f"|format(chapter.time % 60) }}</a>
-                        <a href="https://www.youtube.com/watch?v={{ video_id }}&t={{ chapter.time|int }}s" target="_blank" style="text-decoration: none; margin-left: 4px;" title="Watch on YouTube">
+                        <a href="https://www.youtube.com/watch?v={{ video_id }}&t={{ chapter.time|int }}s" target="_blank" style="text-decoration: none; margin-left: 4px; margin-right: 8px;" title="Watch on YouTube">
                             <svg width="16" height="16" viewBox="0 0 24 24" style="vertical-align: middle;">
                                 <path fill="#ff0000" d="M23.498 6.186a2.998 2.998 0 00-2.112-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.386.505A2.998 2.998 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a2.998 2.998 0 002.112 2.136c1.881.505 9.386.505 9.386.505s7.505 0 9.386-.505a2.998 2.998 0 002.112-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
                             </svg>
                         </a>
+                        {% if summarize_enabled %}
+                            {% set chapter_summary = chapter_summaries_lookup.get(chapter.time|int) %}
+                            {% if chapter_summary %}
+                                <button onclick="viewChapterSummary({{ chapter.time|int }})" 
+                                        data-chapter-time="{{ chapter.time|int }}"
+                                        data-chapter-title="{{ chapter.title|e }}"
+                                        data-summary-text="{{ chapter_summary.summary_text|e }}"
+                                        style="background: #4CAF50; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: all 0.2s ease;" 
+                                        onmouseover="this.style.background='#45a049'" 
+                                        onmouseout="this.style.background='#4CAF50'"
+                                        title="View AI summary for this chapter">
+                                    ✅ View Summary
+                                </button>
+                            {% else %}
+                                <button onclick="generateChapterSummary('{{ video_id }}', {{ chapter.time|int }}, '{{ chapter.title|e }}')" 
+                                        style="background: #9C27B0; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: all 0.2s ease;" 
+                                        onmouseover="this.style.background='#7B1FA2'" 
+                                        onmouseout="this.style.background='#9C27B0'"
+                                        title="Generate AI summary for this chapter">
+                                    🤖 Summarize Chapter
+                                </button>
+                            {% endif %}
+                        {% endif %}
                     </li>
                 {% endfor %}
             </ul>
@@ -380,6 +403,219 @@
                     btn.style.background = '#2196f3';
                 });
         }
+        
+        function generateChapterSummary(videoId, chapterTime, chapterTitle) {
+            // Find the button that was clicked
+            const buttons = document.querySelectorAll(`button[onclick*="generateChapterSummary('${videoId}', ${chapterTime}"]`);
+            const btn = buttons[0];
+            
+            if (!btn) return;
+            
+            // Update button to show loading state
+            const originalText = btn.textContent;
+            btn.textContent = '⏳ Generating...';
+            btn.disabled = true;
+            btn.style.background = '#666';
+            
+            // Get the chapter transcript segment
+            fetch(`/api/chapter-summary`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    video_id: videoId,
+                    chapter_time: chapterTime,
+                    chapter_title: chapterTitle
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show chapter summary in a modal or section
+                        showChapterSummaryModal(chapterTitle, data.summary);
+                        
+                        // Reset button
+                        btn.textContent = '✅ View Summary';
+                        btn.disabled = false;
+                        btn.style.background = '#4CAF50';
+                        
+                        // Change the onclick to show the existing summary
+                        btn.onclick = () => showChapterSummaryModal(chapterTitle, data.summary);
+                    } else {
+                        // Show error
+                        alert('Error generating chapter summary: ' + data.error);
+                        
+                        // Reset button
+                        btn.textContent = originalText;
+                        btn.disabled = false;
+                        btn.style.background = '#9C27B0';
+                    }
+                })
+                .catch(error => {
+                    // Show error
+                    alert('Failed to generate chapter summary: ' + error.message);
+                    
+                    // Reset button
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                    btn.style.background = '#9C27B0';
+                });
+        }
+        
+        function showChapterSummaryModal(chapterTitle, summary) {
+            console.log('showChapterSummaryModal called with:', { chapterTitle, summary, summaryType: typeof summary });
+            
+            // Remove any existing modal
+            const existingModal = document.getElementById('chapterSummaryModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Handle the summary text - it might be JSON-encoded from the template
+            let summaryText = summary;
+            if (typeof summary === 'string' && summary.startsWith('"') && summary.endsWith('"')) {
+                try {
+                    summaryText = JSON.parse(summary);
+                    console.log('Successfully parsed JSON summary:', summaryText.substring(0, 100) + '...');
+                } catch (e) {
+                    console.error('Failed to parse JSON summary:', e);
+                    // If JSON parsing fails, use as-is
+                    summaryText = summary;
+                }
+            } else {
+                console.log('Summary is not JSON-encoded, using as-is');
+            }
+            
+            // Format the summary if it's raw markdown
+            const formattedSummary = summaryText.includes('<') ? summaryText : convertMarkdownToHtml(summaryText);
+            console.log('Formatted summary preview:', formattedSummary.substring(0, 100) + '...');
+            
+            // Create modal
+            const modal = document.createElement('div');
+            modal.id = 'chapterSummaryModal';
+            modal.style.cssText = `
+                position: fixed;
+                z-index: 1001;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0,0,0,0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            `;
+            
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 8px; width: 90%; max-width: 800px; max-height: 80vh; overflow-y: auto; position: relative;">
+                    <div style="padding: 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h3 style="margin: 0; color: #9C27B0;">🤖 Chapter Summary:</h3>
+                            <h4 style="margin: 5px 0 0 0; color: #666;">${chapterTitle}</h4>
+                        </div>
+                        <button onclick="closeChapterSummaryModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">✕</button>
+                    </div>
+                    <div style="padding: 20px;">
+                        <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                            <span style="background: #f0f0f0; padding: 3px 8px; border-radius: 12px; font-size: 12px;">
+                                🤖 AI-Generated Summary
+                            </span>
+                            <span style="background: #f0f0f0; padding: 3px 8px; border-radius: 12px; font-size: 12px;">
+                                Chapter | claude-sonnet-4-20250514
+                            </span>
+                        </div>
+                        <div class="markdown-content chapter-summary-content">${formattedSummary}</div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Close modal when clicking outside
+            modal.onclick = function(e) {
+                if (e.target === modal) {
+                    closeChapterSummaryModal();
+                }
+            };
+            
+            // Add snippet functionality to chapter summary
+            setTimeout(() => {
+                addH2SnippetIcons();
+            }, 100);
+        }
+        
+        function closeChapterSummaryModal() {
+            const modal = document.getElementById('chapterSummaryModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+        
+        // Debug function to log chapter summaries data
+        function debugChapterSummaries() {
+            try {
+                console.log('=== DEBUG: Chapter Summaries ===');
+                const chapterData = {{ chapter_summaries_lookup|tojson }};
+                console.log('Chapter summaries lookup data:', chapterData);
+                console.log('Number of chapter summaries:', Object.keys(chapterData).length);
+                
+                // Log each chapter summary
+                Object.entries(chapterData).forEach(([time, summary]) => {
+                    console.log(`Chapter ${time}s:`, {
+                        title: summary.chapter_title,
+                        summaryPreview: summary.summary_text.substring(0, 50) + '...',
+                        model: summary.model_used
+                    });
+                });
+                
+                // Check if buttons exist
+                const viewButtons = document.querySelectorAll('button[onclick*="showChapterSummaryModal"]');
+                console.log('Found', viewButtons.length, 'View Summary buttons');
+                
+                viewButtons.forEach((btn, index) => {
+                    console.log(`Button ${index}:`, btn.outerHTML.substring(0, 100) + '...');
+                });
+                
+            } catch (error) {
+                console.error('Error in debugChapterSummaries:', error);
+            }
+        }
+        
+        // Call debug function when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, running debug...');
+            debugChapterSummaries();
+        });
+        
+        // Also run debug after a short delay to ensure everything is loaded
+        setTimeout(function() {
+            console.log('Delayed debug check...');
+            debugChapterSummaries();
+        }, 1000);
+        
+        // Function to view chapter summary using data attributes
+        function viewChapterSummary(chapterTime) {
+            console.log('viewChapterSummary called with chapterTime:', chapterTime);
+            
+            // Find the button that was clicked
+            const button = document.querySelector(`button[data-chapter-time="${chapterTime}"]`);
+            if (!button) {
+                console.error('Button not found for chapter time:', chapterTime);
+                return;
+            }
+            
+            // Get data from button attributes
+            const chapterTitle = button.getAttribute('data-chapter-title');
+            const summaryText = button.getAttribute('data-summary-text');
+            
+            console.log('Found button data:', { chapterTitle, summaryTextPreview: summaryText.substring(0, 50) + '...' });
+            
+            // Call the modal function
+            showChapterSummaryModal(chapterTitle, summaryText);
+        }
+        
+
         
         function regenerateSummary(videoId) {
             const btn = document.getElementById('regenerateSummaryBtn');
