@@ -3,7 +3,9 @@
 {% block title %}{% if video_title %}{{ video_title }}{% else %}{{ video_id }}{% endif %} - YouTube Deep Summary{% endblock %}
 
 {% block content %}
-    <div class="video-info">
+    <div class="video-info" style="position: relative;">
+        <!-- Delete Icon -->
+        <button onclick="deleteVideo('{{ video_id }}', '{{ video_title|e }}')" style="position: absolute; top: 10px; right: 10px; background: white; color: #333; border: 1px solid #ddd; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" title="Delete Video">🗑️</button>
         <div style="display: flex; align-items: flex-start; gap: 20px; margin-bottom: 20px;">
             <div style="flex-shrink: 0;">
                 <img src="{{ thumbnail_url }}" 
@@ -28,9 +30,8 @@
                 {% else %}
                     <h2>📺 Video ID: {{ video_id }}</h2>
                 {% endif %}
-                <p><strong>YouTube URL:</strong> <a href="https://www.youtube.com/watch?v={{ video_id }}" target="_blank">https://www.youtube.com/watch?v={{ video_id }}</a></p>
                 <p style="margin-top: 10px;">
-                    <a href="https://www.youtube.com/watch?v={{ video_id }}" target="_blank" style="background: #ff0000; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; display: inline-block; margin-right: 10px;">▶️ Watch on YouTube</a>
+                    <a href="https://www.youtube.com/watch?v={{ video_id }}" target="_blank" style="color: #ff0000; text-decoration: none; margin-right: 10px;">▶️ Watch on YouTube</a>
                     {% if not has_transcript %}
                         <button id="extractTranscriptBtn" onclick="extractTranscript('{{ video_id }}')" style="background: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; display: inline-block; margin-right: 10px;">📝 Extract Transcript</button>
                     {% endif %}
@@ -40,7 +41,6 @@
                     {% if summarize_enabled and has_transcript %}
                         <button id="generateSummaryBtn" onclick="generateSummary('{{ video_id }}')" style="background: #2196f3; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; display: inline-block; margin-right: 10px;">🤖 {% if summary %}Regenerate AI Summary{% else %}Generate AI Summary{% endif %}</button>
                     {% endif %}
-                    <button onclick="deleteVideo('{{ video_id }}', '{{ video_title|e }}')" style="background: #d32f2f; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; display: inline-block;">🗑️ Delete Video</button>
                 </p>
             </div>
         </div>
