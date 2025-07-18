@@ -129,6 +129,9 @@ def video_by_url_path(channel_handle, url_path):
         # Add thumbnail URL
         thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
         
+        # Get published_at from the video data
+        published_at = video.get('published_at')
+        
         return render_template('video.html', 
                              video_id=video_id,
                              video_title=video_title,
@@ -143,6 +146,7 @@ def video_by_url_path(channel_handle, url_path):
                              thumbnail_url=thumbnail_url,
                              has_transcript=has_transcript,
                              has_chapters=has_chapters,
+                             published_at=published_at,
                              summarize_enabled=video_processor.summarizer and video_processor.summarizer.is_configured())
         
     except Exception as e:

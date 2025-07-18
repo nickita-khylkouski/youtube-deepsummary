@@ -23,6 +23,7 @@
                             <strong><a href="/channels" style="color: #0066cc; text-decoration: none;">Unknown Channel</a></strong>
                         {% endif %}
                         {% if video_duration %} • {{ "%.0f"|format(video_duration // 60) }}:{{ "%02.0f"|format(video_duration % 60) }} minutes{% endif %}
+                        {% if published_at %} • Published {{ published_at.strftime('%B %d, %Y') if published_at.strftime else published_at[:10] }}{% endif %}
                     </p>
                 {% else %}
                     <h2>📺 Video ID: {{ video_id }}</h2>
