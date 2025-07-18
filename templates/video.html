@@ -16,11 +16,11 @@
                     <h2>{{ video_title }}</h2>
                     <p style="color: #666; margin: 5px 0;">
                         {% if channel_info and channel_info.handle and channel_info.handle.strip() %}
-                            <strong><a href="/@{{ channel_info.handle }}" style="color: #0066cc; text-decoration: none;">{{ channel_info.channel_name or 'Unknown Channel' }}</a></strong>
+                            <strong>{{ channel_info.channel_name or 'Unknown Channel' }}</strong>
                         {% elif channel_info and channel_info.channel_name %}
-                            <strong><a href="/channels" style="color: #0066cc; text-decoration: none;">{{ channel_info.channel_name }}</a></strong>
+                            <strong>{{ channel_info.channel_name }}</strong>
                         {% else %}
-                            <strong><a href="/channels" style="color: #0066cc; text-decoration: none;">Unknown Channel</a></strong>
+                            <strong>Unknown Channel</strong>
                         {% endif %}
                         {% if video_duration %} • {{ "%.0f"|format(video_duration // 60) }}:{{ "%02.0f"|format(video_duration % 60) }} minutes{% endif %}
                         {% if published_at %} • Published {{ published_at.strftime('%B %d, %Y') if published_at.strftime else published_at[:10] }}{% endif %}
@@ -30,7 +30,6 @@
                 {% endif %}
                 <p><strong>YouTube URL:</strong> <a href="https://www.youtube.com/watch?v={{ video_id }}" target="_blank">https://www.youtube.com/watch?v={{ video_id }}</a></p>
                 <p style="margin-top: 10px;">
-                    <a href="https://www.youtube.com/watch?v={{ video_id }}" target="_blank" style="background: #ff0000; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; display: inline-block; margin-right: 10px;">▶️ Watch on YouTube</a>
                     {% if not has_transcript %}
                         <button id="extractTranscriptBtn" onclick="extractTranscript('{{ video_id }}')" style="background: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; display: inline-block; margin-right: 10px;">📝 Extract Transcript</button>
                     {% endif %}
@@ -52,23 +51,7 @@
     </div>
     -->
     
-    <details class="search-form-collapsed" style="margin-bottom: 20px;">
-        <summary style="background: #f8f9fa; padding: 10px 15px; border-radius: 5px; cursor: pointer; border: 1px solid #ddd; outline: none;">
-            🔍 Search Another Video
-        </summary>
-        <div class="search-form" style="margin-top: 10px; border-top: 1px solid #ddd; padding-top: 15px;">
-            <form action="/watch" method="get">
-                <input type="text" name="v" placeholder="Enter another video ID or URL" value="{{ video_id }}">
-                <button type="submit">Get Transcript</button>
-                {% if summarize_enabled %}
-                    <label style="margin-left: 10px;">
-                        <input type="checkbox" name="summarize" value="true" {% if summary or summary_error %}checked{% endif %}>
-                        Generate AI Summary
-                    </label>
-                {% endif %}
-            </form>
-        </div>
-    </details>
+
     
     <!-- Generate AI Summary button moved to video info section -->
     
@@ -135,7 +118,7 @@
             <h3>📚 Video Chapters ({{ chapters|length }} chapters):</h3>
             <ul style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0;">
                 {% for chapter in chapters %}
-                    <li><strong>{{ chapter.title }}</strong> - <a href="#chapter-{{ chapter.time|int }}" onclick="scrollToChapter({{ chapter.time|int }})" style="color: #0066cc; text-decoration: underline; cursor: pointer;">{{ "%.0f"|format(chapter.time // 60) }}:{{ "%02.0f"|format(chapter.time % 60) }}</a> <span style="color: #666; font-size: 0.9em;">(<a href="https://www.youtube.com/watch?v={{ video_id }}&t={{ chapter.time|int }}s" target="_blank" style="color: #999; text-decoration: none;" title="Watch on YouTube">▶️</a>)</span></li>
+                    <li><strong>{{ chapter.title }}</strong> - {{ "%.0f"|format(chapter.time // 60) }}:{{ "%02.0f"|format(chapter.time % 60) }}</li>
                 {% endfor %}
             </ul>
         </div>
