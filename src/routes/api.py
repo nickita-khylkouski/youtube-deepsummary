@@ -503,6 +503,7 @@ def chat_with_channel(channel_handle):
         
         user_message = data.get('message', '').strip()
         selected_model = data.get('model', 'gpt-4.1-mini')
+        conversation_id = data.get('conversation_id')
         
         if not user_message:
             return jsonify({
@@ -581,6 +582,23 @@ Format your responses with proper markdown for readability:
 Always format your response with clear structure and markdown formatting."""
             )
             
+            # Handle conversation persistence
+            if conversation_id:
+                # Update existing conversation
+                database_storage.add_chat_message(conversation_id, 'user', user_message)
+                database_storage.add_chat_message(conversation_id, 'assistant', response)
+                database_storage.update_chat_conversation(conversation_id, selected_model)
+            else:
+                # Create new conversation
+                conversation_title = user_message[:50] + ('...' if len(user_message) > 50 else '')
+                conversation_id = database_storage.create_chat_conversation(
+                    channel_info['channel_id'], 
+                    conversation_title, 
+                    selected_model
+                )
+                database_storage.add_chat_message(conversation_id, 'user', user_message)
+                database_storage.add_chat_message(conversation_id, 'assistant', response)
+            
             return jsonify({
                 'success': True,
                 'response': response,
@@ -588,7 +606,8 @@ Always format your response with clear structure and markdown formatting."""
                 'channel_name': channel_info['channel_name'],
                 'summaries_count': len(summaries_context),
                 'total_videos': len(channel_videos),
-                'tokens_estimate': total_tokens_estimate
+                'tokens_estimate': total_tokens_estimate,
+                'conversation_id': conversation_id
             })
             
         except Exception as e:
@@ -649,3 +668,261 @@ User question: {user_message}"""
             'success': False,
             'error': str(e)
         }), 500
+
+@api_bp.route('/@<channel_handle>/chat-history', methods=['GET'])
+def get_chat_history(channel_handle):
+    """Get chat history for a channel."""
+    try:
+        from src.database_storage import DatabaseStorage
+        storage = DatabaseStorage()
+        
+        # Get channel info
+        channel_info = storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return jsonify({'error': 'Channel not found'}), 404
+        
+        # Get conversations
+        conversations = storage.get_chat_conversations(channel_info['channel_id'])
+        
+        return jsonify({
+            'success': True,
+            'conversations': conversations
+        })
+        
+    except Exception as e:
+        print(f"Error getting chat history: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/@<channel_handle>/chat-history/<conversation_id>', methods=['GET'])
+def get_chat_conversation(channel_handle, conversation_id):
+    """Get specific conversation with messages."""
+    try:
+        from src.database_storage import DatabaseStorage
+        storage = DatabaseStorage()
+        
+        # Get channel info
+        channel_info = storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return jsonify({'error': 'Channel not found'}), 404
+        
+        # Get conversation
+        conversation = storage.get_chat_conversation(conversation_id, channel_info['channel_id'])
+        if not conversation:
+            return jsonify({'error': 'Conversation not found'}), 404
+        
+        # Get messages
+        messages = storage.get_chat_messages(conversation_id)
+        
+        return jsonify({
+            'success': True,
+            'conversation': conversation,
+            'messages': messages
+        })
+        
+    except Exception as e:
+        print(f"Error getting conversation: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/@<channel_handle>/chat-history/<conversation_id>', methods=['DELETE'])
+def delete_chat_conversation(channel_handle, conversation_id):
+    """Delete a conversation."""
+    try:
+        from src.database_storage import DatabaseStorage
+        storage = DatabaseStorage()
+        
+        # Get channel info
+        channel_info = storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return jsonify({'error': 'Channel not found'}), 404
+        
+        # Delete conversation
+        success = storage.delete_chat_conversation(conversation_id, channel_info['channel_id'])
+        
+        if success:
+            return jsonify({'success': True})
+        else:
+            return jsonify({'error': 'Conversation not found'}), 404
+        
+    except Exception as e:
+        print(f"Error deleting conversation: {e}")
+        return jsonify({'error': str(e)}), 500
+
+# Global Chat API Routes
+@api_bp.route('/chat/global', methods=['POST'])
+def global_chat():
+    """Handle global chat messages across all channels."""
+    try:
+        from src.database_storage import DatabaseStorage
+        from src.summarizer import summarizer
+        
+        storage = DatabaseStorage()
+        data = request.get_json()
+        
+        if not data or 'message' not in data or 'model' not in data:
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        message = data['message'].strip()
+        model = data['model']
+        conversation_id = data.get('conversation_id')
+        
+        if not message:
+            return jsonify({'error': 'Message cannot be empty'}), 400
+        
+        # Get all summaries for global context
+        all_summaries = storage.get_all_summaries_for_global_chat()
+        
+        if not all_summaries:
+            return jsonify({'error': 'No video summaries available for chat context'}), 400
+        
+        # Create conversation context from all summaries
+        context_parts = []
+        for summary in all_summaries:
+            context_parts.append(
+                f"Channel: {summary['channel_name']} (@{summary['channel_handle']})\n"
+                f"Video: {summary['video_title']}\n"
+                f"Summary: {summary['summary_text']}\n"
+            )
+        
+        full_context = "\n---\n".join(context_parts)
+        
+        # Limit context to avoid token limits (approximately 20,000 tokens)
+        max_context_length = 60000  # roughly 20k tokens
+        if len(full_context) > max_context_length:
+            # Truncate and add note
+            full_context = full_context[:max_context_length] + "\n\n[Context truncated due to length]"
+        
+        # Prepare the prompt
+        system_prompt = f"""You are an AI assistant helping analyze YouTube video content. You have access to summaries from multiple YouTube channels and videos. Answer questions based on this content.
+
+Context from video summaries:
+{full_context}
+
+Instructions:
+- Answer questions based on the provided video summaries
+- If asked about specific channels, focus on content from those channels
+- Provide insights, analysis, and connections between different videos/channels
+- Be helpful and informative
+- If you cannot answer based on the available content, say so
+- Reference specific videos or channels when relevant
+"""
+        
+        # Create or get conversation
+        if not conversation_id:
+            # For global chat, we need an original channel - use the first available channel
+            if all_summaries:
+                # Extract channel_id from the first summary (we need to get it from the database)
+                first_channel_handle = all_summaries[0]['channel_handle']
+                channel_info = storage.get_channel_by_handle(first_channel_handle)
+                original_channel_id = channel_info['channel_id'] if channel_info else None
+                
+                if original_channel_id:
+                    conversation_id = storage.create_global_chat_conversation(
+                        original_channel_id=original_channel_id,
+                        title=message[:50] + '...' if len(message) > 50 else message,
+                        model_used=model,
+                        chat_type='global'
+                    )
+        
+        if not conversation_id:
+            return jsonify({'error': 'Failed to create conversation'}), 500
+        
+        # Add user message to database
+        storage.add_chat_message(conversation_id, 'user', message)
+        
+        # Get AI response
+        try:
+            response_text = summarizer.chat_with_context(
+                message=message,
+                context=system_prompt,
+                model=model
+            )
+            
+            if not response_text:
+                response_text = "I apologize, but I couldn't generate a response at the moment. Please try again."
+            
+        except Exception as e:
+            print(f"Error getting AI response: {e}")
+            response_text = "I encountered an error while processing your request. Please try again."
+        
+        # Add assistant response to database
+        storage.add_chat_message(conversation_id, 'assistant', response_text)
+        
+        # Update conversation timestamp
+        storage.update_chat_conversation(conversation_id, model)
+        
+        return jsonify({
+            'success': True,
+            'response': response_text,
+            'conversation_id': conversation_id
+        })
+        
+    except Exception as e:
+        print(f"Error in global chat: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'An error occurred while processing your request'
+        }), 500
+
+@api_bp.route('/chat/global/history', methods=['GET'])
+def get_global_chat_history():
+    """Get global chat history across all channels."""
+    try:
+        from src.database_storage import DatabaseStorage
+        storage = DatabaseStorage()
+        
+        # Get all conversations with channel info
+        conversations = storage.get_global_chat_conversations()
+        
+        return jsonify({
+            'success': True,
+            'conversations': conversations
+        })
+        
+    except Exception as e:
+        print(f"Error getting global chat history: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/chat/global/history/<conversation_id>', methods=['GET'])
+def get_global_chat_conversation(conversation_id):
+    """Get specific global conversation with messages."""
+    try:
+        from src.database_storage import DatabaseStorage
+        storage = DatabaseStorage()
+        
+        # Get conversation with channel info
+        conversation = storage.get_global_chat_conversation(conversation_id)
+        if not conversation:
+            return jsonify({'error': 'Conversation not found'}), 404
+        
+        # Get messages
+        messages = storage.get_chat_messages(conversation_id)
+        
+        return jsonify({
+            'success': True,
+            'conversation': conversation,
+            'messages': messages
+        })
+        
+    except Exception as e:
+        print(f"Error getting global conversation: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/chat/global/history/<conversation_id>', methods=['DELETE'])
+def delete_global_chat_conversation(conversation_id):
+    """Delete a global conversation."""
+    try:
+        from src.database_storage import DatabaseStorage
+        storage = DatabaseStorage()
+        
+        # Delete conversation
+        success = storage.delete_global_chat_conversation(conversation_id)
+        
+        if success:
+            return jsonify({'success': True})
+        else:
+            return jsonify({'error': 'Conversation not found'}), 404
+        
+    except Exception as e:
+        print(f"Error deleting global conversation: {e}")
+        return jsonify({'error': str(e)}), 500
+

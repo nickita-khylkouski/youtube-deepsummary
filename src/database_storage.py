@@ -1739,5 +1739,261 @@ class DatabaseStorage:
             return False
 
 
+    # Chat History Methods
+    def create_chat_conversation(self, channel_id: str, title: str, model_used: str) -> str:
+        """Create a new chat conversation"""
+        try:
+            response = self.supabase.table('chat_conversations').insert({
+                'channel_id': channel_id,
+                'title': title,
+                'model_used': model_used
+            }).execute()
+            
+            if response.data:
+                return response.data[0]['id']
+            return None
+            
+        except Exception as e:
+            print(f"Error creating chat conversation: {e}")
+            return None
+
+    def get_chat_conversations(self, channel_id: str) -> List[Dict]:
+        """Get all chat conversations for a channel"""
+        try:
+            response = self.supabase.table('chat_conversations').select('*').eq('channel_id', channel_id).order('updated_at', desc=True).execute()
+            return response.data
+            
+        except Exception as e:
+            print(f"Error getting chat conversations: {e}")
+            return []
+
+    def get_chat_conversation(self, conversation_id: str, channel_id: str) -> Dict:
+        """Get a specific chat conversation"""
+        try:
+            response = self.supabase.table('chat_conversations').select('*').eq('id', conversation_id).eq('channel_id', channel_id).execute()
+            return response.data[0] if response.data else None
+            
+        except Exception as e:
+            print(f"Error getting chat conversation: {e}")
+            return None
+
+    def update_chat_conversation(self, conversation_id: str, model_used: str) -> bool:
+        """Update chat conversation model and timestamp"""
+        try:
+            response = self.supabase.table('chat_conversations').update({
+                'model_used': model_used,
+                'updated_at': datetime.now(timezone.utc).isoformat()
+            }).eq('id', conversation_id).execute()
+            
+            return bool(response.data)
+            
+        except Exception as e:
+            print(f"Error updating chat conversation: {e}")
+            return False
+
+    def delete_chat_conversation(self, conversation_id: str, channel_id: str) -> bool:
+        """Delete a chat conversation and all its messages"""
+        try:
+            # Delete messages first (cascade should handle this, but being explicit)
+            self.supabase.table('chat_messages').delete().eq('conversation_id', conversation_id).execute()
+            
+            # Delete conversation
+            response = self.supabase.table('chat_conversations').delete().eq('id', conversation_id).eq('channel_id', channel_id).execute()
+            
+            return bool(response.data)
+            
+        except Exception as e:
+            print(f"Error deleting chat conversation: {e}")
+            return False
+
+    def add_chat_message(self, conversation_id: str, role: str, content: str) -> bool:
+        """Add a message to a chat conversation"""
+        try:
+            response = self.supabase.table('chat_messages').insert({
+                'conversation_id': conversation_id,
+                'role': role,
+                'content': content
+            }).execute()
+            
+            return bool(response.data)
+            
+        except Exception as e:
+            print(f"Error adding chat message: {e}")
+            return False
+
+    def get_chat_messages(self, conversation_id: str) -> List[Dict]:
+        """Get all messages for a conversation"""
+        try:
+            response = self.supabase.table('chat_messages').select('*').eq('conversation_id', conversation_id).order('created_at', desc=False).execute()
+            return response.data
+            
+        except Exception as e:
+            print(f"Error getting chat messages: {e}")
+            return []
+
+    def get_chat_statistics(self) -> Dict:
+        """Get chat statistics"""
+        try:
+            # Get total conversations
+            conv_response = self.supabase.table('chat_conversations').select('id', count='exact').execute()
+            total_conversations = conv_response.count if conv_response.count else 0
+            
+            # Get total messages
+            msg_response = self.supabase.table('chat_messages').select('id', count='exact').execute()
+            total_messages = msg_response.count if msg_response.count else 0
+            
+            return {
+                'total_conversations': total_conversations,
+                'total_messages': total_messages
+            }
+            
+        except Exception as e:
+            print(f"Error getting chat statistics: {e}")
+            return {'total_conversations': 0, 'total_messages': 0}
+
+    # Global Chat History Methods
+    def create_global_chat_conversation(self, original_channel_id: str, title: str, model_used: str, chat_type: str = 'global') -> str:
+        """Create a new global chat conversation"""
+        try:
+            response = self.supabase.table('chat_conversations').insert({
+                'channel_id': None,  # NULL for global chats
+                'original_channel_id': original_channel_id,
+                'title': title,
+                'model_used': model_used,
+                'chat_type': chat_type
+            }).execute()
+            
+            if response.data:
+                return response.data[0]['id']
+            return None
+            
+        except Exception as e:
+            print(f"Error creating global chat conversation: {e}")
+            return None
+
+    def get_global_chat_conversations(self) -> List[Dict]:
+        """Get all chat conversations across all channels with channel info"""
+        try:
+            # Simple approach: get all conversations first, then add channel info
+            response = self.supabase.table('chat_conversations').select('*').order('updated_at', desc=True).execute()
+            
+            conversations = []
+            if response.data:
+                for conv in response.data:
+                    # Get channel info for original_channel_id
+                    original_channel_id = conv.get('original_channel_id')
+                    if not original_channel_id:
+                        # For backward compatibility, use channel_id if original_channel_id is not set
+                        original_channel_id = conv.get('channel_id')
+                    
+                    channel_info = None
+                    if original_channel_id:
+                        try:
+                            channel_response = self.supabase.table('youtube_channels').select('channel_name, handle, thumbnail_url').eq('channel_id', original_channel_id).execute()
+                            if channel_response.data:
+                                channel_info = channel_response.data[0]
+                        except Exception:
+                            pass
+                    
+                    # Add channel info to conversation
+                    conversation_with_channel = {
+                        **conv,
+                        'channel_name': channel_info.get('channel_name') if channel_info else 'Unknown Channel',
+                        'handle': channel_info.get('handle') if channel_info else '',
+                        'thumbnail_url': channel_info.get('thumbnail_url') if channel_info else ''
+                    }
+                    conversations.append(conversation_with_channel)
+            
+            return conversations
+            
+        except Exception as e:
+            print(f"Error getting global chat conversations: {e}")
+            return []
+
+    def get_global_chat_conversation(self, conversation_id: str) -> Dict:
+        """Get a specific global chat conversation with channel info"""
+        try:
+            response = self.supabase.table('chat_conversations').select('*').eq('id', conversation_id).execute()
+            
+            if response.data:
+                conv = response.data[0]
+                
+                # Get channel info for original_channel_id
+                original_channel_id = conv.get('original_channel_id')
+                if not original_channel_id:
+                    # For backward compatibility, use channel_id if original_channel_id is not set
+                    original_channel_id = conv.get('channel_id')
+                
+                channel_info = None
+                if original_channel_id:
+                    try:
+                        channel_response = self.supabase.table('youtube_channels').select('channel_name, handle, thumbnail_url').eq('channel_id', original_channel_id).execute()
+                        if channel_response.data:
+                            channel_info = channel_response.data[0]
+                    except Exception:
+                        pass
+                
+                return {
+                    **conv,
+                    'channel_name': channel_info.get('channel_name') if channel_info else 'Unknown Channel',
+                    'handle': channel_info.get('handle') if channel_info else '',
+                    'thumbnail_url': channel_info.get('thumbnail_url') if channel_info else ''
+                }
+            return None
+            
+        except Exception as e:
+            print(f"Error getting global chat conversation: {e}")
+            return None
+
+    def delete_global_chat_conversation(self, conversation_id: str) -> bool:
+        """Delete a global chat conversation and all its messages"""
+        try:
+            # Delete messages first (cascade should handle this, but being explicit)
+            self.supabase.table('chat_messages').delete().eq('conversation_id', conversation_id).execute()
+            
+            # Delete conversation
+            response = self.supabase.table('chat_conversations').delete().eq('id', conversation_id).execute()
+            
+            return bool(response.data)
+            
+        except Exception as e:
+            print(f"Error deleting global chat conversation: {e}")
+            return False
+
+    def get_all_summaries_for_global_chat(self) -> List[Dict]:
+        """Get all AI summaries from all channels for global chat context"""
+        try:
+            response = self.supabase.table('summaries').select(
+                'summary_text, youtube_videos!inner(title, uploader, youtube_channels!inner(channel_name, handle))'
+            ).execute()
+            
+            summaries = []
+            for item in response.data:
+                video_info = item.get('youtube_videos', {})
+                channel_info = video_info.get('youtube_channels', {})
+                
+                summaries.append({
+                    'summary_text': item['summary_text'],
+                    'video_title': video_info.get('title', 'Unknown Video'),
+                    'uploader': video_info.get('uploader', 'Unknown'),
+                    'channel_name': channel_info.get('channel_name', 'Unknown Channel'),
+                    'channel_handle': channel_info.get('handle', '')
+                })
+            
+            return summaries
+            
+        except Exception as e:
+            print(f"Error getting all summaries for global chat: {e}")
+            return []
+
+    def get_summaries_count(self) -> int:
+        """Get total count of all summaries across all channels"""
+        try:
+            response = self.supabase.table('summaries').select('video_id', count='exact').execute()
+            return response.count if response.count else 0
+        except Exception as e:
+            print(f"Error getting summaries count: {e}")
+            return 0
+
 # Global database storage instance
 database_storage = DatabaseStorage()

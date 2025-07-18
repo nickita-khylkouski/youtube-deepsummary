@@ -202,3 +202,56 @@ def export_summaries(channel_handle):
         return jsonify({'error': str(e)}), 404
     except Exception as e:
         return jsonify({'error': f'Export failed: {str(e)}'}), 500
+
+
+@channels_bp.route('/@<channel_handle>/chat', strict_slashes=False)
+def channel_chat(channel_handle):
+    """Display dedicated chat page for a specific channel"""
+    try:
+        # Get channel info by handle
+        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return render_template('error.html', 
+                                 error_message=f"Channel not found: {channel_handle}"), 404
+        
+        # Get summary count for this channel
+        channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
+        
+        summary_count = 0
+        for video in channel_videos:
+            summary = database_storage.get_summary(video['video_id'])
+            if summary:
+                summary_count += 1
+        
+        # Only allow chat if there are summaries available
+        if summary_count == 0:
+            return render_template('error.html', 
+                                 error_message=f"No AI summaries available for {channel_info['channel_name']}. Chat requires at least one video summary."), 404
+        
+        return render_template('chat.html', 
+                             current_channel=channel_info,
+                             summary_count=summary_count)
+        
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading chat page: {str(e)}"), 500
+
+
+@channels_bp.route('/chat')
+def global_chat():
+    """Display global chat page across all channels"""
+    try:
+        # Get total number of summaries across all channels
+        total_summaries = database_storage.get_summaries_count()
+        
+        if total_summaries == 0:
+            return render_template('error.html', 
+                                 error_message="No AI summaries available. Global chat requires at least one video summary."), 404
+        
+        return render_template('chat.html', 
+                             current_channel=None,
+                             summary_count=total_summaries)
+        
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading global chat page: {str(e)}"), 500
