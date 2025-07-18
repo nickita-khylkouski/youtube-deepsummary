@@ -701,6 +701,7 @@ class DatabaseStorage:
                     'file_size': 0,  # Not applicable for database
                     'has_summary': has_summary,
                     'created_at': video['created_at'],
+                    'published_at': video.get('published_at'),
                     'url_path': video.get('url_path')
                 })
 
@@ -833,6 +834,7 @@ class DatabaseStorage:
                         'file_size': 0,
                         'has_summary': has_summary,
                         'created_at': video['created_at'],
+                        'published_at': video.get('published_at'),
                         'url_path': video.get('url_path')
                     })
                 

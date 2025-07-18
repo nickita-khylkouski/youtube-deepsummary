@@ -92,6 +92,9 @@
                                                 {% if video.duration %}
                                                     ⏱️ {{ "%.0f"|format(video.duration // 60) }}:{{ "%02.0f"|format(video.duration % 60) }} • 
                                                 {% endif %}
+                                                {% if video.published_at %}
+                                                    📅 {{ video.published_at.strftime('%b %d, %Y') if video.published_at.strftime else video.published_at[:10] }} • 
+                                                {% endif %}
                                                 📝 {{ video.transcript_entries }} entries
                                                 {% if video.chapters_count > 0 %}
                                                     • 📚 {{ video.chapters_count }} chapters
@@ -157,6 +160,9 @@
                                     <div style="color: #888; font-size: 12px;">
                                         {% if video.duration %}
                                             ⏱️ {{ "%.0f"|format(video.duration // 60) }}:{{ "%02.0f"|format(video.duration % 60) }} • 
+                                        {% endif %}
+                                        {% if video.published_at %}
+                                            📅 {{ video.published_at.strftime('%b %d, %Y') if video.published_at.strftime else video.published_at[:10] }} • 
                                         {% endif %}
                                         📝 {{ video.transcript_entries }} entries
                                         {% if video.chapters_count > 0 %}

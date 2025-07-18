@@ -44,8 +44,8 @@
                         </div>
                         <p class="video-details">
                             <span class="duration">{{ summary.duration }}</span>
-                            {% if summary.created_at %}
-                                <span class="date">• {{ summary.created_at[:10] }}</span>
+                            {% if summary.published_at %}
+                                <span class="date">• {{ summary.published_at[:10] }}</span>
                             {% endif %}
                         </p>
                         <div style="margin-top: 12px;">

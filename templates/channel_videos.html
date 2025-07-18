@@ -42,6 +42,9 @@
                                 {% if video.duration %}
                                     ⏱️ {{ "%.0f"|format(video.duration // 60) }}:{{ "%02.0f"|format(video.duration % 60) }} • 
                                 {% endif %}
+                                {% if video.published_at %}
+                                    📅 {{ video.published_at[:10] }} • 
+                                {% endif %}
                                 📝 {{ video.transcript_entries or 'N/A' }} entries
                                 {% if video.chapters_count and video.chapters_count > 0 %}
                                     • 📚 {{ video.chapters_count }} chapters
