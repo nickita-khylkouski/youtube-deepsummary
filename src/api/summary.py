@@ -65,7 +65,43 @@ def summary_from_data():
                 'error': 'video_id and formatted_transcript are required'
             }), 400
         
-        summary, from_cache = video_processor.generate_summary(video_id, formatted_transcript, force_regenerate)
+        # Check if we already have a summary and not forcing regeneration
+        if not force_regenerate:
+            existing_summary = database_storage.get_summary(video_id)
+            if existing_summary:
+                summary_html = format_summary_html(existing_summary)
+                return jsonify({
+                    'success': True,
+                    'video_id': video_id,
+                    'summary': summary_html,
+                    'from_cache': True
+                })
+        
+        # Get default prompt from database
+        default_prompt_data = database_storage.get_default_prompt()
+        custom_prompt = default_prompt_data['prompt_text'] if default_prompt_data else None
+        
+        # Get video info and chapters from database to include in summary
+        cached_data = database_storage.get(video_id)
+        chapters = None
+        video_info = None
+        if cached_data and cached_data.get('video_info'):
+            video_info = cached_data['video_info']
+            chapters = video_info.get('chapters')
+        
+        # Generate new summary using the default prompt from database
+        summary = video_processor.summarizer.summarize_with_preferred_provider(
+            formatted_transcript, 
+            chapters=chapters, 
+            video_id=video_id, 
+            video_info=video_info,
+            custom_prompt=custom_prompt
+        )
+        
+        # Save the summary to database with default prompt information
+        prompt_id = default_prompt_data['id'] if default_prompt_data else None
+        prompt_name = default_prompt_data['name'] if default_prompt_data else None
+        database_storage.save_summary(video_id, summary, video_processor.summarizer.model, prompt_id, prompt_name)
         
         # Format the summary as HTML for frontend display
         summary_html = format_summary_html(summary)
@@ -74,7 +110,7 @@ def summary_from_data():
             'success': True,
             'video_id': video_id,
             'summary': summary_html,
-            'from_cache': from_cache
+            'from_cache': False
         })
     except Exception as e:
         return jsonify({
