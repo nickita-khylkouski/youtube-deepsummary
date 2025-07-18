@@ -117,9 +117,17 @@
     {% if chapters %}
         <div class="chapters-info">
             <h3>📚 Video Chapters ({{ chapters|length }} chapters):</h3>
-            <ul style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0;">
+            <ul style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0; list-style: none;">
                 {% for chapter in chapters %}
-                    <li><strong>{{ chapter.title }}</strong> - {{ "%.0f"|format(chapter.time // 60) }}:{{ "%02.0f"|format(chapter.time % 60) }}</li>
+                    <li style="margin-bottom: 8px;">
+                        • <strong>{{ chapter.title }}</strong> - 
+                        <a href="javascript:void(0)" onclick="scrollToChapter({{ chapter.time|int }})" style="color: #0066cc; text-decoration: underline; margin-right: 8px;" title="Go to transcript section">{{ "%.0f"|format(chapter.time // 60) }}:{{ "%02.0f"|format(chapter.time % 60) }}</a>
+                        <a href="https://www.youtube.com/watch?v={{ video_id }}&t={{ chapter.time|int }}s" target="_blank" style="text-decoration: none; margin-left: 4px;" title="Watch on YouTube">
+                            <svg width="16" height="16" viewBox="0 0 24 24" style="vertical-align: middle;">
+                                <path fill="#ff0000" d="M23.498 6.186a2.998 2.998 0 00-2.112-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.386.505A2.998 2.998 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a2.998 2.998 0 002.112 2.136c1.881.505 9.386.505 9.386.505s7.505 0 9.386-.505a2.998 2.998 0 002.112-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                            </svg>
+                        </a>
+                    </li>
                 {% endfor %}
             </ul>
         </div>
