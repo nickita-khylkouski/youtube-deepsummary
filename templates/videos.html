@@ -12,9 +12,9 @@
         <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
             <div>
                 {% if is_grouped %}
-                    <a href="/videos" style="background: #007bff; color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; display: inline-block;">📋 Show All Videos</a>
+                    <a href="/videos" style="background: #5BA7F7; color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; display: inline-block; transition: all 0.2s ease;" onmouseover="this.style.background='#4A90E2'" onmouseout="this.style.background='#5BA7F7'">📋 Show All Videos</a>
                 {% else %}
-                    <a href="/videos?group_by=true" style="background: #007bff; color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; display: inline-block;">📁 Group by Channel</a>
+                    <a href="/videos?group_by=true" style="background: #5BA7F7; color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; display: inline-block; transition: all 0.2s ease;" onmouseover="this.style.background='#4A90E2'" onmouseout="this.style.background='#5BA7F7'">📁 Group by Channel</a>
                 {% endif %}
             </div>
             <div style="color: #666; font-size: 14px;">
@@ -90,14 +90,13 @@
                                             </div>
                                             <div style="color: #888; font-size: 12px;">
                                                 {% if video.duration %}
-                                                    ⏱️ {{ "%.0f"|format(video.duration // 60) }}:{{ "%02.0f"|format(video.duration % 60) }} • 
+                                                    ⏱️ {{ "%.0f"|format(video.duration // 60) }}:{{ "%02.0f"|format(video.duration % 60) }}
                                                 {% endif %}
                                                 {% if video.published_at %}
-                                                    📅 {{ video.published_at.strftime('%b %d, %Y') if video.published_at.strftime else video.published_at[:10] }} • 
+                                                    {% if video.duration %} • {% endif %}📅 {{ video.published_at.strftime('%b %d, %Y') if video.published_at.strftime else video.published_at[:10] }}
                                                 {% endif %}
-                                                📝 {{ video.transcript_entries }} entries
                                                 {% if video.chapters_count > 0 %}
-                                                    • 📚 {{ video.chapters_count }} chapters
+                                                    {% if video.duration or video.published_at %} • {% endif %}📚 {{ video.chapters_count }} chapters
                                                 {% endif %}
                                             </div>
                                         </div>
@@ -105,14 +104,14 @@
                                     
                                     <!-- Cache Info -->
                                     <div style="background: #f8f9fa; padding: 12px 15px; border-top: 1px solid #eee;">
-                                        <div style="display: flex; justify-content: flex-end; align-items: center;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
                                             <div style="display: flex; gap: 8px;">
                                                 {% if video.is_valid %}
-                                                    <a href="{% if video.url_path and video.handle %}/{{ video.handle }}/{{ video.url_path }}{% else %}/watch?v={{ video.video_id }}{% endif %}" style="background: #007bff; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">View</a>
+                                                    <a href="{% if video.url_path and video.handle %}/{{ video.handle }}/{{ video.url_path }}{% else %}/watch?v={{ video.video_id }}{% endif %}" style="background: #5BA7F7; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px; transition: all 0.2s ease;" onmouseover="this.style.background='#4A90E2'" onmouseout="this.style.background='#5BA7F7'">View</a>
                                                 {% endif %}
                                                 <a href="https://www.youtube.com/watch?v={{ video.video_id }}" target="_blank" style="background: #ff0000; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">YouTube</a>
-                                                <button onclick="deleteVideo('{{ video.video_id }}', '{{ video.title|e }}')" style="background: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 3px; font-size: 11px; cursor: pointer;">🗑️ Delete</button>
                                             </div>
+                                            <button onclick="deleteVideo('{{ video.video_id }}', '{{ video.title|e }}', true)" style="background: white; color: #333; border: 1px solid #ddd; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" title="Delete Video">🗑️</button>
                                         </div>
                                         
                                         {% if video.error %}
@@ -159,14 +158,13 @@
                                     </div>
                                     <div style="color: #888; font-size: 12px;">
                                         {% if video.duration %}
-                                            ⏱️ {{ "%.0f"|format(video.duration // 60) }}:{{ "%02.0f"|format(video.duration % 60) }} • 
+                                            ⏱️ {{ "%.0f"|format(video.duration // 60) }}:{{ "%02.0f"|format(video.duration % 60) }}
                                         {% endif %}
                                         {% if video.published_at %}
-                                            📅 {{ video.published_at.strftime('%b %d, %Y') if video.published_at.strftime else video.published_at[:10] }} • 
+                                            {% if video.duration %} • {% endif %}📅 {{ video.published_at.strftime('%b %d, %Y') if video.published_at.strftime else video.published_at[:10] }}
                                         {% endif %}
-                                        📝 {{ video.transcript_entries }} entries
                                         {% if video.chapters_count > 0 %}
-                                            • 📚 {{ video.chapters_count }} chapters
+                                            {% if video.duration or video.published_at %} • {% endif %}📚 {{ video.chapters_count }} chapters
                                         {% endif %}
                                     </div>
                                 </div>
@@ -174,14 +172,14 @@
                             
                             <!-- Cache Info -->
                             <div style="background: #f8f9fa; padding: 12px 15px; border-top: 1px solid #eee;">
-                                <div style="display: flex; justify-content: flex-end; align-items: center;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
                                     <div style="display: flex; gap: 8px;">
                                         {% if video.is_valid %}
-                                            <a href="{% if video.url_path and video.handle %}/{{ video.handle }}/{{ video.url_path }}{% else %}/watch?v={{ video.video_id }}{% endif %}" style="background: #007bff; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">View</a>
+                                            <a href="{% if video.url_path and video.handle %}/{{ video.handle }}/{{ video.url_path }}{% else %}/watch?v={{ video.video_id }}{% endif %}" style="background: #5BA7F7; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px; transition: all 0.2s ease;" onmouseover="this.style.background='#4A90E2'" onmouseout="this.style.background='#5BA7F7'">View</a>
                                         {% endif %}
                                         <a href="https://www.youtube.com/watch?v={{ video.video_id }}" target="_blank" style="background: #ff0000; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">YouTube</a>
-                                        <button onclick="deleteVideo('{{ video.video_id }}', '{{ video.title|e }}')" style="background: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 3px; font-size: 11px; cursor: pointer;">🗑️ Delete</button>
                                     </div>
+                                    <button onclick="deleteVideo('{{ video.video_id }}', '{{ video.title|e }}')" style="background: white; color: #333; border: 1px solid #ddd; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" title="Delete Video">🗑️</button>
                                 </div>
                                 
                                 {% if video.error %}
