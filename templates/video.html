@@ -26,20 +26,20 @@
                         {% endif %}
                         {% if video_duration %} • {{ "%.0f"|format(video_duration // 60) }}:{{ "%02.0f"|format(video_duration % 60) }} minutes{% endif %}
                         {% if published_at %} • Published {{ published_at.strftime('%B %d, %Y') if published_at.strftime else published_at[:10] }}{% endif %}
+                        • <a href="https://www.youtube.com/watch?v={{ video_id }}" target="_blank" style="color: #ff0000; text-decoration: none;">YouTube</a>
                     </p>
                 {% else %}
                     <h2>📺 Video ID: {{ video_id }}</h2>
                 {% endif %}
                 <p style="margin-top: 10px;">
-                    <a href="https://www.youtube.com/watch?v={{ video_id }}" target="_blank" style="color: #ff0000; text-decoration: none; margin-right: 10px;">▶️ Watch on YouTube</a>
                     {% if not has_transcript %}
-                        <button id="extractTranscriptBtn" onclick="extractTranscript('{{ video_id }}')" style="background: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; display: inline-block; margin-right: 10px;">📝 Extract Transcript</button>
+                        <button id="extractTranscriptBtn" onclick="extractTranscript('{{ video_id }}')" style="background: transparent; color: #374151; border: 2px solid #e5e7eb; padding: 10px 20px; border-radius: 12px; cursor: pointer; display: inline-block; margin-right: 12px; font-weight: 500; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onmouseover="this.style.borderColor='#9ca3af'; this.style.boxShadow='0 4px 6px rgba(0,0,0,0.1)'" onmouseout="this.style.borderColor='#e5e7eb'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)'">📝 Extract Transcript</button>
                     {% endif %}
                     {% if not has_chapters %}
-                        <button id="extractChaptersBtn" onclick="extractChapters('{{ video_id }}')" style="background: #FF9800; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; display: inline-block; margin-right: 10px;">📚 Extract Chapters</button>
+                        <button id="extractChaptersBtn" onclick="extractChapters('{{ video_id }}')" style="background: transparent; color: #374151; border: 2px solid #e5e7eb; padding: 10px 20px; border-radius: 12px; cursor: pointer; display: inline-block; margin-right: 12px; font-weight: 500; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onmouseover="this.style.borderColor='#9ca3af'; this.style.boxShadow='0 4px 6px rgba(0,0,0,0.1)'" onmouseout="this.style.borderColor='#e5e7eb'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)'">📚 Extract Chapters</button>
                     {% endif %}
                     {% if summarize_enabled and has_transcript %}
-                        <button id="generateSummaryBtn" onclick="generateSummary('{{ video_id }}')" style="background: #2196f3; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; display: inline-block; margin-right: 10px;">🤖 {% if summary %}Regenerate AI Summary{% else %}Generate AI Summary{% endif %}</button>
+                        <button id="generateSummaryBtn" onclick="generateSummary('{{ video_id }}')" style="background: #5BA7F7; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; display: inline-block; margin-right: 12px; font-weight: 500; transition: all 0.2s ease; box-shadow: 0 2px 4px rgba(91, 167, 247, 0.3);" onmouseover="this.style.background='#4A90E2'; this.style.boxShadow='0 4px 8px rgba(91, 167, 247, 0.4)'" onmouseout="this.style.background='#5BA7F7'; this.style.boxShadow='0 2px 4px rgba(91, 167, 247, 0.3)'">{% if summary %}🔄 Regenerate AI Summary{% else %}🤖 Generate AI Summary{% endif %}</button>
                     {% endif %}
                 </p>
             </div>
@@ -80,7 +80,7 @@
                             <select id="modelSelect" style="padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; background: white;">
                                 <option value="">Loading models...</option>
                             </select>
-                            <button id="regenerateSummaryBtn" onclick="regenerateSummaryWithModel('{{ video_id }}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
+                            <button id="regenerateSummaryBtn" onclick="regenerateSummaryWithModel('{{ video_id }}')" style="background: #5BA7F7; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; transition: all 0.2s ease;" onmouseover="this.style.background='#4A90E2'" onmouseout="this.style.background='#5BA7F7'">🔄 Regenerate</button>
                         </div>
                     {% endif %}
                 </div>
@@ -127,10 +127,10 @@
     
     {% if has_transcript %}
         <div class="transcript-options" style="margin: 20px 0;">
-            <button onclick="toggleTranscriptView()" id="toggleBtn" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+            <button onclick="toggleTranscriptView()" id="toggleBtn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px 20px; border-radius: 12px; cursor: pointer; margin-right: 12px; font-weight: 500; transition: all 0.2s ease; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 12px rgba(102, 126, 234, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(102, 126, 234, 0.3)'">
                 📖 Switch to Detailed View
             </button>
-            <button onclick="copyTranscriptToClipboard()" id="copyBtn" style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+            <button onclick="copyTranscriptToClipboard()" id="copyBtn" style="background: transparent; color: #374151; border: 2px solid #e5e7eb; padding: 10px 20px; border-radius: 12px; cursor: pointer; font-weight: 500; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onmouseover="this.style.borderColor='#9ca3af'; this.style.boxShadow='0 4px 6px rgba(0,0,0,0.1)'" onmouseout="this.style.borderColor='#e5e7eb'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)'">
                 📋 Copy Transcript
             </button>
         </div>
@@ -352,7 +352,7 @@
                         // Reset button
                         btn.textContent = '🤖 Generate AI Summary';
                         btn.disabled = false;
-                        btn.style.background = '#2196f3';
+                        btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
                     }
                 })
                 .catch(error => {
@@ -1604,7 +1604,8 @@
                         setTimeout(() => {
                             btn.textContent = '📚 Extract Chapters';
                             btn.disabled = false;
-                            btn.style.background = '#FF9800';
+                            btn.style.background = 'transparent';
+                            btn.style.border = '2px solid #e5e7eb';
                         }, 3000);
                     }
                 })
@@ -1663,7 +1664,8 @@
                         setTimeout(() => {
                             btn.textContent = '📝 Extract Transcript';
                             btn.disabled = false;
-                            btn.style.background = '#4CAF50';
+                            btn.style.background = 'transparent';
+                            btn.style.border = '2px solid #e5e7eb';
                             if (statusDiv) {
                                 statusDiv.style.display = 'none';
                             }
