@@ -10,9 +10,9 @@
             
             <!-- Search Form -->
             <div class="hero-form" style="background: rgba(255,255,255,0.95); padding: 25px; border-radius: 15px; max-width: 600px; margin: 0 auto; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
-                <form action="/watch" method="get" onsubmit="if (!this.v.value.trim()) this.v.value = 'FjHtZnjNEBU';" style="display: flex; gap: 15px; align-items: center;">
-                    <input type="text" name="v" placeholder="Paste YouTube URL or video ID..." style="flex: 1; padding: 16px 20px; border: 2px solid #e0e0e0; border-radius: 12px; font-size: 16px; outline: none; transition: all 0.3s; background: #f8f9fa;">
-                    <button type="submit" style="background: linear-gradient(135deg, #ff0000, #cc0000); color: white; border: none; padding: 16px 32px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 15px rgba(255,0,0,0.3); white-space: nowrap; display: flex; align-items: center; gap: 8px;"><img src="/static/rocket-icon.svg" alt="Rocket" style="width: 26px; height: 26px;"> Extract Impact</button>
+                <form action="/watch" method="get" onsubmit="if (!this.v.value.trim()) this.v.value = 'FjHtZnjNEBU';" style="display: flex; flex-direction: column; gap: 15px;">
+                    <input type="text" name="v" placeholder="Paste YouTube URL or video ID..." style="width: 100%; padding: 16px 20px; border: 2px solid #e0e0e0; border-radius: 12px; font-size: 16px; outline: none; transition: all 0.3s; background: #f8f9fa; box-sizing: border-box;">
+                    <button type="submit" style="background: linear-gradient(135deg, #ff0000, #cc0000); color: white; border: none; padding: 16px 32px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 15px rgba(255,0,0,0.3); white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;"><img src="/static/rocket-icon.svg" alt="Rocket" style="width: 26px; height: 26px;"> Extract Impact</button>
                 </form>
             </div>
         </div>
