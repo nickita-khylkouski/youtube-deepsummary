@@ -1,0 +1,13 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="scissorsGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f093fb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f5576c;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <circle cx="6" cy="6" r="3" fill="url(#scissorsGradient)"/>
+  <circle cx="6" cy="18" r="3" fill="url(#scissorsGradient)"/>
+  <path d="M20 4L8.12 15.88" stroke="url(#scissorsGradient)" stroke-width="2" stroke-linecap="round"/>
+  <path d="M14.47 14.48L20 20" stroke="url(#scissorsGradient)" stroke-width="2" stroke-linecap="round"/>
+  <path d="M8.12 8.12L12 12" stroke="url(#scissorsGradient)" stroke-width="2" stroke-linecap="round"/>
+</svg>

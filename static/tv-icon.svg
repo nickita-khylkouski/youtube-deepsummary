@@ -1,0 +1,13 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="tvGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect x="3" y="6" width="18" height="12" rx="2" ry="2" fill="url(#tvGradient)"/>
+  <rect x="5" y="8" width="14" height="8" rx="1" ry="1" fill="#ffffff" fill-opacity="0.2"/>
+  <path d="M8 4L10 6M16 4L14 6" stroke="url(#tvGradient)" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="18" cy="20" r="1" fill="url(#tvGradient)"/>
+  <circle cx="6" cy="20" r="1" fill="url(#tvGradient)"/>
+</svg>
