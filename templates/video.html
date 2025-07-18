@@ -127,7 +127,7 @@
     
     {% if has_transcript %}
         <div class="transcript-options" style="margin: 20px 0;">
-            <button onclick="toggleTranscriptView()" id="toggleBtn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px 20px; border-radius: 12px; cursor: pointer; margin-right: 12px; font-weight: 500; transition: all 0.2s ease; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 12px rgba(102, 126, 234, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(102, 126, 234, 0.3)'">
+            <button onclick="toggleTranscriptView()" id="toggleBtn" style="background: #5BA7F7; color: white; border: none; padding: 10px 20px; border-radius: 12px; cursor: pointer; margin-right: 12px; font-weight: 500; transition: all 0.2s ease; box-shadow: 0 4px 6px rgba(91, 167, 247, 0.3);" onmouseover="this.style.background='#4A90E2'; this.style.boxShadow='0 6px 12px rgba(91, 167, 247, 0.4)'" onmouseout="this.style.background='#5BA7F7'; this.style.boxShadow='0 4px 6px rgba(91, 167, 247, 0.3)'">
                 📖 Switch to Detailed View
             </button>
             <button onclick="copyTranscriptToClipboard()" id="copyBtn" style="background: transparent; color: #374151; border: 2px solid #e5e7eb; padding: 10px 20px; border-radius: 12px; cursor: pointer; font-weight: 500; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onmouseover="this.style.borderColor='#9ca3af'; this.style.boxShadow='0 4px 6px rgba(0,0,0,0.1)'" onmouseout="this.style.borderColor='#e5e7eb'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)'">
@@ -322,7 +322,7 @@
                             <div class="summary-section">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                                     <h3 style="margin: 0;">🤖 AI-Generated Summary:</h3>
-                                    <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
+                                    <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #5BA7F7; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; transition: all 0.2s ease;" onmouseover="this.style.background='#4A90E2'" onmouseout="this.style.background='#5BA7F7'">🔄 Regenerate</button>
                                 </div>
                                 <div class="summary-content">
                                     <div class="markdown-content">${summaryHtml}</div>
@@ -408,7 +408,7 @@
                             <div class="summary-section">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                                     <h3 style="margin: 0;">🤖 AI-Generated Summary:</h3>
-                                    <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
+                                    <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #5BA7F7; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; transition: all 0.2s ease;" onmouseover="this.style.background='#4A90E2'" onmouseout="this.style.background='#5BA7F7'">🔄 Regenerate</button>
                                 </div>
                                 <div class="summary-content">
                                     <div class="markdown-content">${summaryHtml}</div>
@@ -433,7 +433,7 @@
                             <div class="summary-error">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                                     <h3 style="margin: 0;">❌ Summary Error:</h3>
-                                    <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
+                                    <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #5BA7F7; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; transition: all 0.2s ease;" onmouseover="this.style.background='#4A90E2'" onmouseout="this.style.background='#5BA7F7'">🔄 Regenerate</button>
                                 </div>
                                 <p style="color: #d32f2f;">${data.error}</p>
                             </div>
@@ -447,7 +447,7 @@
                         <div class="summary-error">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                                 <h3 style="margin: 0;">❌ Summary Error:</h3>
-                                <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #ff9800; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">🔄 Regenerate</button>
+                                <button id="regenerateSummaryBtn" onclick="regenerateSummary('${videoId}')" style="background: #5BA7F7; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; transition: all 0.2s ease;" onmouseover="this.style.background='#4A90E2'" onmouseout="this.style.background='#5BA7F7'">🔄 Regenerate</button>
                             </div>
                             <p style="color: #d32f2f;">Failed to generate summary: ${error.message}</p>
                         </div>
@@ -603,7 +603,7 @@
                         // Reset the regenerate button state
                         btn.textContent = '🔄 Regenerate';
                         btn.disabled = false;
-                        btn.style.background = '#ff9800';
+                        btn.style.background = '#5BA7F7';
                         
                         // Update the main generate button
                         const mainBtn = document.getElementById('generateSummaryBtn');
@@ -622,7 +622,7 @@
                         alert('Error regenerating summary: ' + data.error);
                         btn.textContent = '🔄 Regenerate';
                         btn.disabled = false;
-                        btn.style.background = '#ff9800';
+                        btn.style.background = '#5BA7F7';
                     }
                 })
                 .catch(error => {
@@ -630,7 +630,7 @@
                     alert('Failed to regenerate summary: ' + error.message);
                     btn.textContent = '🔄 Regenerate';
                     btn.disabled = false;
-                    btn.style.background = '#ff9800';
+                    btn.style.background = '#5BA7F7';
                 });
         }
         
