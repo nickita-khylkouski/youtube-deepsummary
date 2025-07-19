@@ -60,10 +60,34 @@ def regenerate_summary_route():
 def get_available_models():
     """API endpoint to get available AI models"""
     try:
-        available_models = video_processor.summarizer.get_available_models()
+        available_models_dict = video_processor.summarizer.get_available_models()
+        
+        # Convert dictionary format to array format expected by frontend
+        models_array = []
+        for provider, models in available_models_dict.items():
+            for model_id in models:
+                # Create friendly display names
+                if model_id == 'claude-sonnet-4-20250514':
+                    display_name = 'Claude Sonnet 4'
+                elif model_id == 'claude-3-5-sonnet-20241022':
+                    display_name = 'Claude 3.5 Sonnet'
+                elif model_id == 'gpt-4.1':
+                    display_name = 'GPT-4.1'
+                elif model_id == 'gpt-4.1-mini':
+                    display_name = 'GPT-4.1 Mini'
+                elif model_id == 'gpt-3.5-turbo':
+                    display_name = 'GPT-3.5 Turbo'
+                else:
+                    display_name = model_id
+                
+                models_array.append({
+                    'id': model_id,
+                    'name': display_name
+                })
+        
         return jsonify({
             'success': True,
-            'models': available_models
+            'models': models_array
         })
     except Exception as e:
         return jsonify({
@@ -478,3 +502,450 @@ def import_channel_videos(channel_handle):
             'success': False,
             'error': str(e)
         }), 500
+
+
+@api_bp.route('/@<channel_handle>/chat', methods=['POST'])
+def chat_with_channel(channel_handle):
+    """API endpoint to chat with AI using channel summaries as context"""
+    try:
+        # Get channel info by handle
+        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return jsonify({
+                'success': False,
+                'error': f'Channel not found: {channel_handle}'
+            }), 404
+        
+        # Get request data
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No request data provided'
+            }), 400
+        
+        user_message = data.get('message', '').strip()
+        selected_model = data.get('model', 'gpt-4.1-mini')
+        conversation_id = data.get('conversation_id')
+        
+        if not user_message:
+            return jsonify({
+                'success': False,
+                'error': 'No message provided'
+            }), 400
+        
+        # Get all videos for this channel
+        channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
+        if not channel_videos:
+            return jsonify({
+                'success': False,
+                'error': 'No videos found for this channel'
+            }), 404
+        
+        # Gather all AI summaries for context (NOT transcripts as requested)
+        summaries_context = []
+        total_tokens_estimate = 0
+        max_tokens_for_context = 20000  # Leave room for prompt and response
+        
+        for video in channel_videos:
+            summary = database_storage.get_summary(video['video_id'])
+            if summary:
+                # Truncate very long summaries to manage token usage
+                truncated_summary = summary[:2000] + "..." if len(summary) > 2000 else summary
+                
+                # Add video metadata for better context
+                video_context = f"""
+Video: {video['title']}
+Published: {video.get('published_at', 'Unknown')}
+Summary: {truncated_summary}
+"""
+                
+                # Rough token estimate (1 token ≈ 4 characters)
+                context_tokens = len(video_context) // 4
+                
+                if total_tokens_estimate + context_tokens > max_tokens_for_context:
+                    print(f"Token limit reached, using {len(summaries_context)} of {len(channel_videos)} videos")
+                    break
+                    
+                summaries_context.append(video_context)
+                total_tokens_estimate += context_tokens
+        
+        if not summaries_context:
+            return jsonify({
+                'success': False,
+                'error': 'No AI summaries found for this channel. Generate some summaries first.'
+            }), 404
+        
+        # Prepare context for AI
+        context = f"""You are an AI assistant with access to AI summaries from the YouTube channel "{channel_info['channel_name']}". 
+
+Here are all the AI summaries from this channel's videos:
+
+{chr(10).join(summaries_context)}
+
+Based on these summaries, please answer the user's question about this channel's content. You have comprehensive knowledge of all topics, themes, and insights covered in this channel's videos.
+
+User question: {user_message}"""
+        
+        # Use the summarizer to chat (it handles multiple AI providers)
+        try:
+            response = video_processor.summarizer.summarize_with_model(
+                transcript_content=context,
+                model=selected_model,
+                chapters=None,
+                custom_prompt="""You are a helpful AI assistant answering questions about a YouTube channel based on AI summaries of its videos. 
+
+Format your responses with proper markdown for readability:
+- Use bullet points (-) for lists
+- Use **bold text** for emphasis
+- Use clear section headers when appropriate
+- Structure information logically with line breaks
+- Be conversational, helpful, and reference specific videos when relevant
+
+Always format your response with clear structure and markdown formatting."""
+            )
+            
+            # Handle conversation persistence
+            if conversation_id:
+                # Update existing conversation
+                database_storage.add_chat_message(conversation_id, 'user', user_message)
+                database_storage.add_chat_message(conversation_id, 'assistant', response)
+                database_storage.update_chat_conversation(conversation_id, selected_model)
+            else:
+                # Create new conversation
+                conversation_title = user_message[:50] + ('...' if len(user_message) > 50 else '')
+                conversation_id = database_storage.create_chat_conversation(
+                    channel_info['channel_id'], 
+                    conversation_title, 
+                    selected_model
+                )
+                database_storage.add_chat_message(conversation_id, 'user', user_message)
+                database_storage.add_chat_message(conversation_id, 'assistant', response)
+            
+            return jsonify({
+                'success': True,
+                'response': response,
+                'model_used': selected_model,
+                'channel_name': channel_info['channel_name'],
+                'summaries_count': len(summaries_context),
+                'total_videos': len(channel_videos),
+                'tokens_estimate': total_tokens_estimate,
+                'conversation_id': conversation_id
+            })
+            
+        except Exception as e:
+            error_message = str(e)
+            
+            # If still hitting token limits, try with fewer summaries
+            if 'rate_limit_exceeded' in error_message or 'Request too large' in error_message:
+                if len(summaries_context) > 2:
+                    # Retry with only the most recent 2 summaries
+                    reduced_context = summaries_context[:2]
+                    reduced_context_str = f"""You are an AI assistant with access to AI summaries from the YouTube channel "{channel_info['channel_name']}". 
+
+Here are some AI summaries from this channel's videos (showing {len(reduced_context)} most recent):
+
+{chr(10).join(reduced_context)}
+
+Based on these summaries, please answer the user's question about this channel's content. Note: This is a subset of the channel's content due to length limits.
+
+User question: {user_message}"""
+                    
+                    try:
+                        response = video_processor.summarizer.summarize_with_model(
+                            transcript_content=reduced_context_str,
+                            model=selected_model,
+                            chapters=None,
+                            custom_prompt="You are a helpful AI assistant answering questions about a YouTube channel based on AI summaries of its videos. Be conversational, helpful, and reference specific videos when relevant. Note that you only have access to a subset of the channel's content."
+                        )
+                        
+                        return jsonify({
+                            'success': True,
+                            'response': response + "\n\n*Note: Response based on limited summaries due to token constraints.*",
+                            'model_used': selected_model,
+                            'channel_name': channel_info['channel_name'],
+                            'summaries_count': len(reduced_context),
+                            'total_videos': len(channel_videos),
+                            'tokens_estimate': sum(len(ctx) // 4 for ctx in reduced_context),
+                            'truncated': True
+                        })
+                    except Exception as retry_error:
+                        return jsonify({
+                            'success': False,
+                            'error': f'AI model error (even with reduced context): {str(retry_error)}'
+                        }), 500
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Content too large for selected model. Try using a model with higher token limits or contact support.'
+                    }), 400
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': f'AI model error: {error_message}'
+                }), 500
+            
+    except Exception as e:
+        print(f"Error in chat endpoint: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@api_bp.route('/@<channel_handle>/chat-history', methods=['GET'])
+def get_chat_history(channel_handle):
+    """Get chat history for a channel."""
+    try:
+        from src.database_storage import DatabaseStorage
+        storage = DatabaseStorage()
+        
+        # Get channel info
+        channel_info = storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return jsonify({'error': 'Channel not found'}), 404
+        
+        # Get conversations
+        conversations = storage.get_chat_conversations(channel_info['channel_id'])
+        
+        return jsonify({
+            'success': True,
+            'conversations': conversations
+        })
+        
+    except Exception as e:
+        print(f"Error getting chat history: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/@<channel_handle>/chat-history/<conversation_id>', methods=['GET'])
+def get_chat_conversation(channel_handle, conversation_id):
+    """Get specific conversation with messages."""
+    try:
+        from src.database_storage import DatabaseStorage
+        storage = DatabaseStorage()
+        
+        # Get channel info
+        channel_info = storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return jsonify({'error': 'Channel not found'}), 404
+        
+        # Get conversation
+        conversation = storage.get_chat_conversation(conversation_id, channel_info['channel_id'])
+        if not conversation:
+            return jsonify({'error': 'Conversation not found'}), 404
+        
+        # Get messages
+        messages = storage.get_chat_messages(conversation_id)
+        
+        return jsonify({
+            'success': True,
+            'conversation': conversation,
+            'messages': messages
+        })
+        
+    except Exception as e:
+        print(f"Error getting conversation: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/@<channel_handle>/chat-history/<conversation_id>', methods=['DELETE'])
+def delete_chat_conversation(channel_handle, conversation_id):
+    """Delete a conversation."""
+    try:
+        from src.database_storage import DatabaseStorage
+        storage = DatabaseStorage()
+        
+        # Get channel info
+        channel_info = storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return jsonify({'error': 'Channel not found'}), 404
+        
+        # Delete conversation
+        success = storage.delete_chat_conversation(conversation_id, channel_info['channel_id'])
+        
+        if success:
+            return jsonify({'success': True})
+        else:
+            return jsonify({'error': 'Conversation not found'}), 404
+        
+    except Exception as e:
+        print(f"Error deleting conversation: {e}")
+        return jsonify({'error': str(e)}), 500
+
+# Global Chat API Routes
+@api_bp.route('/chat/global', methods=['POST'])
+def global_chat():
+    """Handle global chat messages across all channels."""
+    try:
+        from src.database_storage import DatabaseStorage
+        from src.summarizer import summarizer
+        
+        storage = DatabaseStorage()
+        data = request.get_json()
+        
+        if not data or 'message' not in data or 'model' not in data:
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        message = data['message'].strip()
+        model = data['model']
+        conversation_id = data.get('conversation_id')
+        
+        if not message:
+            return jsonify({'error': 'Message cannot be empty'}), 400
+        
+        # Get all summaries for global context
+        all_summaries = storage.get_all_summaries_for_global_chat()
+        
+        if not all_summaries:
+            return jsonify({'error': 'No video summaries available for chat context'}), 400
+        
+        # Create conversation context from all summaries
+        context_parts = []
+        for summary in all_summaries:
+            context_parts.append(
+                f"Channel: {summary['channel_name']} (@{summary['channel_handle']})\n"
+                f"Video: {summary['video_title']}\n"
+                f"Summary: {summary['summary_text']}\n"
+            )
+        
+        full_context = "\n---\n".join(context_parts)
+        
+        # Limit context to avoid token limits (approximately 20,000 tokens)
+        max_context_length = 60000  # roughly 20k tokens
+        if len(full_context) > max_context_length:
+            # Truncate and add note
+            full_context = full_context[:max_context_length] + "\n\n[Context truncated due to length]"
+        
+        # Prepare the prompt
+        system_prompt = f"""You are an AI assistant helping analyze YouTube video content. You have access to summaries from multiple YouTube channels and videos. Answer questions based on this content.
+
+Context from video summaries:
+{full_context}
+
+Instructions:
+- Answer questions based on the provided video summaries
+- If asked about specific channels, focus on content from those channels
+- Provide insights, analysis, and connections between different videos/channels
+- Be helpful and informative
+- If you cannot answer based on the available content, say so
+- Reference specific videos or channels when relevant
+"""
+        
+        # Create or get conversation
+        if not conversation_id:
+            # For global chat, we need an original channel - use the first available channel
+            if all_summaries:
+                # Extract channel_id from the first summary (we need to get it from the database)
+                first_channel_handle = all_summaries[0]['channel_handle']
+                channel_info = storage.get_channel_by_handle(first_channel_handle)
+                original_channel_id = channel_info['channel_id'] if channel_info else None
+                
+                if original_channel_id:
+                    conversation_id = storage.create_global_chat_conversation(
+                        original_channel_id=original_channel_id,
+                        title=message[:50] + '...' if len(message) > 50 else message,
+                        model_used=model,
+                        chat_type='global'
+                    )
+        
+        if not conversation_id:
+            return jsonify({'error': 'Failed to create conversation'}), 500
+        
+        # Add user message to database
+        storage.add_chat_message(conversation_id, 'user', message)
+        
+        # Get AI response
+        try:
+            response_text = summarizer.chat_with_context(
+                message=message,
+                context=system_prompt,
+                model=model
+            )
+            
+            if not response_text:
+                response_text = "I apologize, but I couldn't generate a response at the moment. Please try again."
+            
+        except Exception as e:
+            print(f"Error getting AI response: {e}")
+            response_text = "I encountered an error while processing your request. Please try again."
+        
+        # Add assistant response to database
+        storage.add_chat_message(conversation_id, 'assistant', response_text)
+        
+        # Update conversation timestamp
+        storage.update_chat_conversation(conversation_id, model)
+        
+        return jsonify({
+            'success': True,
+            'response': response_text,
+            'conversation_id': conversation_id
+        })
+        
+    except Exception as e:
+        print(f"Error in global chat: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'An error occurred while processing your request'
+        }), 500
+
+@api_bp.route('/chat/global/history', methods=['GET'])
+def get_global_chat_history():
+    """Get global chat history across all channels."""
+    try:
+        from src.database_storage import DatabaseStorage
+        storage = DatabaseStorage()
+        
+        # Get all conversations with channel info
+        conversations = storage.get_global_chat_conversations()
+        
+        return jsonify({
+            'success': True,
+            'conversations': conversations
+        })
+        
+    except Exception as e:
+        print(f"Error getting global chat history: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/chat/global/history/<conversation_id>', methods=['GET'])
+def get_global_chat_conversation(conversation_id):
+    """Get specific global conversation with messages."""
+    try:
+        from src.database_storage import DatabaseStorage
+        storage = DatabaseStorage()
+        
+        # Get conversation with channel info
+        conversation = storage.get_global_chat_conversation(conversation_id)
+        if not conversation:
+            return jsonify({'error': 'Conversation not found'}), 404
+        
+        # Get messages
+        messages = storage.get_chat_messages(conversation_id)
+        
+        return jsonify({
+            'success': True,
+            'conversation': conversation,
+            'messages': messages
+        })
+        
+    except Exception as e:
+        print(f"Error getting global conversation: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/chat/global/history/<conversation_id>', methods=['DELETE'])
+def delete_global_chat_conversation(conversation_id):
+    """Delete a global conversation."""
+    try:
+        from src.database_storage import DatabaseStorage
+        storage = DatabaseStorage()
+        
+        # Delete conversation
+        success = storage.delete_global_chat_conversation(conversation_id)
+        
+        if success:
+            return jsonify({'success': True})
+        else:
+            return jsonify({'error': 'Conversation not found'}), 404
+        
+    except Exception as e:
+        print(f"Error deleting global conversation: {e}")
+        return jsonify({'error': str(e)}), 500
+

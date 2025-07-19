@@ -263,6 +263,7 @@ Please analyze this transcript:
         
         # Use provided model or default from database settings
         model_to_use = model or self.model
+        print(f"Anthropic API call using model: {model_to_use}")
         
         # Enhanced processing for chapter-based content (if enabled in settings)
         if (self.enable_chapter_awareness and chapters and len(chapters) > 1 and not custom_prompt):
@@ -327,6 +328,10 @@ Please analyze this transcript:
             else:
                 system_prompt = "You are a helpful assistant that creates clear, comprehensive summaries of educational video transcripts. Focus on extracting key insights, actionable advice, and important details while maintaining readability and creating a well-structured summary."
             
+            # Use provided model or default from database settings
+            model_to_use = model or self.model
+            print(f"OpenAI API call using model: {model_to_use}")
+            
             response = self.client.chat.completions.create(
                 model=model_to_use,
                 messages=[
@@ -367,6 +372,19 @@ Please analyze this transcript:
             
             # Fallback to OpenAI if model not found
             raise Exception(f"Unknown model: {model}. Available models: {available_models}")
+    
+    def chat_with_context(self, message: str, context: str, model: str = None) -> str:
+        """Chat method for conversational AI responses with context"""
+        # Use the same underlying method but format as a chat response
+        combined_prompt = f"{context}\n\nUser: {message}\n\nAssistant:"
+        
+        # Use the model-specific summarization method
+        return self.summarize_with_model(
+            transcript_content=combined_prompt,
+            model=model,
+            chapters=None,
+            custom_prompt="You are a helpful AI assistant. Respond directly to the user's question using the provided context. Be conversational and helpful."
+        )
     
     def summarize_with_preferred_provider(self, transcript_content: str, chapters: Optional[List[Dict]] = None, video_id: str = None, video_info: Optional[Dict] = None, custom_prompt: str = None) -> str:
         """Generate summary using the preferred provider from settings"""

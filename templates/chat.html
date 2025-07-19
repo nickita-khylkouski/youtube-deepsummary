@@ -1,0 +1,853 @@
+{% extends "base.html" %}
+
+{% block title %}AI Chat{% if current_channel %} - {{ current_channel.channel_name }}{% endif %} - YouTube Deep Summary{% endblock %}
+
+{% block content %}
+<style>
+/* Chat-specific styles */
+.chat-page {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: white;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.chat-header {
+    position: sticky;
+    top: 0;
+    height: 45px;
+    background: white;
+    border-bottom: 1px solid #e5e5e5;
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+    z-index: 1000;
+}
+
+.chat-main {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+}
+
+.chat-sidebar {
+    width: 240px;
+    background: #f8f9fa;
+    border-right: 1px solid #e5e5e5;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: white;
+}
+
+.chat-messages-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px 20px;
+}
+
+.chat-input-area {
+    border-top: 1px solid #e5e5e5;
+    padding: 12px 20px;
+    background: white;
+}
+
+/* Thinking animation styles */
+.thinking-dots {
+    display: flex;
+    gap: 4px;
+}
+.thinking-dots .dot {
+    width: 6px;
+    height: 6px;
+    background: #667eea;
+    border-radius: 50%;
+    animation: thinkingBounce 1.4s infinite ease-in-out both;
+}
+.thinking-dots .dot:nth-child(1) { animation-delay: -0.32s; }
+.thinking-dots .dot:nth-child(2) { animation-delay: -0.16s; }
+.thinking-dots .dot:nth-child(3) { animation-delay: 0s; }
+
+@keyframes thinkingBounce {
+    0%, 80%, 100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1.2);
+        opacity: 1;
+    }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .chat-sidebar {
+        display: none;
+    }
+    .chat-messages-container {
+        padding: 10px 15px;
+    }
+    .chat-input-area {
+        padding: 10px 15px;
+    }
+}
+</style>
+
+<div class="chat-page">
+    <!-- Chat Header -->
+    <div class="chat-header">
+        <div style="display: flex; align-items: center; gap: 15px; flex: 1;">
+            <!-- Back Button -->
+            <a href="{% if current_channel %}/{{ current_channel.handle }}{% else %}/channels{% endif %}" 
+               style="background: none; border: none; padding: 8px; cursor: pointer; color: #666; font-size: 20px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s; text-decoration: none;"
+               onmouseover="this.style.background='#f0f0f0'" 
+               onmouseout="this.style.background='none'">
+                ←
+            </a>
+            
+            <!-- Dynamic Channel Info -->
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div id="chatHeaderAvatar" style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;">
+                    {% if current_channel and current_channel.thumbnail_url %}
+                        <img src="{{ current_channel.thumbnail_url }}" alt="{{ current_channel.channel_name }}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
+                    {% elif current_channel %}
+                        {{ current_channel.channel_name[0]|upper }}
+                    {% else %}
+                        💬
+                    {% endif %}
+                </div>
+                <div>
+                    <div id="chatHeaderName" style="font-weight: 600; color: #333; font-size: 16px;">
+                        {% if current_channel %}{{ current_channel.channel_name }}{% else %}AI Chat{% endif %}
+                    </div>
+                    <div id="chatHeaderInfo" style="font-size: 12px; color: #666;">
+                        {% if current_channel %}AI-powered conversation{% else %}Global chat across all channels{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Model Selection and Controls -->
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <select id="modelSelect" style="padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 14px; background: white; cursor: pointer; min-width: 180px;">
+                <option value="">Loading models...</option>
+            </select>
+            <button onclick="startNewConversation()" style="background: #667eea; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 14px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#5a67d8'" onmouseout="this.style.background='#667eea'">
+                New Chat
+            </button>
+        </div>
+    </div>
+
+    <!-- Chat Main Content -->
+    <div class="chat-main">
+        <!-- Chat History Sidebar -->
+        <div class="chat-sidebar">
+            <div style="padding: 15px 12px 12px 12px; border-bottom: 1px solid #e5e5e5;">
+                <h3 style="margin: 0; font-size: 14px; font-weight: 600; color: #333;">Chat History</h3>
+                <p style="margin: 3px 0 0 0; font-size: 11px; color: #666;">All conversations across channels</p>
+            </div>
+            <div id="chatHistoryList" style="flex: 1; padding: 8px; overflow-y: auto;">
+                <!-- Chat history items will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Chat Content Area -->
+        <div class="chat-content">
+            <!-- Welcome Screen -->
+            <div id="chatWelcome" style="flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px;">
+                <div style="max-width: 500px;">
+                    <div style="font-size: 36px; margin-bottom: 15px;">💬</div>
+                    <h2 style="margin: 0 0 8px 0; color: #333; font-size: 20px;">
+                        {% if current_channel %}Chat with {{ current_channel.channel_name }}{% else %}AI Chat{% endif %}
+                    </h2>
+                    <p style="color: #666; font-size: 14px; line-height: 1.5; margin-bottom: 20px;">
+                        {% if current_channel %}
+                            Ask questions about this channel's content based on {{ summary_count }} video summaries.
+                        {% else %}
+                            Ask questions about any content from your saved video summaries across all channels.
+                        {% endif %}
+                    </p>
+                    
+                    <!-- Sample Questions -->
+                    <div style="display: grid; gap: 10px; max-width: 400px; margin: 0 auto;">
+                        <button onclick="setQuestion('What are the main themes discussed in the videos?')" 
+                                style="background: #f8f9fa; border: 1px solid #e0e0e0; padding: 12px 16px; border-radius: 8px; font-size: 14px; cursor: pointer; transition: all 0.2s; text-align: left;"
+                                onmouseover="this.style.background='#e9ecef'" 
+                                onmouseout="this.style.background='#f8f9fa'">
+                            💡 What are the main themes discussed in the videos?
+                        </button>
+                        <button onclick="setQuestion('What actionable advice can I find here?')" 
+                                style="background: #f8f9fa; border: 1px solid #e0e0e0; padding: 12px 16px; border-radius: 8px; font-size: 14px; cursor: pointer; transition: all 0.2s; text-align: left;"
+                                onmouseover="this.style.background='#e9ecef'" 
+                                onmouseout="this.style.background='#f8f9fa'">
+                            🎯 What actionable advice can I find here?
+                        </button>
+                        <button onclick="setQuestion('How has the content evolved over time?')" 
+                                style="background: #f8f9fa; border: 1px solid #e0e0e0; padding: 12px 16px; border-radius: 8px; font-size: 14px; cursor: pointer; transition: all 0.2s; text-align: left;"
+                                onmouseover="this.style.background='#e9ecef'" 
+                                onmouseout="this.style.background='#f8f9fa'">
+                            📈 How has the content evolved over time?
+                        </button>
+                        <button onclick="setQuestion('What are the key insights I should remember?')" 
+                                style="background: #f8f9fa; border: 1px solid #e0e0e0; padding: 12px 16px; border-radius: 8px; font-size: 14px; cursor: pointer; transition: all 0.2s; text-align: left;"
+                                onmouseover="this.style.background='#e9ecef'" 
+                                onmouseout="this.style.background='#f8f9fa'">
+                            🧠 What are the key insights I should remember?
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Messages Container -->
+            <div id="chatMessagesContainer" class="chat-messages-container" style="display: none;">
+                <div id="chatMessages" style="max-width: 800px; margin: 0 auto;">
+                    <!-- Messages will be added here dynamically -->
+                </div>
+            </div>
+
+            <!-- Chat Input -->
+            <div class="chat-input-area">
+                <div style="max-width: 800px; margin: 0 auto;">
+                    <div style="display: flex; gap: 10px; align-items: end;">
+                        <div style="flex: 1; position: relative;">
+                            <textarea id="chatInput" 
+                                    placeholder="Ask a question..." 
+                                    style="width: 100%; padding: 12px 50px 12px 16px; border: 1px solid #e0e0e0; border-radius: 20px; font-size: 14px; font-family: inherit; resize: none; min-height: 44px; max-height: 120px; outline: none; transition: border-color 0.2s;"
+                                    onkeydown="handleKeyPress(event)"
+                                    oninput="autoResizeTextarea(this); handleInput();"
+                                    onfocus="this.style.borderColor='#667eea'; handleFocus();"
+                                    onblur="this.style.borderColor='#e0e0e0'; handleBlur();"></textarea>
+                            <button onclick="sendMessage()" 
+                                    style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: #667eea; color: white; border: none; padding: 8px; border-radius: 50%; cursor: pointer; font-size: 16px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"
+                                    onmouseover="this.style.background='#5a67d8'"
+                                    onmouseout="this.style.background='#667eea'">
+                                →
+                            </button>
+                        </div>
+                    </div>
+                    <div style="font-size: 12px; color: #666; margin-top: 8px; text-align: center;">
+                        AI responses are generated based on{% if current_channel %} this channel's{% endif %} video summaries
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variables
+let currentConversationId = null;
+let currentChannelHandle = '{{ current_channel.handle if current_channel else "" }}';
+let currentChannelName = '{{ current_channel.channel_name if current_channel else "Global Chat" }}';
+let currentChannelThumbnail = '{{ current_channel.thumbnail_url if current_channel else "" }}';
+let chatHistory = [];
+
+// Placeholder animation variables
+let placeholderActive = true;
+let currentPlaceholderIndex = 0;
+let currentText = '';
+let isTyping = true;
+
+const sampleQuestions = [
+    "What are the main themes in the videos?",
+    "How has the content evolved over time?", 
+    "What investment strategies are discussed?",
+    "What are the key takeaways?",
+    "How do these videos cover market trends?",
+    "What specific stocks or sectors are mentioned?",
+    "What warnings or risks are highlighted?",
+    "How does this relate to current events?",
+    "What actionable advice can I find?",
+    "What insights should I remember?"
+];
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    loadModels();
+    loadGlobalChatHistory();
+    startPlaceholderAnimation();
+    
+    // Auto-scroll to bottom on page load
+    setTimeout(function() {
+        scrollToInputArea();
+    }, 100);
+    
+    // Add model selection change handler
+    const modelSelect = document.getElementById('modelSelect');
+    if (modelSelect) {
+        modelSelect.addEventListener('change', function() {
+            console.log(`Model changed to: ${this.value}`);
+            // Optional: Show a brief indicator that model was changed
+            if (currentConversationId) {
+                console.log('Model changed mid-conversation - next message will use new model');
+            }
+        });
+    }
+});
+
+// Sample question handlers
+function setQuestion(question) {
+    const input = document.getElementById('chatInput');
+    input.value = question;
+    stopPlaceholderAnimation();
+    input.focus();
+}
+
+// Load available AI models
+function loadModels() {
+    const select = document.getElementById('modelSelect');
+    
+    fetch('/api/models')
+    .then(response => response.json())
+    .then(data => {
+        select.innerHTML = '';
+        if (data.models && data.models.length > 0) {
+            data.models.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model.id;
+                option.textContent = model.name;
+                select.appendChild(option);
+            });
+            
+            // Auto-select Claude Sonnet 4 if available
+            const claudeSonnet4 = data.models.find(m => m.id === 'claude-sonnet-4-20250514');
+            if (claudeSonnet4) {
+                select.value = claudeSonnet4.id;
+            } else if (data.models.length > 0) {
+                select.value = data.models[0].id;
+            }
+        } else {
+            select.innerHTML = '<option value="">No models available</option>';
+        }
+    })
+    .catch(error => {
+        console.error('Error loading models:', error);
+        select.innerHTML = '<option value="">Error loading models</option>';
+    });
+}
+
+// Load global chat history
+function loadGlobalChatHistory() {
+    fetch('/api/chat/global/history')
+    .then(response => response.json())
+    .then(data => {
+        const historyList = document.getElementById('chatHistoryList');
+        chatHistory = data.conversations || [];
+        
+        if (chatHistory.length === 0) {
+            historyList.innerHTML = '<div style="text-align: center; color: #666; padding: 20px; font-size: 14px;">No conversations yet</div>';
+            return;
+        }
+        
+        historyList.innerHTML = '';
+        chatHistory.forEach(conversation => {
+            const item = document.createElement('div');
+            item.style.cssText = 'padding: 12px; margin: 4px 0; border-radius: 8px; cursor: pointer; transition: all 0.2s; border-left: 3px solid transparent;';
+            
+            const isActive = currentConversationId === conversation.id;
+            if (isActive) {
+                item.style.background = '#e3f2fd';
+                item.style.borderLeftColor = '#667eea';
+            }
+            
+            item.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                    ${conversation.thumbnail_url ? 
+                        `<img src="${conversation.thumbnail_url}" alt="${conversation.channel_name}" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover;">` : 
+                        `<div style="width: 20px; height: 20px; border-radius: 50%; background: #667eea; color: white; font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold;">${conversation.channel_name ? conversation.channel_name[0].toUpperCase() : '?'}</div>`
+                    }
+                    <div style="font-size: 11px; color: #667eea; font-weight: 500;">${conversation.handle || 'Unknown'}</div>
+                </div>
+                <div style="font-weight: 500; font-size: 13px; color: #333; margin-bottom: 2px; word-break: break-word;">${conversation.title}</div>
+                <div style="font-size: 11px; color: #666;">${new Date(conversation.updated_at).toLocaleDateString()}</div>
+            `;
+            
+            item.onmouseover = function() {
+                if (!isActive) {
+                    this.style.background = '#f5f5f5';
+                }
+            };
+            item.onmouseout = function() {
+                if (!isActive) {
+                    this.style.background = 'none';
+                }
+            };
+            
+            item.onclick = () => loadConversation(conversation.id, conversation);
+            historyList.appendChild(item);
+        });
+    })
+    .catch(error => {
+        console.error('Error loading chat history:', error);
+        document.getElementById('chatHistoryList').innerHTML = '<div style="text-align: center; color: #f44336; padding: 20px; font-size: 14px;">Error loading history</div>';
+    });
+}
+
+// Load specific conversation
+function loadConversation(conversationId, conversationData) {
+    if (currentConversationId === conversationId) return;
+    
+    currentConversationId = conversationId;
+    
+    // Update header with conversation's channel info
+    updateChatHeader(conversationData);
+    
+    // Show messages container
+    document.getElementById('chatWelcome').style.display = 'none';
+    document.getElementById('chatMessagesContainer').style.display = 'block';
+    
+    // Load messages
+    fetch(`/api/chat/global/history/${conversationId}`)
+    .then(response => response.json())
+    .then(data => {
+        const messagesContainer = document.getElementById('chatMessages');
+        messagesContainer.innerHTML = '';
+        
+        if (data.messages) {
+            data.messages.forEach(message => {
+                addMessage(message.role, message.content, false);
+            });
+            scrollToBottom();
+            // Also scroll page to input area
+            setTimeout(() => scrollToInputArea(), 200);
+        }
+        
+        // Update model selection if conversation has model info
+        if (data.conversation && data.conversation.model_used) {
+            const modelSelect = document.getElementById('modelSelect');
+            if (modelSelect) {
+                // Check if the model exists in the options
+                const modelExists = Array.from(modelSelect.options).some(option => option.value === data.conversation.model_used);
+                if (modelExists) {
+                    modelSelect.value = data.conversation.model_used;
+                    console.log(`Updated model selection to: ${data.conversation.model_used}`);
+                }
+            }
+        }
+        
+        // Update history display
+        loadGlobalChatHistory();
+    })
+    .catch(error => {
+        console.error('Error loading conversation:', error);
+    });
+}
+
+// Update chat header with conversation's channel info
+function updateChatHeader(conversationData) {
+    const avatar = document.getElementById('chatHeaderAvatar');
+    const name = document.getElementById('chatHeaderName');
+    const info = document.getElementById('chatHeaderInfo');
+    
+    if (conversationData.thumbnail_url) {
+        avatar.innerHTML = `<img src="${conversationData.thumbnail_url}" alt="${conversationData.channel_name}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">`;
+    } else {
+        avatar.innerHTML = conversationData.channel_name ? conversationData.channel_name[0].toUpperCase() : '💬';
+        avatar.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    }
+    
+    name.textContent = conversationData.channel_name || 'AI Chat';
+    info.textContent = conversationData.handle ? `@${conversationData.handle}` : 'Global chat across all channels';
+}
+
+// Start new conversation
+function startNewConversation() {
+    currentConversationId = null;
+    
+    // Reset header to current channel or global
+    const avatar = document.getElementById('chatHeaderAvatar');
+    const name = document.getElementById('chatHeaderName');
+    const info = document.getElementById('chatHeaderInfo');
+    
+    if (currentChannelThumbnail) {
+        avatar.innerHTML = `<img src="${currentChannelThumbnail}" alt="${currentChannelName}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">`;
+    } else {
+        avatar.innerHTML = currentChannelName ? currentChannelName[0].toUpperCase() : '💬';
+        avatar.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    }
+    
+    name.textContent = currentChannelName;
+    info.textContent = currentChannelHandle ? 'AI-powered conversation' : 'Global chat across all channels';
+    
+    // Show welcome screen
+    document.getElementById('chatWelcome').style.display = 'flex';
+    document.getElementById('chatMessagesContainer').style.display = 'none';
+    
+    // Clear messages
+    document.getElementById('chatMessages').innerHTML = '';
+    
+    // Reset model selection to default
+    const modelSelect = document.getElementById('modelSelect');
+    if (modelSelect && modelSelect.options.length > 0) {
+        // Try to select Claude Sonnet 4 if available, otherwise first option
+        const claudeSonnet4 = Array.from(modelSelect.options).find(option => option.value === 'claude-sonnet-4-20250514');
+        if (claudeSonnet4) {
+            modelSelect.value = claudeSonnet4.value;
+        } else {
+            modelSelect.value = modelSelect.options[0].value;
+        }
+        console.log(`Reset model selection to default: ${modelSelect.value}`);
+    }
+    
+    // Reload history
+    loadGlobalChatHistory();
+    
+    // Scroll to input area
+    setTimeout(() => scrollToInputArea(), 100);
+}
+
+// Placeholder animation functions
+function startPlaceholderAnimation() {
+    const input = document.getElementById('chatInput');
+    if (!input) return;
+    
+    placeholderActive = true;
+    currentPlaceholderIndex = 0;
+    currentText = '';
+    isTyping = true;
+    
+    function animatePlaceholder() {
+        if (!placeholderActive) return;
+        
+        const targetText = sampleQuestions[currentPlaceholderIndex];
+        
+        if (isTyping) {
+            if (currentText.length < targetText.length) {
+                currentText += targetText[currentText.length];
+                input.placeholder = currentText;
+                setTimeout(animatePlaceholder, 40 + Math.random() * 30);
+            } else {
+                setTimeout(() => {
+                    isTyping = false;
+                    animatePlaceholder();
+                }, 1500);
+            }
+        } else {
+            if (currentText.length > 0) {
+                currentText = currentText.slice(0, -1);
+                input.placeholder = currentText;
+                setTimeout(animatePlaceholder, 25);
+            } else {
+                currentPlaceholderIndex = (currentPlaceholderIndex + 1) % sampleQuestions.length;
+                isTyping = true;
+                setTimeout(animatePlaceholder, 300);
+            }
+        }
+    }
+    
+    animatePlaceholder();
+}
+
+function stopPlaceholderAnimation() {
+    placeholderActive = false;
+}
+
+// Input handlers
+function handleFocus() {
+    // Keep animation running on focus
+}
+
+function handleBlur() {
+    const input = document.getElementById('chatInput');
+    if (input && input.value.trim() === '') {
+        setTimeout(() => {
+            if (document.activeElement !== input && !placeholderActive) {
+                startPlaceholderAnimation();
+            }
+        }, 100);
+    }
+}
+
+function handleInput() {
+    const input = document.getElementById('chatInput');
+    if (input && input.value.trim() !== '') {
+        stopPlaceholderAnimation();
+        input.placeholder = '';
+    } else if (input && input.value.trim() === '') {
+        if (!placeholderActive) {
+            startPlaceholderAnimation();
+        }
+    }
+}
+
+function handleKeyPress(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage();
+    }
+}
+
+function autoResizeTextarea(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+}
+
+// Thinking animation functions
+function addThinkingMessage() {
+    const messagesContainer = document.getElementById('chatMessages');
+    const thinkingDiv = document.createElement('div');
+    thinkingDiv.id = 'thinkingMessage';
+    thinkingDiv.style.marginBottom = '20px';
+    
+    thinkingDiv.innerHTML = `
+        <div style="display: flex; justify-content: flex-start; margin-bottom: 5px;">
+            <div style="background: #f8f9fa; color: #333; padding: 12px 16px; border-radius: 18px; max-width: 70%; word-wrap: break-word; line-height: 1.4; display: flex; align-items: center; gap: 8px;">
+                <div class="thinking-dots">
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                </div>
+                <span style="color: #666; font-style: italic;">Thinking...</span>
+            </div>
+        </div>
+    `;
+    
+    messagesContainer.appendChild(thinkingDiv);
+    scrollToBottom();
+    return thinkingDiv.id;
+}
+
+function removeThinkingMessage() {
+    const thinkingMsg = document.getElementById('thinkingMessage');
+    if (thinkingMsg) {
+        thinkingMsg.remove();
+    }
+}
+
+// Enhanced smooth scroll function
+function smoothScrollToBottom(duration = 1500) {
+    const container = document.getElementById('chatMessagesContainer');
+    const start = container.scrollTop;
+    const end = container.scrollHeight - container.clientHeight;
+    const distance = end - start;
+    const startTime = performance.now();
+    
+    function animateScroll(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        const easeInOutCubic = progress < 0.5 
+            ? 4 * progress * progress * progress 
+            : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+        
+        container.scrollTop = start + distance * easeInOutCubic;
+        
+        if (progress < 1) {
+            requestAnimationFrame(animateScroll);
+        }
+    }
+    
+    requestAnimationFrame(animateScroll);
+}
+
+function scrollToBottom() {
+    const container = document.getElementById('chatMessagesContainer');
+    container.scrollTop = container.scrollHeight;
+}
+
+// Scroll to input area (bottom of page)
+function scrollToInputArea() {
+    // Scroll the main page to the bottom to bring input area into view
+    window.scrollTo({
+        top: document.body.scrollHeight,
+        behavior: 'smooth'
+    });
+    
+    // Also scroll the chat messages container if it exists and has content
+    const container = document.getElementById('chatMessagesContainer');
+    if (container && container.style.display !== 'none') {
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
+// Convert markdown to HTML
+function convertMarkdownToHtml(markdown) {
+    if (!markdown) return '';
+    
+    let html = markdown;
+    
+    // Handle code blocks first
+    html = html.replace(/```[\s\S]*?```/g, function(match) {
+        const code = match.replace(/```/g, '').trim();
+        return `<pre style="background: #f4f4f4; padding: 12px; border-radius: 6px; overflow-x: auto; margin: 10px 0; border-left: 4px solid #667eea;"><code>${escapeHtml(code)}</code></pre>`;
+    });
+    
+    // Headers
+    html = html.replace(/^### (.*$)/gm, '<h3 style="color: #333; margin: 20px 0 10px 0; font-size: 1.2em; font-weight: 600;">$1</h3>');
+    html = html.replace(/^## (.*$)/gm, '<h2 style="color: #333; margin: 20px 0 12px 0; font-size: 1.4em; font-weight: 600;">$1</h2>');
+    html = html.replace(/^# (.*$)/gm, '<h1 style="color: #333; margin: 20px 0 15px 0; font-size: 1.6em; font-weight: 600;">$1</h1>');
+    
+    // Bold and italic
+    html = html.replace(/\*\*((?![\*\#]).*?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*((?![\*\#]).*?)\*/g, '<em>$1</em>');
+    
+    // Inline code
+    html = html.replace(/`([^`]+)`/g, '<code style="background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; color: #c7254e;">$1</code>');
+    
+    // Links
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #667eea; text-decoration: none; border-bottom: 1px solid #667eea;">$1</a>');
+    
+    // Convert to paragraphs
+    const paragraphs = html.split(/\n\s*\n/);
+    html = paragraphs.map(p => {
+        if (p.trim()) {
+            if (p.match(/^<h[1-6]|^<pre|^<ul|^<ol/)) {
+                return p.trim();
+            }
+            return `<p style="margin: 0 0 15px 0; line-height: 1.6;">${p.trim()}</p>`;
+        }
+        return '';
+    }).join('');
+    
+    // Handle lists
+    html = html.replace(/^[•\-\*] (.+)$/gm, '<li style="margin: 4px 0; line-height: 1.5;">$1</li>');
+    html = html.replace(/^\d+\. (.+)$/gm, '<li style="margin: 4px 0; line-height: 1.5;">$1</li>');
+    
+    // Wrap list items
+    html = html.replace(/(<li[^>]*>.*?<\/li>\s*)+/gs, function(match) {
+        const listStyle = 'margin: 10px 0; padding-left: 20px; list-style-position: outside;';
+        return `<ul style="${listStyle}">${match}</ul>`;
+    });
+    
+    html = html.replace(/\n(?![<\s])/g, '<br>');
+    html = html.replace(/\s*<br>\s*<br>\s*/g, '<br>');
+    html = html.replace(/^\s+|\s+$/g, '');
+    
+    return html;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Add message to chat
+function addMessage(role, content, shouldScroll) {
+    const messagesContainer = document.getElementById('chatMessages');
+    const messageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.id = messageId;
+    messageDiv.style.marginBottom = '20px';
+    
+    const isUser = role === 'user';
+    const bgColor = isUser ? '#667eea' : '#f8f9fa';
+    const textColor = isUser ? 'white' : '#333';
+    const alignment = isUser ? 'flex-end' : 'flex-start';
+    
+    messageDiv.innerHTML = `
+        <div style="display: flex; justify-content: ${alignment}; margin-bottom: 5px;">
+            <div style="background: ${bgColor}; color: ${textColor}; padding: 12px 16px; border-radius: 18px; max-width: 70%; word-wrap: break-word; line-height: 1.4;">
+                ${isUser ? escapeHtml(content) : convertMarkdownToHtml(content)}
+            </div>
+        </div>
+    `;
+    
+    messagesContainer.appendChild(messageDiv);
+    
+    if (shouldScroll) {
+        scrollToBottom();
+    }
+    
+    return messageId;
+}
+
+// Send message function
+function sendMessage() {
+    const input = document.getElementById('chatInput');
+    const message = input.value.trim();
+    const modelSelect = document.getElementById('modelSelect');
+    
+    if (!message) {
+        console.log('No message provided');
+        return;
+    }
+    
+    if (!modelSelect.value) {
+        console.log('No model selected');
+        return;
+    }
+    
+    console.log(`Sending message with model: ${modelSelect.value}`);
+    
+    // Show messages container if hidden
+    if (document.getElementById('chatWelcome').style.display !== 'none') {
+        document.getElementById('chatWelcome').style.display = 'none';
+        document.getElementById('chatMessagesContainer').style.display = 'block';
+    }
+    
+    // Add user message
+    addMessage('user', message, true);
+    
+    // Clear input and restart placeholder animation
+    input.value = '';
+    input.style.height = 'auto';
+    if (!placeholderActive) {
+        startPlaceholderAnimation();
+    }
+    
+    // Add thinking message
+    addThinkingMessage();
+    
+    // Determine endpoint based on current context
+    const endpoint = currentChannelHandle ? 
+        `/api/${currentChannelHandle}/chat` : 
+        '/api/chat/global';
+    
+    // Send request
+    fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            message: message,
+            model: modelSelect.value,
+            conversation_id: currentConversationId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        removeThinkingMessage();
+        
+        if (data.error) {
+            addMessage('assistant', 'Sorry, I encountered an error. Please try again.', false);
+            smoothScrollToBottom(1500);
+        } else {
+            addMessage('assistant', data.response, false);
+            smoothScrollToBottom(1500);
+            
+            if (data.conversation_id) {
+                currentConversationId = data.conversation_id;
+            }
+            
+            // Reload history
+            loadGlobalChatHistory();
+            
+            // Focus back on input after response
+            setTimeout(() => {
+                const input = document.getElementById('chatInput');
+                if (input) {
+                    input.focus();
+                }
+            }, 1600);
+        }
+    })
+    .catch(error => {
+        console.error('Error sending message:', error);
+        removeThinkingMessage();
+        addMessage('assistant', 'Sorry, I encountered an error. Please try again.', false);
+        smoothScrollToBottom(1500);
+    });
+}
+</script>
+
+{% endblock %}

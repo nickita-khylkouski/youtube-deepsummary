@@ -4,8 +4,8 @@
 
 {% block content %}
 <!-- Channel Header -->
-<div class="channel-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 20px; border-radius: 12px; margin-bottom: 30px;">
-    <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+<div class="channel-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 20px; border-radius: 12px; margin-bottom: 30px; position: relative;">
+    <div style="display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap;">
         {% if channel_info.thumbnail_url %}
             <img src="{{ channel_info.thumbnail_url }}" 
                  alt="{{ channel_info.channel_name }} thumbnail" 
@@ -15,16 +15,29 @@
                 {{ channel_info.channel_name[0]|upper if channel_info.channel_name else '📺' }}
             </div>
         {% endif %}
-        <div style="flex: 1; min-width: 0;">
+        <div style="flex: 1; min-width: 0; padding-right: 200px;">
             <h1 style="margin: 0 0 10px 0; font-size: 32px; font-weight: bold;">{{ channel_info.channel_name }}</h1>
-                            <p style="margin: 0 0 15px 0; font-size: 18px; opacity: 0.9;">{{ channel_info.handle }}</p>
+            <p style="margin: 0 0 15px 0; font-size: 18px; opacity: 0.9;">{{ channel_info.handle }}</p>
             {% if channel_info.channel_description %}
-                <p style="margin: 0; opacity: 0.8; line-height: 1.5; max-width: 600px;">
+                <p style="margin: 0; opacity: 0.8; line-height: 1.5;">
                     {{ channel_info.channel_description[:200] }}{% if channel_info.channel_description|length > 200 %}...{% endif %}
                 </p>
             {% endif %}
         </div>
     </div>
+    
+    <!-- Chat Button in Bottom Right of Header -->
+    {% if summary_count > 0 %}
+    <div style="position: absolute; bottom: 20px; right: 20px;">
+        <a href="/{{ channel_info.handle }}/chat" 
+           style="background: rgba(255,255,255,0.15); color: white; border: 2px solid rgba(255,255,255,0.3); padding: 12px 20px; border-radius: 25px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 8px; text-decoration: none; backdrop-filter: blur(10px);"
+           onmouseover="this.style.background='rgba(255,255,255,0.25)'; this.style.borderColor='rgba(255,255,255,0.5)'; this.style.transform='translateY(-1px)';"
+           onmouseout="this.style.background='rgba(255,255,255,0.15)'; this.style.borderColor='rgba(255,255,255,0.3)'; this.style.transform='translateY(0)';">
+            <span style="font-size: 18px;">💬</span>
+            <span>Chat with Channel</span>
+        </a>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Clickable Stats Cards -->
@@ -197,16 +210,12 @@
         </div>
         {% endif %}
         
+        
         {% if videos_without_summaries_count > 0 %}
-        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-            <select id="summaryModelSelect" style="padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; background: white;">
-                <option value="">Loading models...</option>
-            </select>
             <button onclick="generateMissingSummaries('{{ channel_info.handle }}')" 
                     style="background: #2196f3; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s;">
                 🤖 Generate Missing Summaries ({{ videos_without_summaries_count }})
             </button>
-        </div>
         {% endif %}
         
         <button onclick="deleteChannel('{{ channel_info.handle }}', '{{ channel_info.channel_name }}')" 
@@ -249,7 +258,38 @@
         border: 1px solid #ddd;
     }
     
-
+    /* Chat interface styling */
+    #chatMessages {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    #chatMessages ul {
+        margin: 8px 0 !important;
+        padding-left: 20px !important;
+        list-style-type: disc !important;
+    }
+    
+    #chatMessages li {
+        margin-bottom: 4px !important;
+        margin-left: 0 !important;
+        line-height: 1.5 !important;
+    }
+    
+    #chatMessages h1, #chatMessages h2, #chatMessages h3 {
+        font-weight: 600 !important;
+        margin-top: 16px !important;
+        margin-bottom: 8px !important;
+    }
+    
+    #chatMessages p {
+        margin: 8px 0 !important;
+        line-height: 1.6 !important;
+    }
+    
+    #chatMessages strong {
+        font-weight: 600 !important;
+        color: #2c3e50 !important;
+    }
     
     /* Mobile responsive */
     @media (max-width: 768px) {
@@ -259,6 +299,20 @@
         
         .channel-header > div {
             flex-direction: column !important;
+            text-align: center;
+            align-items: center !important;
+        }
+        
+        .channel-header > div > div:nth-child(2) {
+            max-width: 100% !important;
+            text-align: center;
+            padding-right: 0 !important;
+        }
+        
+        /* Chat button in header mobile adjustments */
+        .channel-header div[style*="position: absolute"] {
+            position: static !important;
+            margin-top: 20px;
             text-align: center;
         }
         
@@ -309,8 +363,10 @@ function toggleImportDropdown() {
 document.addEventListener('click', function(event) {
     const importDropdown = document.getElementById('importDropdown');
     const exportDropdown = document.getElementById('exportDropdown');
+    const chatDropdown = document.getElementById('chatDropdown');
     const importButton = event.target.closest('.import-dropdown');
     const exportButton = event.target.closest('.export-dropdown');
+    const chatButton = event.target.closest('.chat-dropdown');
     
     if (!importButton && importDropdown && importDropdown.style.display === 'block') {
         importDropdown.style.display = 'none';
@@ -318,6 +374,10 @@ document.addEventListener('click', function(event) {
     
     if (!exportButton && exportDropdown && exportDropdown.style.display === 'block') {
         exportDropdown.style.display = 'none';
+    }
+    
+    if (!chatButton && chatDropdown && chatDropdown.style.display === 'block') {
+        chatDropdown.style.display = 'none';
     }
 });
 
@@ -454,62 +514,71 @@ async function deleteChannel(channelHandle, channelName) {
 
 // Load available models for summary generation
 function loadAvailableModels() {
+    const modelSelect = document.getElementById('summaryModelSelect');
+    if (!modelSelect) {
+        console.log('Summary model select not found - skipping model loading');
+        return;
+    }
+    
+    console.log('Loading available models...');
     fetch('/api/models')
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Models data received:', data);
             if (data.success && data.models) {
-                const modelSelect = document.getElementById('summaryModelSelect');
-                if (modelSelect) {
-                    // Clear loading option
-                    modelSelect.innerHTML = '';
+                // Clear loading option
+                modelSelect.innerHTML = '';
+                
+                // Add providers and models
+                for (const [provider, models] of Object.entries(data.models)) {
+                    const optgroup = document.createElement('optgroup');
+                    optgroup.label = provider.charAt(0).toUpperCase() + provider.slice(1);
                     
-                    // Add providers and models
-                    for (const [provider, models] of Object.entries(data.models)) {
-                        const optgroup = document.createElement('optgroup');
-                        optgroup.label = provider.charAt(0).toUpperCase() + provider.slice(1);
+                    models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model;
+                        option.textContent = model;
                         
-                        models.forEach(model => {
-                            const option = document.createElement('option');
-                            option.value = model;
-                            option.textContent = model;
-                            
-                            // Default to Claude Sonnet 4 if available
-                            if (model === 'claude-sonnet-4-20250514') {
-                                option.selected = true;
-                            }
-                            
-                            optgroup.appendChild(option);
-                        });
+                        // Default to Claude Sonnet 4 if available
+                        if (model === 'claude-sonnet-4-20250514') {
+                            option.selected = true;
+                        }
                         
-                        modelSelect.appendChild(optgroup);
-                    }
+                        optgroup.appendChild(option);
+                    });
                     
-                    // If no Claude model available, select first available model
-                    if (modelSelect.selectedIndex === -1 && modelSelect.options.length > 0) {
-                        modelSelect.selectedIndex = 0;
-                    }
+                    modelSelect.appendChild(optgroup);
                 }
+                
+                // If no Claude model available, select first available model
+                if (modelSelect.selectedIndex === -1 && modelSelect.options.length > 0) {
+                    modelSelect.selectedIndex = 0;
+                }
+                
+                console.log('Models loaded successfully, total options:', modelSelect.options.length);
+            } else {
+                console.error('Invalid response format:', data);
+                modelSelect.innerHTML = '<option value="">Invalid response format</option>';
             }
         })
         .catch(error => {
             console.error('Error loading models:', error);
-            const modelSelect = document.getElementById('summaryModelSelect');
-            if (modelSelect) {
-                modelSelect.innerHTML = '<option value="">Error loading models</option>';
-            }
+            modelSelect.innerHTML = '<option value="">Error loading models</option>';
         });
 }
 
 async function generateMissingSummaries(channelHandle) {
     const button = event.target;
-    const modelSelect = document.getElementById('summaryModelSelect');
     const originalText = button.innerHTML;
     
-    const selectedModel = modelSelect.value;
-    if (!selectedModel) {
-        alert('Please select a model first');
-        return;
-    }
+    // Use default model (Claude Sonnet 4 or GPT-4.1)
+    const selectedModel = 'claude-sonnet-4-20250514';
     
     // Disable button and show loading state
     button.disabled = true;
@@ -592,8 +661,357 @@ function showNotification(message, type) {
 
 // Load models when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    loadAvailableModels();
+    // Only load summary models if the dropdown exists (when there are videos without summaries)
+    if (document.getElementById('summaryModelSelect')) {
+        loadAvailableModels();
+    }
+    // Only load chat models if the dropdown exists (when there are summaries for chat)
+    if (document.getElementById('chatModelSelect')) {
+        loadChatModels();
+    }
 });
+
+// Chat dropdown functionality
+function toggleChatDropdown() {
+    const dropdown = document.getElementById('chatDropdown');
+    if (dropdown.style.display === 'none') {
+        dropdown.style.display = 'block';
+    } else {
+        dropdown.style.display = 'none';
+    }
+}
+
+// Load available models for chat
+function loadChatModels() {
+    const modelSelect = document.getElementById('chatModelSelect');
+    if (!modelSelect) {
+        console.log('Chat model select not found - skipping chat model loading');
+        return;
+    }
+    
+    console.log('Loading available chat models...');
+    fetch('/api/models')
+        .then(response => {
+            console.log('Chat models response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Chat models data received:', data);
+            if (data.success && data.models) {
+                // Clear loading option
+                modelSelect.innerHTML = '';
+                
+                // Add providers and models
+                for (const [provider, models] of Object.entries(data.models)) {
+                    const optgroup = document.createElement('optgroup');
+                    optgroup.label = provider.charAt(0).toUpperCase() + provider.slice(1);
+                    
+                    models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model;
+                        
+                        // Use friendly display names for models
+                        let displayName = model;
+                        if (model === 'claude-sonnet-4-20250514') {
+                            displayName = 'Claude Sonnet 4 (Latest) 🤖';
+                        } else if (model === 'claude-3-5-sonnet-20241022') {
+                            displayName = 'Claude 3.5 Sonnet 🤖';
+                        } else if (model === 'gpt-4.1-mini') {
+                            displayName = 'GPT-4.1 Mini';
+                        } else if (model === 'gpt-4.1') {
+                            displayName = 'GPT-4.1';
+                        } else if (model === 'gpt-3.5-turbo') {
+                            displayName = 'GPT-3.5 Turbo';
+                        }
+                        
+                        option.textContent = displayName;
+                        
+                        // Default to Claude Sonnet 4 or GPT-4.1-mini for chat if available
+                        if (model === 'claude-sonnet-4-20250514' || 
+                            (model === 'gpt-4.1-mini' && !modelSelect.querySelector('[selected]'))) {
+                            option.selected = true;
+                        }
+                        
+                        optgroup.appendChild(option);
+                    });
+                    
+                    modelSelect.appendChild(optgroup);
+                }
+                
+                // If no GPT-4o mini available, select first available model
+                if (modelSelect.selectedIndex === -1 && modelSelect.options.length > 0) {
+                    modelSelect.selectedIndex = 0;
+                }
+                
+                console.log('Chat models loaded successfully, total options:', modelSelect.options.length);
+            } else {
+                console.error('Invalid chat models response format:', data);
+                modelSelect.innerHTML = '<option value="">Invalid response format</option>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading chat models:', error);
+            modelSelect.innerHTML = '<option value="">Error loading models</option>';
+        });
+}
+
+// Open channel chat modal
+function openChannelChat(channelHandle, channelName) {
+    const modelSelect = document.getElementById('chatModelSelect');
+    const selectedModel = modelSelect.value;
+    
+    if (!selectedModel) {
+        alert('Please select a model first');
+        return;
+    }
+    
+    // Close the dropdown
+    document.getElementById('chatDropdown').style.display = 'none';
+    
+    // Create chat modal
+    createChatModal(channelHandle, channelName, selectedModel);
+}
+
+// Create and show chat modal
+function createChatModal(channelHandle, channelName, selectedModel) {
+    // Remove existing modal if any
+    const existingModal = document.getElementById('chatModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.id = 'chatModal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        box-sizing: border-box;
+    `;
+    
+    // Create modal content
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = `
+        background: white;
+        border-radius: 12px;
+        width: 100%;
+        max-width: 800px;
+        height: 80vh;
+        max-height: 600px;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    `;
+    
+    modalContent.innerHTML = `
+        <div style="padding: 20px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between;">
+            <h3 style="margin: 0; color: #333;">💬 Chat with ${channelName}</h3>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <span style="font-size: 14px; color: #666;">Model: ${selectedModel}</span>
+                <button onclick="closeChatModal()" style="background: #f44336; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">✕ Close</button>
+            </div>
+        </div>
+        <div id="chatMessages" style="flex: 1; padding: 20px; overflow-y: auto; background: #f9f9f9;">
+            <div style="text-align: center; color: #666; margin: 20px 0;">
+                <p>💡 This AI assistant has context of all AI summaries from <strong>${channelName}</strong> videos.</p>
+                <p>Ask questions about the channel's content, themes, or specific topics covered!</p>
+            </div>
+        </div>
+        <div style="padding: 20px; border-top: 1px solid #eee; display: flex; gap: 10px;">
+            <input type="text" id="chatInput" placeholder="Ask about ${channelName}..." 
+                   style="flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+            <button onclick="sendChatMessage('${channelHandle}', '${selectedModel}')" 
+                    style="background: #ff9800; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                Send
+            </button>
+        </div>
+    `;
+    
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+    
+    // Focus on input
+    document.getElementById('chatInput').focus();
+    
+    // Add enter key listener
+    document.getElementById('chatInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            sendChatMessage(channelHandle, selectedModel);
+        }
+    });
+    
+    // Close modal when clicking overlay
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            closeChatModal();
+        }
+    });
+}
+
+// Close chat modal
+function closeChatModal() {
+    const modal = document.getElementById('chatModal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// Send chat message
+async function sendChatMessage(channelHandle, selectedModel) {
+    const input = document.getElementById('chatInput');
+    const message = input.value.trim();
+    
+    if (!message) return;
+    
+    // Clear input
+    input.value = '';
+    
+    // Add user message to chat
+    addChatMessage('user', message);
+    
+    // Add loading message
+    const loadingId = addChatMessage('assistant', '💭 Thinking...');
+    
+    try {
+        const response = await fetch(`/api/${channelHandle}/chat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: message,
+                model: selectedModel
+            })
+        });
+        
+        const result = await response.json();
+        
+        // Remove loading message
+        const loadingElement = document.getElementById(loadingId);
+        if (loadingElement) {
+            loadingElement.remove();
+        }
+        
+        if (result.success) {
+            let responseText = result.response;
+            
+            // Add context information if available
+            if (result.summaries_count && result.total_videos) {
+                const contextInfo = result.truncated 
+                    ? `\n\n💡 *Based on ${result.summaries_count} of ${result.total_videos} videos (truncated due to length)*`
+                    : `\n\n💡 *Based on ${result.summaries_count} of ${result.total_videos} videos*`;
+                responseText += contextInfo;
+            }
+            
+            addChatMessage('assistant', responseText);
+        } else {
+            addChatMessage('assistant', `❌ Error: ${result.error}`);
+        }
+        
+    } catch (error) {
+        console.error('Chat error:', error);
+        
+        // Remove loading message
+        const loadingElement = document.getElementById(loadingId);
+        if (loadingElement) {
+            loadingElement.remove();
+        }
+        
+        addChatMessage('assistant', `❌ Failed to send message: ${error.message}`);
+    }
+}
+
+// Add message to chat
+function addChatMessage(sender, message) {
+    const messagesContainer = document.getElementById('chatMessages');
+    const messageId = 'msg_' + Date.now();
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.id = messageId;
+    messageDiv.style.cssText = `
+        margin-bottom: 15px;
+        padding: 12px;
+        border-radius: 8px;
+        max-width: 80%;
+        line-height: 1.6;
+        word-wrap: break-word;
+        ${sender === 'user' 
+            ? 'background: #ff9800; color: white; margin-left: auto; text-align: right;' 
+            : 'background: white; color: #333; margin-right: auto; border: 1px solid #eee;'
+        }
+    `;
+    
+    if (sender === 'user') {
+        messageDiv.innerHTML = `<strong>You:</strong> ${escapeHtml(message)}`;
+    } else {
+        // For AI messages, convert markdown to HTML for better formatting
+        const formattedMessage = convertMarkdownToHtml(message);
+        messageDiv.innerHTML = `<strong>AI:</strong><div style="margin-top: 8px;">${formattedMessage}</div>`;
+    }
+    
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    return messageId;
+}
+
+// Helper function to escape HTML for user messages
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Convert markdown to HTML for AI responses
+function convertMarkdownToHtml(markdown) {
+    // Basic markdown-to-HTML conversion for common patterns
+    let html = markdown
+        // Headers
+        .replace(/^### (.+$)/gm, '<h3 style="margin: 16px 0 8px 0; color: #333; font-size: 16px; font-weight: 600;">$1</h3>')
+        .replace(/^## (.+$)/gm, '<h2 style="margin: 20px 0 10px 0; color: #333; font-size: 18px; font-weight: 600;">$1</h2>')
+        .replace(/^# (.+$)/gm, '<h1 style="margin: 24px 0 12px 0; color: #333; font-size: 20px; font-weight: 600;">$1</h1>')
+        
+        // Bold and italic
+        .replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight: 600; color: #2c3e50;">$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        
+        // Section headers with colons (like "Main Focus Areas:")
+        .replace(/^([A-Z][^:\n]*:)$/gm, '<h3 style="margin: 16px 0 8px 0; color: #2c3e50; font-size: 16px; font-weight: 600;">$1</h3>')
+        
+        // Lists - handle bullet points and hyphens
+        .replace(/^[-*+] (.+$)/gm, '<li style="margin-bottom: 4px; line-height: 1.5;">$1</li>')
+        
+        // Numbered lists
+        .replace(/^\d+\. (.+$)/gm, '<li style="margin-bottom: 4px; line-height: 1.5;">$1</li>')
+        
+        // Convert double line breaks to paragraph breaks
+        .replace(/\n\n/g, '</p><p style="margin: 12px 0; line-height: 1.6;">')
+        
+        // Convert single line breaks to <br> but preserve list structure
+        .replace(/(?<!<\/li>)\n(?!<li>)/g, '<br>');
+    
+    // Wrap consecutive <li> elements in <ul> tags
+    html = html.replace(/(<li[^>]*>.*?<\/li>(?:\s*<li[^>]*>.*?<\/li>)*)/gs, '<ul style="margin: 8px 0 16px 0; padding-left: 20px; list-style-type: disc;">$1</ul>');
+    
+    // Wrap content in paragraphs if it doesn't start with a block element
+    if (!html.startsWith('<h') && !html.startsWith('<ul') && !html.startsWith('<ol') && !html.startsWith('<p')) {
+        html = '<p style="margin: 12px 0; line-height: 1.6;">' + html + '</p>';
+    }
+    
+    return html;
+}
 
 // Export dropdown functionality
 function toggleExportDropdown() {
@@ -616,5 +1034,750 @@ document.addEventListener('click', function(event) {
         dropdown.style.display = 'none';
     }
 });
+
+// Chat Tab Variables
+let currentChatHandle = '';
+let currentChatChannel = '';
+let currentConversationId = null;
+let chatHistory = [];
+
+// Open Chat Tab
+function openChannelChatTab(handle, channelName, thumbnailUrl) {
+    currentChatHandle = handle;
+    currentChatChannel = channelName;
+    
+    // Update UI elements
+    document.getElementById('chatChannelName').textContent = channelName;
+    
+    // Update avatar - use thumbnail if available, otherwise fallback to first letter
+    const avatarElement = document.getElementById('chatChannelAvatar');
+    const avatarContainer = avatarElement.parentElement;
+    
+    if (thumbnailUrl && thumbnailUrl.trim() !== '') {
+        // Replace with actual thumbnail image
+        avatarContainer.innerHTML = `<img src="${thumbnailUrl}" alt="${channelName}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">`;
+    } else {
+        // Fallback to first letter
+        avatarContainer.innerHTML = `<span id="chatChannelAvatar">${channelName.charAt(0).toUpperCase()}</span>`;
+    }
+    
+    document.getElementById('welcomeChannelName').textContent = channelName;
+    document.getElementById('welcomeSummaryCount').textContent = '{{ summary_count }}';
+    
+    // Load models for the tab
+    loadChatTabModels();
+    
+    // Load chat history
+    loadChatHistory();
+    
+    // Start placeholder animation
+    setTimeout(() => {
+        startPlaceholderAnimation();
+    }, 500); // Short delay to ensure UI is ready
+    
+    // Show chat tab
+    document.getElementById('chatTab').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+// Close Chat Tab
+function closeChatTab() {
+    stopPlaceholderAnimation(); // Clean up animation
+    document.getElementById('chatTab').style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+
+// Load models for chat tab
+function loadChatTabModels() {
+    const select = document.getElementById('chatTabModelSelect');
+    if (!select) return;
+    
+    console.log('Loading available chat tab models...');
+    fetch('/api/models')
+        .then(response => {
+            console.log('Chat tab models response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Chat tab models data received:', data);
+            if (data.success && data.models) {
+                // Clear loading option
+                select.innerHTML = '';
+                
+                // Add providers and models
+                for (const [provider, models] of Object.entries(data.models)) {
+                    const optgroup = document.createElement('optgroup');
+                    optgroup.label = provider.charAt(0).toUpperCase() + provider.slice(1);
+                    
+                    models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model;
+                        
+                        // Use friendly display names for models
+                        let displayName = model;
+                        if (model === 'claude-sonnet-4-20250514') {
+                            displayName = 'Claude Sonnet 4 (Latest) 🤖';
+                        } else if (model === 'claude-3-5-sonnet-20241022') {
+                            displayName = 'Claude 3.5 Sonnet 🤖';
+                        } else if (model === 'gpt-4.1-mini') {
+                            displayName = 'GPT-4.1 Mini';
+                        } else if (model === 'gpt-4.1') {
+                            displayName = 'GPT-4.1';
+                        } else if (model === 'gpt-3.5-turbo') {
+                            displayName = 'GPT-3.5 Turbo';
+                        }
+                        
+                        option.textContent = displayName;
+                        
+                        // Default to Claude Sonnet 4 if available
+                        if (model === 'claude-sonnet-4-20250514') {
+                            option.selected = true;
+                        }
+                        
+                        optgroup.appendChild(option);
+                    });
+                    
+                    select.appendChild(optgroup);
+                }
+                
+                // If no Claude model available, select first available model
+                if (select.selectedIndex === -1 && select.options.length > 0) {
+                    select.selectedIndex = 0;
+                }
+                
+                console.log('Chat tab models loaded successfully, total options:', select.options.length);
+            } else {
+                console.error('Invalid chat tab models response format:', data);
+                select.innerHTML = '<option value="">Invalid response format</option>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading chat tab models:', error);
+            select.innerHTML = '<option value="">Error loading models</option>';
+        });
+}
+
+// Load chat history
+function loadChatHistory() {
+    if (!currentChatHandle) return;
+    
+    fetch(`/api/${currentChatHandle}/chat-history`)
+        .then(response => response.json())
+        .then(data => {
+            chatHistory = data.conversations || [];
+            updateChatHistoryUI();
+        })
+        .catch(error => {
+            console.error('Error loading chat history:', error);
+        });
+}
+
+// Update chat history UI
+function updateChatHistoryUI() {
+    const historyList = document.getElementById('chatHistoryList');
+    if (!historyList) return;
+    
+    if (chatHistory.length === 0) {
+        historyList.innerHTML = `
+            <div style="text-align: center; padding: 40px 20px; color: #666; font-size: 14px;">
+                <div style="font-size: 24px; margin-bottom: 10px;">💬</div>
+                <div>No conversations yet</div>
+                <div style="font-size: 12px; margin-top: 5px; opacity: 0.8;">Start a new chat to begin</div>
+            </div>
+        `;
+        return;
+    }
+    
+    historyList.innerHTML = chatHistory.map(conv => `
+        <div class="chat-history-item" 
+             style="padding: 12px 15px; margin-bottom: 5px; border-radius: 8px; cursor: pointer; transition: all 0.2s; ${conv.id === currentConversationId ? 'background: #e3f2fd;' : ''}"
+             onclick="loadConversation('${conv.id}')"
+             onmouseover="this.style.background='#f0f0f0'"
+             onmouseout="this.style.background='${conv.id === currentConversationId ? '#e3f2fd' : 'transparent'}'">
+            <div style="font-weight: 500; color: #333; font-size: 14px; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                ${conv.title || 'New Chat'}
+            </div>
+            <div style="font-size: 12px; color: #666; display: flex; justify-content: space-between; align-items: center;">
+                <span>${conv.model_used || 'Unknown'}</span>
+                <span>${formatDate(conv.updated_at)}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Format date for display
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = now - date;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) return 'Today';
+    if (diffDays === 2) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+}
+
+// Start new conversation
+function startNewConversation() {
+    currentConversationId = null;
+    
+    // Clear messages
+    document.getElementById('chatTabMessages').innerHTML = '';
+    document.getElementById('chatMessagesContainer').style.display = 'none';
+    document.getElementById('chatWelcome').style.display = 'flex';
+    
+    // Clear input
+    document.getElementById('chatTabInput').value = '';
+    
+    // Update history UI
+    updateChatHistoryUI();
+}
+
+// Load conversation
+function loadConversation(conversationId) {
+    if (!currentChatHandle) return;
+    
+    fetch(`/api/${currentChatHandle}/chat-history/${conversationId}`)
+        .then(response => response.json())
+        .then(data => {
+            currentConversationId = conversationId;
+            
+            // Update model selection
+            const modelSelect = document.getElementById('chatTabModelSelect');
+            if (data.conversation.model_used) {
+                modelSelect.value = data.conversation.model_used;
+            }
+            
+            // Load messages
+            const messagesContainer = document.getElementById('chatTabMessages');
+            messagesContainer.innerHTML = '';
+            
+            data.messages.forEach(message => {
+                addChatTabMessage(message.role, message.content, false);
+            });
+            
+            // Show messages container
+            document.getElementById('chatWelcome').style.display = 'none';
+            document.getElementById('chatMessagesContainer').style.display = 'block';
+            
+            // Update history UI
+            updateChatHistoryUI();
+            
+            // Scroll to bottom
+            scrollChatToBottom();
+        })
+        .catch(error => {
+            console.error('Error loading conversation:', error);
+        });
+}
+
+// Handle chat tab key press
+function handleChatTabKeyPress(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendChatTabMessage();
+    }
+}
+
+// Auto resize textarea
+function autoResizeTextarea(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+}
+
+// Send chat tab message
+function sendChatTabMessage() {
+    const input = document.getElementById('chatTabInput');
+    const message = input.value.trim();
+    const modelSelect = document.getElementById('chatTabModelSelect');
+    
+    if (!message || !modelSelect.value) return;
+    
+    // Show messages container if hidden
+    if (document.getElementById('chatWelcome').style.display !== 'none') {
+        document.getElementById('chatWelcome').style.display = 'none';
+        document.getElementById('chatMessagesContainer').style.display = 'block';
+    }
+    
+    // Add user message
+    addChatTabMessage('user', message, true);
+    
+    // Clear input and restart placeholder animation
+    input.value = '';
+    input.style.height = 'auto';
+    if (!placeholderActive) {
+        startPlaceholderAnimation();
+    }
+    
+    // Add animated thinking message
+    addThinkingMessage();
+    
+    // Send request
+    fetch(`/api/${currentChatHandle}/chat`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            message: message,
+            model: modelSelect.value,
+            conversation_id: currentConversationId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Remove thinking message
+        removeThinkingMessage();
+        
+        if (data.error) {
+            addChatTabMessage('assistant', 'Sorry, I encountered an error. Please try again.', false);
+            smoothScrollToBottom(1500); // Smooth scroll to show error
+        } else {
+            // Add assistant response
+            addChatTabMessage('assistant', data.response, false);
+            
+            // Smooth scroll to show the new response
+            smoothScrollToBottom(1500);
+            
+            // Update conversation ID
+            if (data.conversation_id) {
+                currentConversationId = data.conversation_id;
+            }
+            
+            // Reload history
+            loadChatHistory();
+        }
+    })
+    .catch(error => {
+        console.error('Error sending message:', error);
+        // Remove thinking message
+        removeThinkingMessage();
+        addChatTabMessage('assistant', 'Sorry, I encountered an error. Please try again.', false);
+        smoothScrollToBottom(1500); // Smooth scroll to show error
+    });
+}
+
+// Add message to chat tab
+function addChatTabMessage(role, content, shouldScroll) {
+    const messagesContainer = document.getElementById('chatTabMessages');
+    const messageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.id = messageId;
+    messageDiv.style.marginBottom = '20px';
+    
+    const isUser = role === 'user';
+    const bgColor = isUser ? '#667eea' : '#f8f9fa';
+    const textColor = isUser ? 'white' : '#333';
+    const alignment = isUser ? 'flex-end' : 'flex-start';
+    
+    messageDiv.innerHTML = `
+        <div style="display: flex; justify-content: ${alignment}; margin-bottom: 5px;">
+            <div style="background: ${bgColor}; color: ${textColor}; padding: 12px 16px; border-radius: 18px; max-width: 70%; word-wrap: break-word; line-height: 1.4;">
+                ${isUser ? escapeHtml(content) : convertMarkdownToHtml(content)}
+            </div>
+        </div>
+    `;
+    
+    messagesContainer.appendChild(messageDiv);
+    
+    if (shouldScroll) {
+        scrollChatToBottom();
+    }
+    
+    return messageId;
+}
+
+// Scroll chat to bottom
+function scrollChatToBottom() {
+    const container = document.getElementById('chatMessagesContainer');
+    container.scrollTop = container.scrollHeight;
+}
+
+// Escape HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Convert markdown to HTML (comprehensive)
+function convertMarkdownToHtml(markdown) {
+    if (!markdown) return '';
+    
+    let html = markdown;
+    
+    // Handle code blocks first (triple backticks)
+    html = html.replace(/```[\s\S]*?```/g, function(match) {
+        const code = match.replace(/```/g, '').trim();
+        return `<pre style="background: #f4f4f4; padding: 12px; border-radius: 6px; overflow-x: auto; margin: 10px 0; border-left: 4px solid #667eea;"><code>${escapeHtml(code)}</code></pre>`;
+    });
+    
+    // Headers (# ## ### etc.)
+    html = html.replace(/^### (.*$)/gm, '<h3 style="color: #333; margin: 20px 0 10px 0; font-size: 1.2em; font-weight: 600;">$1</h3>');
+    html = html.replace(/^## (.*$)/gm, '<h2 style="color: #333; margin: 20px 0 12px 0; font-size: 1.4em; font-weight: 600;">$1</h2>');
+    html = html.replace(/^# (.*$)/gm, '<h1 style="color: #333; margin: 20px 0 15px 0; font-size: 1.6em; font-weight: 600;">$1</h1>');
+    
+    // Bold and italic (avoid conflicts with headers)
+    html = html.replace(/\*\*((?![\*\#]).*?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*((?![\*\#]).*?)\*/g, '<em>$1</em>');
+    
+    // Inline code (single backticks)
+    html = html.replace(/`([^`]+)`/g, '<code style="background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; color: #c7254e;">$1</code>');
+    
+    // Links [text](url)
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #667eea; text-decoration: none; border-bottom: 1px solid #667eea;">$1</a>');
+    
+    // Convert line breaks to paragraphs for better spacing
+    const paragraphs = html.split(/\n\s*\n/);
+    html = paragraphs.map(p => {
+        if (p.trim()) {
+            // Don't wrap headers or pre-formatted content in paragraphs
+            if (p.match(/^<h[1-6]|^<pre|^<ul|^<ol/)) {
+                return p.trim();
+            }
+            return `<p style="margin: 0 0 15px 0; line-height: 1.6;">${p.trim()}</p>`;
+        }
+        return '';
+    }).join('');
+    
+    // Handle lists (bullet points and numbered)
+    // Bullet points (• or - or *)
+    html = html.replace(/^[•\-\*] (.+)$/gm, '<li style="margin: 4px 0; line-height: 1.5;">$1</li>');
+    
+    // Numbered lists (1. 2. etc.)
+    html = html.replace(/^\d+\. (.+)$/gm, '<li style="margin: 4px 0; line-height: 1.5;">$1</li>');
+    
+    // Wrap consecutive list items in ul/ol tags
+    html = html.replace(/(<li[^>]*>.*?<\/li>\s*)+/gs, function(match) {
+        // Check if it's a numbered list by looking for original numbered format
+        const isNumbered = /^\d+\./.test(markdown.split('\n').find(line => 
+            line.trim() && (line.includes('•') || line.includes('-') || line.includes('*') || /^\d+\./.test(line.trim()))
+        ) || '');
+        
+        const listStyle = 'margin: 10px 0; padding-left: 20px; list-style-position: outside;';
+        const listType = isNumbered ? 'ol' : 'ul';
+        return `<${listType} style="${listStyle}">${match}</${listType}>`;
+    });
+    
+    // Clean up any remaining single line breaks (convert to <br> but avoid breaking existing HTML)
+    html = html.replace(/\n(?![<\s])/g, '<br>');
+    
+    // Clean up extra whitespace
+    html = html.replace(/\s*<br>\s*<br>\s*/g, '<br>');
+    html = html.replace(/^\s+|\s+$/g, '');
+    
+    return html;
+}
+
+// Add thinking animation message
+function addThinkingMessage() {
+    const messagesContainer = document.getElementById('chatTabMessages');
+    const thinkingDiv = document.createElement('div');
+    thinkingDiv.id = 'thinkingMessage';
+    thinkingDiv.style.marginBottom = '20px';
+    
+    thinkingDiv.innerHTML = `
+        <div style="display: flex; justify-content: flex-start; margin-bottom: 5px;">
+            <div style="background: #f8f9fa; color: #333; padding: 12px 16px; border-radius: 18px; max-width: 70%; word-wrap: break-word; line-height: 1.4; display: flex; align-items: center; gap: 8px;">
+                <div class="thinking-dots">
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                </div>
+                <span style="color: #666; font-style: italic;">Thinking...</span>
+            </div>
+        </div>
+    `;
+    
+    messagesContainer.appendChild(thinkingDiv);
+    
+    // Add CSS for animated dots
+    if (!document.getElementById('thinkingDotsCSS')) {
+        const style = document.createElement('style');
+        style.id = 'thinkingDotsCSS';
+        style.textContent = `
+            .thinking-dots {
+                display: flex;
+                gap: 4px;
+            }
+            .thinking-dots .dot {
+                width: 6px;
+                height: 6px;
+                background: #667eea;
+                border-radius: 50%;
+                animation: thinkingBounce 1.4s infinite ease-in-out both;
+            }
+            .thinking-dots .dot:nth-child(1) { animation-delay: -0.32s; }
+            .thinking-dots .dot:nth-child(2) { animation-delay: -0.16s; }
+            .thinking-dots .dot:nth-child(3) { animation-delay: 0s; }
+            
+            @keyframes thinkingBounce {
+                0%, 80%, 100% {
+                    transform: scale(0.8);
+                    opacity: 0.5;
+                }
+                40% {
+                    transform: scale(1.2);
+                    opacity: 1;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    scrollChatToBottom();
+    return thinkingDiv.id;
+}
+
+function removeThinkingMessage() {
+    const thinkingMsg = document.getElementById('thinkingMessage');
+    if (thinkingMsg) {
+        thinkingMsg.remove();
+    }
+}
+
+// Enhanced smooth scroll function
+function smoothScrollToBottom(duration = 1500) {
+    const container = document.getElementById('chatMessagesContainer');
+    const start = container.scrollTop;
+    const end = container.scrollHeight - container.clientHeight;
+    const distance = end - start;
+    const startTime = performance.now();
+    
+    function animateScroll(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Easing function for smooth acceleration/deceleration
+        const easeInOutCubic = progress < 0.5 
+            ? 4 * progress * progress * progress 
+            : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+        
+        container.scrollTop = start + distance * easeInOutCubic;
+        
+        if (progress < 1) {
+            requestAnimationFrame(animateScroll);
+        }
+    }
+    
+    requestAnimationFrame(animateScroll);
+}
+
+// Animated placeholder functionality
+let placeholderInterval = null;
+let currentPlaceholderIndex = 0;
+let currentText = '';
+let isTyping = true;
+let placeholderActive = true;
+
+const sampleQuestions = [
+    "What are the main themes in this channel?",
+    "How has this channel's content evolved over time?", 
+    "What investment strategies are discussed here?",
+    "What are the key takeaways from recent videos?",
+    "How does this channel cover market trends?",
+    "What specific stocks or sectors are mentioned most?",
+    "What warnings or risks are highlighted?",
+    "How does this content relate to current events?",
+    "What actionable advice can I find here?",
+    "What are the most important insights to remember?"
+];
+
+function startPlaceholderAnimation() {
+    const input = document.getElementById('chatTabInput');
+    if (!input) return;
+    
+    placeholderActive = true;
+    currentPlaceholderIndex = 0;
+    currentText = '';
+    isTyping = true;
+    
+    function animatePlaceholder() {
+        if (!placeholderActive) return;
+        
+        const targetText = sampleQuestions[currentPlaceholderIndex];
+        
+        if (isTyping) {
+            // Faster typing animation
+            if (currentText.length < targetText.length) {
+                currentText += targetText[currentText.length];
+                input.placeholder = currentText;
+                setTimeout(animatePlaceholder, 40 + Math.random() * 30); // Much faster typing
+            } else {
+                // Pause at full text
+                setTimeout(() => {
+                    isTyping = false;
+                    animatePlaceholder();
+                }, 1500); // Shorter pause
+            }
+        } else {
+            // Deleting animation
+            if (currentText.length > 0) {
+                currentText = currentText.slice(0, -1);
+                input.placeholder = currentText;
+                setTimeout(animatePlaceholder, 25); // Faster deleting
+            } else {
+                // Move to next question
+                currentPlaceholderIndex = (currentPlaceholderIndex + 1) % sampleQuestions.length;
+                isTyping = true;
+                setTimeout(animatePlaceholder, 300); // Shorter pause before next question
+            }
+        }
+    }
+    
+    animatePlaceholder();
+}
+
+function stopPlaceholderAnimation() {
+    placeholderActive = false;
+}
+
+// Enhanced input handlers - only stop on actual typing, not focus
+function handleChatTabFocus() {
+    // Don't stop animation on focus, keep it running
+}
+
+function handleChatTabBlur() {
+    const input = document.getElementById('chatTabInput');
+    if (input && input.value.trim() === '') {
+        setTimeout(() => {
+            if (document.activeElement !== input && !placeholderActive) {
+                startPlaceholderAnimation();
+            }
+        }, 100);
+    }
+}
+
+function handleChatTabInput() {
+    const input = document.getElementById('chatTabInput');
+    if (input && input.value.trim() !== '') {
+        // Stop animation when user starts typing
+        stopPlaceholderAnimation();
+        input.placeholder = '';
+    } else if (input && input.value.trim() === '') {
+        // Restart animation if input becomes empty
+        if (!placeholderActive) {
+            startPlaceholderAnimation();
+        }
+    }
+}
 </script>
+
+<!-- ChatGPT-like Chat Interface Tab -->
+<div id="chatTab" class="chat-tab-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 10000; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+    
+    <!-- Chat Header -->
+    <div class="chat-header" style="position: fixed; top: 0; left: 0; right: 0; height: 60px; background: white; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; padding: 0 20px; z-index: 10001;">
+        <div style="display: flex; align-items: center; gap: 15px; flex: 1;">
+            <!-- Back Button -->
+            <button onclick="closeChatTab()" style="background: none; border: none; padding: 8px; cursor: pointer; color: #666; font-size: 20px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='none'">
+                ←
+            </button>
+            
+            <!-- Channel Info -->
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;">
+                    <span id="chatChannelAvatar">📺</span>
+                </div>
+                <div>
+                    <div style="font-weight: 600; color: #333; font-size: 16px;" id="chatChannelName">Channel Chat</div>
+                    <div style="font-size: 12px; color: #666;" id="chatChannelInfo">AI-powered conversation</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Model Selection -->
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <select id="chatTabModelSelect" style="padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 14px; background: white; cursor: pointer; min-width: 180px;">
+                <option value="">Loading models...</option>
+            </select>
+            <button onclick="startNewConversation()" style="background: #667eea; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 14px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#5a67d8'" onmouseout="this.style.background='#667eea'">
+                New Chat
+            </button>
+        </div>
+    </div>
+
+    <!-- Chat Main Content -->
+    <div style="display: flex; height: 100%; padding-top: 60px;">
+        
+        <!-- Chat History Sidebar -->
+        <div id="chatSidebar" class="chat-sidebar" style="width: 260px; background: #f8f9fa; border-right: 1px solid #e5e5e5; overflow-y: auto; display: flex; flex-direction: column;">
+            <div style="padding: 20px 15px 15px 15px; border-bottom: 1px solid #e5e5e5;">
+                <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #333;">Chat History</h3>
+            </div>
+            <div id="chatHistoryList" style="flex: 1; padding: 10px;">
+                <!-- Conversation history will be populated here -->
+                <div style="text-align: center; padding: 40px 20px; color: #666; font-size: 14px;">
+                    <div style="font-size: 24px; margin-bottom: 10px;">💬</div>
+                    <div>No conversations yet</div>
+                    <div style="font-size: 12px; margin-top: 5px; opacity: 0.8;">Start a new chat to begin</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Messages Area -->
+        <div style="flex: 1; display: flex; flex-direction: column; max-width: calc(100% - 260px);">
+            
+            <!-- Welcome Screen -->
+            <div id="chatWelcome" style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px;">
+                <div style="text-align: center; max-width: 600px;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">💬</div>
+                    <h2 style="margin: 0 0 10px 0; font-size: 24px; font-weight: 600; color: #333;">Chat with <span id="welcomeChannelName">Channel</span></h2>
+                    <p style="margin: 0 0 30px 0; color: #666; font-size: 16px; line-height: 1.5;">
+                        Ask questions about the channel's content. I have access to <span id="welcomeSummaryCount">all</span> AI summaries to provide informed responses.
+                    </p>
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; text-align: left; margin-bottom: 20px;">
+                        <div style="font-weight: 600; color: #333; margin-bottom: 10px;">Try asking:</div>
+                        <div style="color: #666; font-size: 14px; line-height: 1.6;">
+                            • "What are the main topics covered in this channel?"<br>
+                            • "Summarize the key insights from recent videos"<br>
+                            • "What advice does this channel give about [topic]?"<br>
+                            • "Find videos that mention [specific topic]"
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Messages -->
+            <div id="chatMessagesContainer" style="flex: 1; overflow-y: auto; padding: 20px 30px; display: none;">
+                <div id="chatTabMessages" style="max-width: 800px; margin: 0 auto;">
+                    <!-- Messages will be populated here -->
+                </div>
+            </div>
+
+            <!-- Chat Input -->
+            <div style="border-top: 1px solid #e5e5e5; padding: 20px 30px; background: white;">
+                <div style="max-width: 800px; margin: 0 auto;">
+                    <div style="display: flex; gap: 10px; align-items: end;">
+                        <div style="flex: 1; position: relative;">
+                            <textarea id="chatTabInput" 
+                                    placeholder="Ask a question about this channel..." 
+                                    style="width: 100%; padding: 12px 50px 12px 16px; border: 1px solid #e0e0e0; border-radius: 20px; font-size: 14px; font-family: inherit; resize: none; min-height: 44px; max-height: 120px; outline: none; transition: border-color 0.2s;"
+                                    onkeydown="handleChatTabKeyPress(event)"
+                                    oninput="autoResizeTextarea(this); handleChatTabInput();"
+                                    onfocus="this.style.borderColor='#667eea'; handleChatTabFocus();"
+                                    onblur="this.style.borderColor='#e0e0e0'; handleChatTabBlur();"></textarea>
+                            <button onclick="sendChatTabMessage()" 
+                                    style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: #667eea; color: white; border: none; padding: 8px; border-radius: 50%; cursor: pointer; font-size: 16px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"
+                                    onmouseover="this.style.background='#5a67d8'"
+                                    onmouseout="this.style.background='#667eea'">
+                                →
+                            </button>
+                        </div>
+                    </div>
+                    <div style="font-size: 12px; color: #666; margin-top: 8px; text-align: center;">
+                        AI responses are generated based on the channel's video summaries
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
 {% endblock %}
