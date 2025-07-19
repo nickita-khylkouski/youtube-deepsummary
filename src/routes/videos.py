@@ -126,6 +126,14 @@ def video_by_url_path(channel_handle, url_path):
         # Get memory snippets for this video
         snippets = database_storage.get_memory_snippets(video_id=video_id)
         
+        # Get chapter summaries for this video
+        chapter_summaries = database_storage.get_all_chapter_summaries(video_id)
+        
+        # Create a lookup dictionary for quick access
+        chapter_summaries_lookup = {}
+        for chapter_summary in chapter_summaries:
+            chapter_summaries_lookup[chapter_summary['chapter_time']] = chapter_summary
+        
         # Add thumbnail URL
         thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
         
@@ -143,6 +151,7 @@ def video_by_url_path(channel_handle, url_path):
                              video_duration=video_duration,
                              summary=summary,
                              snippets=snippets,
+                             chapter_summaries_lookup=chapter_summaries_lookup,
                              thumbnail_url=thumbnail_url,
                              has_transcript=has_transcript,
                              has_chapters=has_chapters,

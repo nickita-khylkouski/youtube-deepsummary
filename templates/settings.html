@@ -228,6 +228,7 @@
                                         </div>
                                         <div class="form-text">Controls randomness in responses. Lower values are more focused.</div>
                                     </div>
+                                    
                                 </div>
                             </div>
                         </div>
@@ -294,6 +295,14 @@
                                         <label for="maxTokens" class="form-label">Max Output Tokens</label>
                                         <input type="number" class="form-control" id="maxTokens" name="max_tokens" min="100" max="100000" value="8192">
                                         <div class="form-text">Maximum number of tokens in the summary response</div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="chapterSummaryModel" class="form-label">Chapter Summary Model</label>
+                                        <select class="form-select" id="chapterSummaryModel" name="chapter_summary_model">
+                                            <!-- Options populated dynamically -->
+                                        </select>
+                                        <div class="form-text">Select the AI model for chapter-specific summaries</div>
                                     </div>
                                     
                                     <div class="mb-3">
@@ -1035,6 +1044,26 @@
             }
         }
 
+        function updateChapterSummaryModelOptions() {
+            const chapterModelSelect = document.getElementById('chapterSummaryModel');
+            
+            // Clear existing options
+            chapterModelSelect.innerHTML = '';
+            
+            // Show all available models from both providers
+            chapterModelSelect.innerHTML = `
+                <optgroup label="OpenAI Models">
+                    <option value="gpt-4.1">GPT-4.1</option>
+                    <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
+                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                </optgroup>
+                <optgroup label="Anthropic Models">
+                    <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
+                    <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                </optgroup>
+            `;
+        }
+
         function loadSummarizerSettings() {
             fetch('/settings/summarizer-settings')
                 .then(response => response.json())
@@ -1079,6 +1108,12 @@
                 document.getElementById('model').value = settings.model;
             }
             
+            // Update chapter summary model options and set value
+            updateChapterSummaryModelOptions();
+            if (settings.chapterSummaryModel) {
+                document.getElementById('chapterSummaryModel').value = settings.chapterSummaryModel;
+            }
+            
             // Re-add the event listener
             providerSelect.addEventListener('change', updateModelOptions);
         }
@@ -1092,6 +1127,7 @@
                 { id: 'openaiApiKey', type: 'text' },
                 { id: 'anthropicApiKey', type: 'text' },
                 { id: 'maxTokens', type: 'number' },
+                { id: 'chapterSummaryModel', type: 'select' },
                 { id: 'enableChapterAwareness', type: 'checkbox' },
                 { id: 'enableMetadataInclusion', type: 'checkbox' },
                 { id: 'enableClickableChapters', type: 'checkbox' }
@@ -1145,7 +1181,9 @@
                 // Reset form to default values
                 document.getElementById('summarizerProvider').value = 'openai';
                 updateModelOptions(); // Update model options for OpenAI
+                updateChapterSummaryModelOptions(); // Update chapter summary model options
                 document.getElementById('model').value = 'gpt-4.1';
+                document.getElementById('chapterSummaryModel').value = 'claude-sonnet-4-20250514';
                 document.getElementById('temperature').value = '0.7';
                 document.getElementById('maxTokens').value = '8192';
                 document.getElementById('enableChapterAwareness').checked = true;

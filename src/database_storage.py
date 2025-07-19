@@ -567,6 +567,121 @@ class DatabaseStorage:
             print(f"Error deleting summary {summary_id}: {e}")
             return False
 
+    def save_chapter_summary(self, video_id: str, chapter_time: int, chapter_title: str, summary_text: str, model_used: str = 'claude-sonnet-4-20250514') -> Optional[str]:
+        """
+        Save AI summary for a specific chapter
+
+        Args:
+            video_id: YouTube video ID
+            chapter_time: Start time of the chapter in seconds
+            chapter_title: Title of the chapter
+            summary_text: Generated summary text
+            model_used: AI model used for summary
+
+        Returns:
+            Chapter summary ID or None if failed
+        """
+        try:
+            chapter_summary_data = {
+                'video_id': video_id,
+                'chapter_time': chapter_time,
+                'chapter_title': chapter_title,
+                'summary_text': summary_text,
+                'model_used': model_used,
+                'created_at': datetime.now(timezone.utc).isoformat(),
+                'updated_at': datetime.now(timezone.utc).isoformat()
+            }
+
+            # Insert new chapter summary (upsert to avoid duplicates)
+            result = self.supabase.table('chapter_summaries').upsert(
+                chapter_summary_data,
+                on_conflict='video_id,chapter_time'
+            ).execute()
+
+            if result.data:
+                print(f"Chapter summary saved for video {video_id}, chapter {chapter_title}")
+                return result.data[0].get('id')
+            else:
+                print(f"Failed to save chapter summary for video {video_id}, chapter {chapter_title}")
+                return None
+
+        except Exception as e:
+            print(f"Error saving chapter summary for {video_id}, chapter {chapter_title}: {e}")
+            raise
+
+    def get_chapter_summary(self, video_id: str, chapter_time: int) -> Optional[Dict]:
+        """
+        Get saved summary for a specific chapter
+
+        Args:
+            video_id: YouTube video ID
+            chapter_time: Start time of the chapter in seconds
+
+        Returns:
+            Chapter summary data or None if not found
+        """
+        try:
+            response = self.supabase.table('chapter_summaries')\
+                .select('*')\
+                .eq('video_id', video_id)\
+                .eq('chapter_time', chapter_time)\
+                .execute()
+
+            if response.data and len(response.data) > 0:
+                return response.data[0]
+            return None
+
+        except Exception as e:
+            print(f"Error getting chapter summary for {video_id}, chapter time {chapter_time}: {e}")
+            return None
+
+    def get_all_chapter_summaries(self, video_id: str) -> List[Dict]:
+        """
+        Get all chapter summaries for a video
+
+        Args:
+            video_id: YouTube video ID
+
+        Returns:
+            List of chapter summary data
+        """
+        try:
+            response = self.supabase.table('chapter_summaries')\
+                .select('*')\
+                .eq('video_id', video_id)\
+                .order('chapter_time')\
+                .execute()
+
+            return response.data if response.data else []
+
+        except Exception as e:
+            print(f"Error getting chapter summaries for {video_id}: {e}")
+            return []
+
+    def delete_chapter_summary(self, video_id: str, chapter_time: int) -> bool:
+        """
+        Delete a specific chapter summary
+
+        Args:
+            video_id: YouTube video ID
+            chapter_time: Start time of the chapter in seconds
+
+        Returns:
+            Success status
+        """
+        try:
+            result = self.supabase.table('chapter_summaries')\
+                .delete()\
+                .eq('video_id', video_id)\
+                .eq('chapter_time', chapter_time)\
+                .execute()
+
+            return bool(result.data)
+
+        except Exception as e:
+            print(f"Error deleting chapter summary for {video_id}, chapter time {chapter_time}: {e}")
+            return False
+
     def clear_expired(self):
         """
         Remove expired cache files - for database, we'll keep everything
@@ -1559,6 +1674,20 @@ class DatabaseStorage:
             
         except Exception as e:
             print(f"Error getting default AI prompt: {e}")
+            return None
+
+    def get_ai_prompt_by_name(self, name: str) -> Optional[Dict]:
+        """Get AI prompt by name"""
+        try:
+            result = self.supabase.table('ai_prompts')\
+                .select('*')\
+                .eq('name', name)\
+                .execute()
+            
+            return result.data[0] if result.data else None
+            
+        except Exception as e:
+            print(f"Error getting AI prompt by name {name}: {e}")
             return None
 
     def create_ai_prompt(self, name: str, prompt_text: str, is_default: bool = False, description: str = None) -> Optional[int]:

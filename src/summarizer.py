@@ -541,6 +541,132 @@ Please analyze this transcript:
         else:
             return f"{minutes:02d}:{seconds:02d}"
     
+    def summarize_chapter(self, chapter_transcript: str, chapter_title: str, video_id: str = None, video_info: Optional[Dict] = None) -> str:
+        """
+        Generate a summary for a specific chapter
+        
+        Args:
+            chapter_transcript: Transcript text for the specific chapter
+            chapter_title: Title of the chapter
+            video_id: YouTube video ID (optional)
+            video_info: Video metadata (optional)
+            
+        Returns:
+            Generated chapter summary text
+        """
+        # Get Chapter prompt from database
+        try:
+            from .database_storage import database_storage
+            chapter_prompt_data = database_storage.get_ai_prompt_by_name('Chapter')
+            
+            if chapter_prompt_data:
+                prompt_template = chapter_prompt_data['prompt_text']
+                # Replace placeholders in the prompt template
+                prompt = prompt_template.replace('{chapter_title}', chapter_title).replace('{chapter_transcript}', chapter_transcript)
+            else:
+                # Fallback to hardcoded prompt if Chapter prompt not found in database
+                prompt = f"""Please provide a comprehensive summary of this specific chapter from a YouTube video.
+
+Chapter Title: {chapter_title}
+
+Focus on:
+- The main topics and concepts covered in this chapter
+- Key insights and takeaways specific to this section
+- Actionable strategies or advice mentioned
+- Important examples, statistics, or case studies
+- Any warnings or pitfalls discussed
+
+Structure your response as follows:
+
+## Chapter Overview
+Brief summary of what this chapter covers.
+
+## Key Points
+Main concepts and insights from this chapter.
+
+## Actionable Takeaways  
+Practical advice or strategies that can be implemented.
+
+## Important Details
+Specific examples, statistics, or details worth noting.
+
+## Warnings & Considerations
+Any cautions or potential pitfalls mentioned.
+
+Please analyze this chapter transcript:
+
+{chapter_transcript}"""
+        except Exception as e:
+            print(f"Error loading Chapter prompt from database: {e}")
+            # Use fallback hardcoded prompt
+            prompt = f"""Please provide a comprehensive summary of this specific chapter from a YouTube video.
+
+Chapter Title: {chapter_title}
+
+Focus on:
+- The main topics and concepts covered in this chapter
+- Key insights and takeaways specific to this section
+- Actionable strategies or advice mentioned
+- Important examples, statistics, or case studies
+- Any warnings or pitfalls discussed
+
+Structure your response as follows:
+
+## Chapter Overview
+Brief summary of what this chapter covers.
+
+## Key Points
+Main concepts and insights from this chapter.
+
+## Actionable Takeaways  
+Practical advice or strategies that can be implemented.
+
+## Important Details
+Specific examples, statistics, or details worth noting.
+
+## Warnings & Considerations
+Any cautions or potential pitfalls mentioned.
+
+Please analyze this chapter transcript:
+
+{chapter_transcript}"""
+
+        try:
+            # Use a smaller max_tokens for chapter summaries to avoid API limits
+            chapter_max_tokens = min(self.max_tokens, 4096)  # Cap at 4096 tokens for chapters
+            
+            # Use the preferred provider for summarization
+            if self.preferred_provider == 'anthropic' and self.is_configured('anthropic'):
+                response = self.anthropic_client.messages.create(
+                    model=self.model,
+                    max_tokens=chapter_max_tokens,
+                    temperature=self.temperature,
+                    system="You are a helpful assistant that creates clear, focused summaries of specific video chapters. Concentrate on extracting the most valuable insights and actionable advice from the provided chapter content.",
+                    messages=[
+                        {"role": "user", "content": prompt}
+                    ]
+                )
+                summary = response.content[0].text
+            elif self.is_configured('openai'):
+                response = self.openai_client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": "You are a helpful assistant that creates clear, focused summaries of specific video chapters. Concentrate on extracting the most valuable insights and actionable advice from the provided chapter content."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=self.temperature,
+                    max_tokens=chapter_max_tokens
+                )
+                summary = response.choices[0].message.content
+            else:
+                raise Exception("No AI provider is properly configured")
+            
+            return summary
+            
+        except Exception as e:
+            print(f"Error during chapter summarization: {e}")
+            raise Exception(f"Failed to generate chapter summary: {str(e)}")
+
     def summarize_transcript(self, transcript: List[Dict]) -> str:
         """
         Legacy method for backward compatibility
