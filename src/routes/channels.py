@@ -214,24 +214,60 @@ def channel_blog(channel_handle):
             return render_template('error.html', 
                                  error_message=f"Channel not found: {channel_handle}"), 404
         
-        # Get summary count for this channel to show if blog should be available
+        # Get all videos for this channel
         channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
         
-        summary_count = 0
+        # Filter videos that have summaries and sort by published_at (most recent first)
+        videos_with_summaries = []
         for video in channel_videos:
             summary = database_storage.get_summary(video['video_id'])
             if summary:
-                summary_count += 1
+                videos_with_summaries.append({
+                    'video_id': video['video_id'],
+                    'title': video['title'],
+                    'channel_name': video.get('channel_name'),
+                    'channel_id': video.get('channel_id'),
+                    'duration': video['duration'],
+                    'thumbnail_url': f"https://img.youtube.com/vi/{video['video_id']}/maxresdefault.jpg",
+                    'summary': summary,
+                    'published_at': video.get('published_at'),
+                    'url_path': video.get('url_path'),
+                    'uploader': video.get('uploader')
+                })
         
         # Only show blog if there are summaries available
-        if summary_count == 0:
+        if not videos_with_summaries:
             return render_template('error.html', 
                                  error_message=f"No blog posts available for {channel_info['channel_name']}. Blog requires at least one AI summary."), 404
+        
+        # Sort by published_at descending (most recent first)
+        videos_with_summaries.sort(
+            key=lambda x: x.get('published_at') or '1970-01-01', 
+            reverse=True
+        )
+        
+        # Get initial posts (first 10) for server-side rendering
+        posts_per_page = 10
+        initial_posts = videos_with_summaries[:posts_per_page]
+        
+        # Format summaries as HTML for initial posts
+        for post in initial_posts:
+            post['summary'] = format_summary_html(post['summary'])
+        
+        # Get recent posts for sidebar (first 8)
+        recent_posts = videos_with_summaries[:8]
+        
+        # Calculate if there are more posts for infinite scrolling
+        has_more_posts = len(videos_with_summaries) > posts_per_page
         
         return render_template('blog.html', 
                              channel_info=channel_info,
                              channel_handle=channel_handle,
-                             summary_count=summary_count)
+                             summary_count=len(videos_with_summaries),
+                             initial_posts=initial_posts,
+                             recent_posts=recent_posts,
+                             has_more_posts=has_more_posts,
+                             total_posts=len(videos_with_summaries))
         
     except Exception as e:
         return render_template('error.html', 

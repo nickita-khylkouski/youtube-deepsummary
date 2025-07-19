@@ -27,7 +27,70 @@
 <div style="display: grid; grid-template-columns: 1fr 300px; gap: 40px; margin: 0 auto; max-width: 1200px;">
     <!-- Blog Posts Container -->
     <div id="blog-posts-container">
-        <!-- Posts will be loaded here via JavaScript -->
+        <!-- Initial Posts (Server-Side Rendered for SEO) -->
+        {% for post in initial_posts %}
+        <article class="blog-post">
+            <div style="background: white; border-radius: 12px; padding: 30px; margin-bottom: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e5e5;">
+                <!-- Post Header -->
+                <header style="margin-bottom: 25px;">
+                    <h2 style="margin: 0 0 12px 0; font-size: 26px; font-weight: 600; line-height: 1.3;">
+                        <a href="/{{ channel_info.handle[1:] if channel_info.handle.startswith('@') else channel_info.handle }}/{{ post.url_path }}" 
+                           style="color: #1a1a1a; text-decoration: none; transition: color 0.2s ease;"
+                           onmouseover="this.style.color='#667eea'"
+                           onmouseout="this.style.color='#1a1a1a'">
+                            {{ post.title }}
+                        </a>
+                    </h2>
+                    <div style="display: flex; align-items: center; gap: 15px; color: #666; font-size: 14px; margin-bottom: 15px;">
+                        {% if post.published_at %}
+                            <time datetime="{{ post.published_at }}" style="font-weight: 500;">📅 {{ post.published_at[:10] }}</time>
+                        {% endif %}
+                        <span>⏱️ {{ post.duration }}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <img src="{{ post.thumbnail_url }}" 
+                             alt="{{ post.title }}" 
+                             style="width: 120px; height: 90px; object-fit: cover; border-radius: 8px; flex-shrink: 0;">
+                        <div style="flex: 1;">
+                            <p style="margin: 0; color: #555; font-size: 15px; line-height: 1.5;">
+                                Click to watch the full video and see detailed chapters and timestamps.
+                            </p>
+                        </div>
+                    </div>
+                </header>
+                
+                <!-- Post Content (AI Summary) -->
+                <div class="blog-post-content" style="color: #333; line-height: 1.7; font-size: 16px;">
+                    {{ post.summary | safe }}
+                </div>
+                
+                <!-- Post Footer -->
+                <footer style="margin-top: 25px; padding-top: 20px; border-top: 1px solid #e5e5e5;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                        <div style="display: flex; gap: 12px;">
+                            <a href="/{{ channel_info.handle }}/{{ post.url_path }}" 
+                               style="background: #667eea; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease;"
+                               onmouseover="this.style.background='#5a6fd8'"
+                               onmouseout="this.style.background='#667eea'">
+                                📺 Watch Video
+                            </a>
+                            <a href="https://youtube.com/watch?v={{ post.video_id }}" 
+                               target="_blank" 
+                               style="background: #ff0000; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease;"
+                               onmouseover="this.style.background='#e60000'"
+                               onmouseout="this.style.background='#ff0000'">
+                                🔗 YouTube
+                            </a>
+                        </div>
+                        <div style="color: #888; font-size: 13px;">
+                            AI Summary • {{ post.video_id }}
+                        </div>
+                    </div>
+                </footer>
+            </div>
+        </article>
+        {% endfor %}
+        <!-- Additional posts will be loaded here via JavaScript if has_more_posts -->
     </div>
     
     <!-- Sidebar -->
@@ -38,7 +101,22 @@
                 📝 Recent Posts
             </h3>
             <div id="recent-posts-sidebar">
-                <!-- Recent posts will be loaded here via JavaScript -->
+                <!-- Server-Side Rendered Recent Posts for SEO -->
+                {% for post in recent_posts %}
+                <div style="padding: 12px 0; border-bottom: 1px solid #f0f0f0; transition: all 0.2s ease;" 
+                     onmouseover="this.style.backgroundColor='#f8f9fa'" 
+                     onmouseout="this.style.backgroundColor='transparent'">
+                    <a href="/{{ channel_info.handle[1:] if channel_info.handle.startswith('@') else channel_info.handle }}/{{ post.url_path }}" 
+                       style="text-decoration: none; color: inherit; display: block;">
+                        <h4 style="margin: 0 0 6px 0; font-size: 14px; font-weight: 500; line-height: 1.3; color: #333;">
+                            {{ post.title[:60] }}{% if post.title|length > 60 %}...{% endif %}
+                        </h4>
+                        {% if post.published_at %}
+                            <p style="margin: 0; font-size: 12px; color: #888;">{{ post.published_at[:10] }}</p>
+                        {% endif %}
+                    </a>
+                </div>
+                {% endfor %}
             </div>
         </div>
         
@@ -81,17 +159,18 @@
 </div>
 
 <script>
-let currentPage = 1;
+let currentPage = 2; // Start from page 2 since page 1 is server-rendered
 let loading = false;
-let hasMorePosts = true;
+let hasMorePosts = {{ 'true' if has_more_posts else 'false' }};
 const postsPerPage = 10;
 const channelHandle = '{{ channel_info.handle }}';
 
 // Initialize blog when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    loadBlogPosts();
-    loadRecentPostsSidebar();
-    setupInfiniteScroll();
+    // Only setup infinite scrolling if there are more posts to load
+    if (hasMorePosts) {
+        setupInfiniteScroll();
+    }
 });
 
 function setupInfiniteScroll() {
@@ -262,48 +341,7 @@ function showError(message) {
     container.appendChild(errorDiv);
 }
 
-async function loadRecentPostsSidebar() {
-    try {
-        const response = await fetch(`/api/${channelHandle}/blog-posts?page=1&per_page=8`);
-        const data = await response.json();
-        
-        if (data.success && data.posts.length > 0) {
-            renderRecentPostsSidebar(data.posts);
-        } else {
-            document.getElementById('recent-posts-sidebar').innerHTML = '<p style="color: #888; font-size: 14px; margin: 0;">No recent posts available.</p>';
-        }
-    } catch (error) {
-        console.error('Error loading recent posts:', error);
-        document.getElementById('recent-posts-sidebar').innerHTML = '<p style="color: #888; font-size: 14px; margin: 0;">Unable to load recent posts.</p>';
-    }
-}
-
-function renderRecentPostsSidebar(posts) {
-    const container = document.getElementById('recent-posts-sidebar');
-    
-    const postsHtml = posts.map(post => {
-        const publishDate = post.published_at ? new Date(post.published_at).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric'
-        }) : '';
-        
-        return `
-            <div style="padding: 12px 0; border-bottom: 1px solid #f0f0f0; transition: all 0.2s ease;" 
-                 onmouseover="this.style.backgroundColor='#f8f9fa'" 
-                 onmouseout="this.style.backgroundColor='transparent'">
-                <a href="${post.url_path ? `/${channelHandle.replace('@', '')}/${post.url_path}` : `/watch?v=${post.video_id}`}" 
-                   style="text-decoration: none; color: inherit; display: block;">
-                    <h4 style="margin: 0 0 6px 0; font-size: 14px; font-weight: 500; line-height: 1.3; color: #333;">
-                        ${escapeHtml(post.title.length > 60 ? post.title.substring(0, 60) + '...' : post.title)}
-                    </h4>
-                    ${publishDate ? `<p style="margin: 0; font-size: 12px; color: #888;">${publishDate}</p>` : ''}
-                </a>
-            </div>
-        `;
-    }).join('');
-    
-    container.innerHTML = postsHtml;
-}
+// Recent posts sidebar is now server-side rendered for SEO
 </script>
 
 <style>
