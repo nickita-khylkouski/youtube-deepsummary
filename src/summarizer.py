@@ -284,7 +284,6 @@ Please analyze this transcript:
             
             response = self.anthropic_client.messages.create(
                 model=model_to_use,
-                max_tokens=self.max_tokens,
                 temperature=self.temperature,
                 system=system_prompt,
                 messages=[
