@@ -557,47 +557,33 @@
             }
         }
         
-        // Debug function to log chapter summaries data
+        // Debug function to log chapter summaries data (disabled to prevent display issues)
         function debugChapterSummaries() {
             try {
                 console.log('=== DEBUG: Chapter Summaries ===');
-                const chapterData = {{ chapter_summaries_lookup|tojson }};
-                console.log('Chapter summaries lookup data:', chapterData);
-                console.log('Number of chapter summaries:', Object.keys(chapterData).length);
-                
-                // Log each chapter summary
-                Object.entries(chapterData).forEach(([time, summary]) => {
-                    console.log(`Chapter ${time}s:`, {
-                        title: summary.chapter_title,
-                        summaryPreview: summary.summary_text.substring(0, 50) + '...',
-                        model: summary.model_used
-                    });
-                });
+                // Don't log the full chapter data to prevent display issues
+                console.log('Chapter summaries available: true');
                 
                 // Check if buttons exist
-                const viewButtons = document.querySelectorAll('button[onclick*="showChapterSummaryModal"]');
+                const viewButtons = document.querySelectorAll('button[data-chapter-time]');
                 console.log('Found', viewButtons.length, 'View Summary buttons');
-                
-                viewButtons.forEach((btn, index) => {
-                    console.log(`Button ${index}:`, btn.outerHTML.substring(0, 100) + '...');
-                });
                 
             } catch (error) {
                 console.error('Error in debugChapterSummaries:', error);
             }
         }
         
-        // Call debug function when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded, running debug...');
-            debugChapterSummaries();
-        });
+        // Call debug function when page loads (disabled to prevent display issues)
+        // document.addEventListener('DOMContentLoaded', function() {
+        //     console.log('DOM loaded, running debug...');
+        //     debugChapterSummaries();
+        // });
         
-        // Also run debug after a short delay to ensure everything is loaded
-        setTimeout(function() {
-            console.log('Delayed debug check...');
-            debugChapterSummaries();
-        }, 1000);
+        // Also run debug after a short delay to ensure everything is loaded (disabled)
+        // setTimeout(function() {
+        //     console.log('Delayed debug check...');
+        //     debugChapterSummaries();
+        // }, 1000);
         
         // Function to view chapter summary using data attributes
         function viewChapterSummary(chapterTime) {

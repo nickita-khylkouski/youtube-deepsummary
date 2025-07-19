@@ -131,8 +131,8 @@ def video_by_url_path(channel_handle, url_path):
         
         # Create a lookup dictionary for quick access
         chapter_summaries_lookup = {}
-        for summary in chapter_summaries:
-            chapter_summaries_lookup[summary['chapter_time']] = summary
+        for chapter_summary in chapter_summaries:
+            chapter_summaries_lookup[chapter_summary['chapter_time']] = chapter_summary
         
         # Add thumbnail URL
         thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
