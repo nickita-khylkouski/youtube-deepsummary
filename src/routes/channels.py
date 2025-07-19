@@ -158,7 +158,7 @@ def channel_summaries(channel_handle):
                     'duration': video['duration'],
                     'thumbnail_url': f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
                     'summary': summary_html,
-                    'created_at': video['created_at'],
+                    'published_at': video.get('published_at'),
                     'url_path': video.get('url_path')
                 })
         

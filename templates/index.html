@@ -2,17 +2,17 @@
 
 {% block content %}
     <!-- Hero Section -->
-    <div class="hero-section" style="text-align: center; margin-bottom: 40px; padding: 60px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; color: white; position: relative; overflow: hidden;">
+    <div class="hero-section" style="text-align: center; margin-bottom: 40px; padding: 60px 20px; background: linear-gradient(135deg, #0f0f0f 0%, #282828 50%, #ff0000 100%); border-radius: 20px; color: white; position: relative; overflow: hidden;">
         <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.1); z-index: 1;"></div>
         <div style="position: relative; z-index: 2;">
-            <h2 class="hero-title" style="color: white; margin-bottom: 20px; font-size: 42px; font-weight: 700; line-height: 1.2;">Transform Hours of Video<br>Into <span style="background: linear-gradient(45deg, #ffd700, #ffed4a); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Actionable Insights</span></h2>
+            <h2 class="hero-title" style="color: white; margin-bottom: 20px; font-size: 42px; font-weight: 700; line-height: 1.2;">Transform Hours of Video<br>Into <span style="background: linear-gradient(45deg, #ff0000, #cc0000); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Actionable Insights</span></h2>
             <p class="hero-subtitle" style="color: rgba(255,255,255,0.9); font-size: 18px; max-width: 700px; margin: 0 auto 30px; line-height: 1.6; font-weight: 400;">Stop wasting time on lengthy videos. Extract the key information that will actually move your projects forward, enhance your skills, and create real value in your work and life.</p>
             
             <!-- Search Form -->
             <div class="hero-form" style="background: rgba(255,255,255,0.95); padding: 25px; border-radius: 15px; max-width: 600px; margin: 0 auto; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
-                <form action="/watch" method="get" onsubmit="if (!this.v.value.trim()) this.v.value = 'FjHtZnjNEBU';" style="display: flex; gap: 15px; align-items: center;">
-                    <input type="text" name="v" placeholder="Paste YouTube URL or video ID..." style="flex: 1; padding: 16px 20px; border: 2px solid #e0e0e0; border-radius: 12px; font-size: 16px; outline: none; transition: all 0.3s; background: #f8f9fa;">
-                    <button type="submit" style="background: linear-gradient(135deg, #ff6b6b, #ff8e8e); color: white; border: none; padding: 16px 32px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 15px rgba(255,107,107,0.3); white-space: nowrap;">🚀 Extract Impact</button>
+                <form action="/watch" method="get" onsubmit="if (!this.v.value.trim()) this.v.value = 'FjHtZnjNEBU';" style="display: flex; flex-direction: column; gap: 15px;">
+                    <input type="text" name="v" placeholder="Paste YouTube URL or video ID..." style="width: 100%; padding: 16px 20px; border: 2px solid #e0e0e0; border-radius: 12px; font-size: 16px; outline: none; transition: all 0.3s; background: #f8f9fa; box-sizing: border-box;">
+                    <button type="submit" style="background: linear-gradient(135deg, #ff0000, #cc0000); color: white; border: none; padding: 16px 32px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 15px rgba(255,0,0,0.3); white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;"><img src="/static/rocket-icon.svg" alt="Rocket" style="width: 26px; height: 26px;"> Extract Impact</button>
                 </form>
             </div>
         </div>
@@ -20,29 +20,29 @@
     
     <!-- Stats Section -->
     <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 30px; margin-bottom: 50px;">
-        <div class="stat-card" style="text-align: center; padding: 25px; background: linear-gradient(145deg, #f0f8ff, #e6f3ff); border-radius: 15px; border: 1px solid #e0e8f0;">
-            <div class="stat-number" style="font-size: 32px; font-weight: 700; color: #2196f3; margin-bottom: 8px;">10,000+</div>
+        <div class="stat-card" style="text-align: center; padding: 25px; background: linear-gradient(145deg, #fafafa, #f5f5f5); border-radius: 15px; border: 1px solid #ff0000; border-opacity: 0.2;">
+            <div class="stat-number" style="font-size: 32px; font-weight: 700; color: #ff0000; margin-bottom: 8px;">10,000+</div>
             <div style="color: #666; font-weight: 500;">Professionals Empowered</div>
         </div>
-        <div class="stat-card" style="text-align: center; padding: 25px; background: linear-gradient(145deg, #f0fff0, #e6ffe6); border-radius: 15px; border: 1px solid #e0f0e0;">
-            <div class="stat-number" style="font-size: 32px; font-weight: 700; color: #4caf50; margin-bottom: 8px;">500+</div>
+        <div class="stat-card" style="text-align: center; padding: 25px; background: linear-gradient(145deg, #fafafa, #f5f5f5); border-radius: 15px; border: 1px solid #282828; border-opacity: 0.3;">
+            <div class="stat-number" style="font-size: 32px; font-weight: 700; color: #282828; margin-bottom: 8px;">500+</div>
             <div style="color: #666; font-weight: 500;">Hours Saved Daily</div>
         </div>
-        <div class="stat-card" style="text-align: center; padding: 25px; background: linear-gradient(145deg, #fff5f5, #ffe6e6); border-radius: 15px; border: 1px solid #f0e0e0;">
-            <div class="stat-number" style="font-size: 32px; font-weight: 700; color: #ff5722; margin-bottom: 8px;">95%</div>
+        <div class="stat-card" style="text-align: center; padding: 25px; background: linear-gradient(145deg, #fff8f8, #fff0f0); border-radius: 15px; border: 1px solid #cc0000; border-opacity: 0.3;">
+            <div class="stat-number" style="font-size: 32px; font-weight: 700; color: #cc0000; margin-bottom: 8px;">95%</div>
             <div style="color: #666; font-weight: 500;">Time Reduction</div>
         </div>
     </div>
     
     <!-- Testimonials Section -->
-    <div class="testimonials-section" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 50px 30px; border-radius: 20px; margin-top: 20px;">
-        <h3 class="testimonials-title" style="text-align: center; margin-bottom: 40px; color: #333; font-size: 32px; font-weight: 700;">💬 Real Impact Stories</h3>
+    <div class="testimonials-section" style="background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%); padding: 50px 30px; border-radius: 20px; margin-top: 20px;">
+        <h3 class="testimonials-title" style="text-align: center; margin-bottom: 40px; color: #0f0f0f; font-size: 32px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 12px;"><img src="/static/chat-icon.svg" alt="Chat" style="width: 42px; height: 42px;"> Real Impact Stories</h3>
         <div class="testimonials-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 25px;">
             <div class="testimonial-card" style="background: white; padding: 28px; border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); border: 1px solid rgba(255,255,255,0.18); backdrop-filter: blur(10px); transition: all 0.3s ease-in-out; position: relative; overflow: hidden;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 16px 48px rgba(0,0,0,0.16)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 32px rgba(0,0,0,0.12)'">
-                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, #667eea, #764ba2);"></div>
+                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, #ff0000, #cc0000);"></div>
                 <p class="testimonial-text" style="margin: 0 0 24px 0; color: #2c3e50; line-height: 1.7; font-size: 16px; font-weight: 400; letter-spacing: 0.3px;">"This tool helped me finish my thesis 3 months early. Instead of watching 40+ hours of lecture videos, I extracted the exact research insights I needed. The AI summaries identified patterns across different talks that became the foundation of my research. It literally changed my academic trajectory."</p>
                 <div style="display: flex; align-items: center; gap: 16px;">
-                    <div class="testimonial-avatar" style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);">SC</div>
+                    <div class="testimonial-avatar" style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; box-shadow: 0 4px 16px rgba(255, 0, 0, 0.3);">SC</div>
                     <div>
                         <div class="testimonial-name" style="font-weight: 600; color: #2c3e50; font-size: 16px; margin-bottom: 4px;">Sarah Chen</div>
                         <div class="testimonial-title" style="color: #7f8c8d; font-size: 14px; font-weight: 500;">PhD Student, Stanford</div>
@@ -51,10 +51,10 @@
             </div>
             
             <div class="testimonial-card" style="background: white; padding: 28px; border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); border: 1px solid rgba(255,255,255,0.18); backdrop-filter: blur(10px); transition: all 0.3s ease-in-out; position: relative; overflow: hidden;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 16px 48px rgba(0,0,0,0.16)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 32px rgba(0,0,0,0.12)'">
-                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, #f093fb, #f5576c);"></div>
+                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, #282828, #0f0f0f);"></div>
                 <p class="testimonial-text" style="margin: 0 0 24px 0; color: #2c3e50; line-height: 1.7; font-size: 16px; font-weight: 400; letter-spacing: 0.3px;">"I launched a $2M product feature after extracting insights from 50+ competitor analysis videos. What used to take weeks of research now takes hours. The structured summaries revealed market gaps that became our competitive advantage. ROI was immediate."</p>
                 <div style="display: flex; align-items: center; gap: 16px;">
-                    <div class="testimonial-avatar" style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; box-shadow: 0 4px 16px rgba(240, 147, 251, 0.3);">MR</div>
+                    <div class="testimonial-avatar" style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #282828 0%, #0f0f0f 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; box-shadow: 0 4px 16px rgba(40, 40, 40, 0.5);">MR</div>
                     <div>
                         <div class="testimonial-name" style="font-weight: 600; color: #2c3e50; font-size: 16px; margin-bottom: 4px;">Marcus Rodriguez</div>
                         <div class="testimonial-title" style="color: #7f8c8d; font-size: 14px; font-weight: 500;">Product Manager</div>
@@ -63,10 +63,10 @@
             </div>
             
             <div class="testimonial-card" style="background: white; padding: 28px; border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); border: 1px solid rgba(255,255,255,0.18); backdrop-filter: blur(10px); transition: all 0.3s ease-in-out; position: relative; overflow: hidden;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 16px 48px rgba(0,0,0,0.16)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 32px rgba(0,0,0,0.12)'">
-                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, #4facfe, #00f2fe);"></div>
+                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, #ff0000, #990000);"></div>
                 <p class="testimonial-text" style="margin: 0 0 24px 0; color: #2c3e50; line-height: 1.7; font-size: 16px; font-weight: 400; letter-spacing: 0.3px;">"My YouTube channel grew from 5K to 100K subscribers in 6 months. I analyzed top performers in my niche, extracted their successful frameworks, and adapted them to my content. The insights turned my hobby into a full-time business generating $50K/month."</p>
                 <div style="display: flex; align-items: center; gap: 16px;">
-                    <div class="testimonial-avatar" style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; box-shadow: 0 4px 16px rgba(79, 172, 254, 0.3);">AT</div>
+                    <div class="testimonial-avatar" style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #cc0000 0%, #990000 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; box-shadow: 0 4px 16px rgba(204, 0, 0, 0.4);">AT</div>
                     <div>
                         <div class="testimonial-name" style="font-weight: 600; color: #2c3e50; font-size: 16px; margin-bottom: 4px;">Alex Thompson</div>
                         <div class="testimonial-title" style="color: #7f8c8d; font-size: 14px; font-weight: 500;">Content Creator</div>
@@ -75,10 +75,10 @@
             </div>
             
             <div class="testimonial-card" style="background: white; padding: 28px; border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); border: 1px solid rgba(255,255,255,0.18); backdrop-filter: blur(10px); transition: all 0.3s ease-in-out; position: relative; overflow: hidden;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 16px 48px rgba(0,0,0,0.16)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 32px rgba(0,0,0,0.12)'">
-                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, #fa709a, #fee140);"></div>
+                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, #404040, #282828);"></div>
                 <p class="testimonial-text" style="margin: 0 0 24px 0; color: #2c3e50; line-height: 1.7; font-size: 16px; font-weight: 400; letter-spacing: 0.3px;">"I got promoted to senior engineer after implementing techniques from 100+ coding tutorials. Instead of watching everything, I extracted the core concepts and built a personal knowledge base. Applied the insights to real projects and delivered features that impressed my team."</p>
                 <div style="display: flex; align-items: center; gap: 16px;">
-                    <div class="testimonial-avatar" style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; box-shadow: 0 4px 16px rgba(250, 112, 154, 0.3);">JL</div>
+                    <div class="testimonial-avatar" style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #404040 0%, #282828 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; box-shadow: 0 4px 16px rgba(64, 64, 64, 0.4);">JL</div>
                     <div>
                         <div class="testimonial-name" style="font-weight: 600; color: #2c3e50; font-size: 16px; margin-bottom: 4px;">Jordan Lee</div>
                         <div class="testimonial-title" style="color: #7f8c8d; font-size: 14px; font-weight: 500;">Software Engineer</div>
@@ -87,10 +87,10 @@
             </div>
             
             <div class="testimonial-card" style="background: white; padding: 28px; border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); border: 1px solid rgba(255,255,255,0.18); backdrop-filter: blur(10px); transition: all 0.3s ease-in-out; position: relative; overflow: hidden;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 16px 48px rgba(0,0,0,0.16)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 32px rgba(0,0,0,0.12)'">
-                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, #a8edea, #fed6e3);"></div>
+                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, #cc0000, #aa0000);"></div>
                 <p class="testimonial-text" style="margin: 0 0 24px 0; color: #2c3e50; line-height: 1.7; font-size: 16px; font-weight: 400; letter-spacing: 0.3px;">"I broke three major stories by analyzing hours of interview footage in minutes. The transcript search helped me find contradictory statements and smoking gun quotes that others missed. My investigative pieces now have the depth that wins awards."</p>
                 <div style="display: flex; align-items: center; gap: 16px;">
-                    <div class="testimonial-avatar" style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; box-shadow: 0 4px 16px rgba(168, 237, 234, 0.3);">EP</div>
+                    <div class="testimonial-avatar" style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #aa0000 0%, #880000 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; box-shadow: 0 4px 16px rgba(170, 0, 0, 0.4);">EP</div>
                     <div>
                         <div class="testimonial-name" style="font-weight: 600; color: #2c3e50; font-size: 16px; margin-bottom: 4px;">Emma Parker</div>
                         <div class="testimonial-title" style="color: #7f8c8d; font-size: 14px; font-weight: 500;">Investigative Journalist</div>
@@ -99,10 +99,10 @@
             </div>
             
             <div class="testimonial-card" style="background: white; padding: 28px; border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); border: 1px solid rgba(255,255,255,0.18); backdrop-filter: blur(10px); transition: all 0.3s ease-in-out; position: relative; overflow: hidden;" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 16px 48px rgba(0,0,0,0.16)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 32px rgba(0,0,0,0.12)'">
-                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, #d299c2, #fef9d7);"></div>
+                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, #606060, #404040);"></div>
                 <p class="testimonial-text" style="margin: 0 0 24px 0; color: #2c3e50; line-height: 1.7; font-size: 16px; font-weight: 400; letter-spacing: 0.3px;">"Our startup pivoted based on insights from 200+ customer interview videos. The AI summaries revealed pain points we'd completely missed. That pivot led to $5M in funding and product-market fit. This tool literally saved our company."</p>
                 <div style="display: flex; align-items: center; gap: 16px;">
-                    <div class="testimonial-avatar" style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #d299c2 0%, #fef9d7 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; box-shadow: 0 4px 16px rgba(210, 153, 194, 0.3);">RK</div>
+                    <div class="testimonial-avatar" style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #606060 0%, #404040 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px; box-shadow: 0 4px 16px rgba(96, 96, 96, 0.4);">RK</div>
                     <div>
                         <div class="testimonial-name" style="font-weight: 600; color: #2c3e50; font-size: 16px; margin-bottom: 4px;">Raj Kumar</div>
                         <div class="testimonial-title" style="color: #7f8c8d; font-size: 14px; font-weight: 500;">Market Researcher</div>
@@ -112,20 +112,20 @@
         </div>
         
         <div style="text-align: center; margin-top: 30px; padding-top: 30px; border-top: 2px solid #e0e0e0; color: #666; font-size: 16px; font-weight: 500;">
-            ✨ Join 10,000+ professionals who turn video content into career-changing insights
+            <span style="display: flex; align-items: center; justify-content: center; gap: 8px;"><img src="/static/sparkle-icon.svg" alt="Sparkle" style="width: 26px; height: 26px;"> Join 10,000+ professionals who turn video content into career-changing insights</span>
         </div>
     </div>
     
     <!-- How to Use Section -->
     <div style="margin-top: 50px;">
         <details class="howto-details" style="border: 2px solid #e0e0e0; border-radius: 20px; padding: 0; overflow: hidden; background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); box-shadow: 0 8px 32px rgba(0,0,0,0.1);">
-            <summary class="howto-summary" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px 25px; cursor: pointer; font-weight: 600; font-size: 18px; transition: all 0.3s;">
-                🎯 Turn any video into actionable insights in 3 steps
+            <summary class="howto-summary" style="background: linear-gradient(135deg, #0f0f0f 0%, #ff0000 100%); color: white; padding: 20px 25px; cursor: pointer; font-weight: 600; font-size: 18px; transition: all 0.3s; display: flex; align-items: center; gap: 12px;">
+                <img src="/static/target-icon.svg" alt="Target" style="width: 31px; height: 31px;"> Turn any video into actionable insights in 3 steps
             </summary>
             <div class="howto-content" style="padding: 40px; background: white;">
                 <div class="howto-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 30px;">
-                    <div class="howto-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 20px; color: white; box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);">
-                        <h4 style="margin: 0 0 20px 0; color: white; font-size: 20px; font-weight: 600;">🚀 Extract Impact</h4>
+                    <div class="howto-card" style="background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%); padding: 30px; border-radius: 20px; color: white; box-shadow: 0 8px 32px rgba(255, 0, 0, 0.3);">
+                        <h4 style="margin: 0 0 20px 0; color: white; font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 8px;"><img src="/static/rocket-icon.svg" alt="Rocket" style="width: 26px; height: 26px;"> Extract Impact</h4>
                         <ol style="margin: 0; padding-left: 24px; color: rgba(255,255,255,0.9); line-height: 1.8; font-size: 15px;">
                             <li style="margin-bottom: 12px;">Paste any YouTube URL or video ID above</li>
                             <li style="margin-bottom: 12px;">Click "Extract Impact" to get structured content</li>
@@ -134,8 +134,8 @@
                         </ol>
                     </div>
                     
-                    <div class="howto-card" style="background: linear-gradient(135deg, #36d1dc 0%, #5b86e5 100%); padding: 30px; border-radius: 20px; color: white; box-shadow: 0 8px 32px rgba(54, 209, 220, 0.3);">
-                        <h4 style="margin: 0 0 20px 0; color: white; font-size: 20px; font-weight: 600;">💼 Use Cases</h4>
+                    <div class="howto-card" style="background: linear-gradient(135deg, #282828 0%, #0f0f0f 100%); padding: 30px; border-radius: 20px; color: white; box-shadow: 0 8px 32px rgba(40, 40, 40, 0.5);">
+                        <h4 style="margin: 0 0 20px 0; color: white; font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 8px;"><img src="/static/briefcase-icon.svg" alt="Briefcase" style="width: 26px; height: 26px;"> Use Cases</h4>
                         <ul style="margin: 0; padding-left: 24px; color: rgba(255,255,255,0.9); line-height: 1.8; font-size: 15px;">
                             <li style="margin-bottom: 12px;">Research competitive strategies from industry talks</li>
                             <li style="margin-bottom: 12px;">Extract learning frameworks from educational content</li>
@@ -144,8 +144,8 @@
                         </ul>
                     </div>
                     
-                    <div class="howto-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 30px; border-radius: 20px; color: white; box-shadow: 0 8px 32px rgba(240, 147, 251, 0.3);">
-                        <h4 style="margin: 0 0 20px 0; color: white; font-size: 20px; font-weight: 600;">📊 Maximize Impact</h4>
+                    <div class="howto-card" style="background: linear-gradient(135deg, #606060 0%, #404040 100%); padding: 30px; border-radius: 20px; color: white; box-shadow: 0 8px 32px rgba(96, 96, 96, 0.4);">
+                        <h4 style="margin: 0 0 20px 0; color: white; font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 8px;"><img src="/static/chart-icon.svg" alt="Chart" style="width: 26px; height: 26px;"> Maximize Impact</h4>
                         <ul style="margin: 0; padding-left: 24px; color: rgba(255,255,255,0.9); line-height: 1.8; font-size: 15px;">
                             <li style="margin-bottom: 12px;">Focus on actionable insights, not just information</li>
                             <li style="margin-bottom: 12px;">Create implementation plans from extracted frameworks</li>

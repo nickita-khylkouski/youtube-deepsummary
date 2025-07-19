@@ -69,15 +69,15 @@ def video_by_url_path(channel_handle, url_path):
         video_id = video['video_id']
         
         # Get full video data from database
-        cached_data = database_storage.get(video_id)
+        video_data = database_storage.get(video_id)
         
-        if not cached_data:
+        if not video_data:
             return render_template('error.html', 
                                  error_message="Video data not found"), 404
         
-        transcript = cached_data['transcript']
-        video_info = cached_data['video_info']
-        formatted_transcript_text = cached_data['formatted_transcript']
+        transcript = video_data['transcript']
+        video_info = video_data['video_info']
+        formatted_transcript_text = video_data['formatted_transcript']
         
         # Check if transcript exists
         has_transcript = transcript and len(transcript) > 0
@@ -90,10 +90,33 @@ def video_by_url_path(channel_handle, url_path):
         has_chapters = chapters and len(chapters) > 0
         channel_name = video['channel_name']
         
-        # Get enhanced channel information from cached data
+        # Get enhanced channel information from video data or use basic video data
         channel_info = None
-        if 'youtube_channels' in cached_data.get('video_info', {}):
-            channel_info = cached_data['video_info']['youtube_channels']
+        if 'youtube_channels' in video_data.get('video_info', {}) and video_data['video_info']['youtube_channels']:
+            # Use channel info from database (preferred)
+            channel_info = video_data['video_info']['youtube_channels']
+            # Ensure handle is properly processed
+            if channel_info.get('handle'):
+                channel_info['handle'] = channel_info['handle'].lstrip('@')
+                if not channel_info['handle']:
+                    channel_info['handle'] = None
+        else:
+            # Use channel info from video data (fallback)
+            video_handle = video.get('handle', '')
+            if video_handle:
+                # Remove leading @ if present
+                video_handle = video_handle.lstrip('@')
+                # Ensure handle is not empty after stripping
+                if not video_handle:
+                    video_handle = None
+            else:
+                video_handle = None
+            
+            channel_info = {
+                'handle': video_handle,
+                'channel_name': video.get('channel_name'),
+                'channel_id': video.get('channel_id')
+            }
         
         # Get summary from database and convert markdown to HTML
         summary = database_storage.get_summary(video_id)
@@ -106,7 +129,10 @@ def video_by_url_path(channel_handle, url_path):
         # Add thumbnail URL
         thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
         
-        return render_template('transcript.html', 
+        # Get published_at from the video data
+        published_at = video.get('published_at')
+        
+        return render_template('video.html', 
                              video_id=video_id,
                              video_title=video_title,
                              channel_name=channel_name,
@@ -120,6 +146,7 @@ def video_by_url_path(channel_handle, url_path):
                              thumbnail_url=thumbnail_url,
                              has_transcript=has_transcript,
                              has_chapters=has_chapters,
+                             published_at=published_at,
                              summarize_enabled=video_processor.summarizer and video_processor.summarizer.is_configured())
         
     except Exception as e:

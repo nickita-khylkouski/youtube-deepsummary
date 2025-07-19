@@ -19,7 +19,10 @@
         <!-- Videos Grid -->
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 20px;">
             {% for video in videos %}
-                <div class="video-card" style="background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #28a745;">
+                <div class="video-card" style="background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #28a745; position: relative;">
+                    <!-- Delete Icon -->
+                    <button onclick="deleteVideo('{{ video.video_id }}', '{{ video.title|e }}')" style="position: absolute; top: 10px; right: 10px; background: white; color: #333; border: 1px solid #ddd; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" title="Delete Video">🗑️</button>
+                    
                     <!-- Video Thumbnail and Info -->
                     <div style="display: flex; padding: 15px;">
                         <div style="flex-shrink: 0; margin-right: 15px;">
@@ -42,6 +45,9 @@
                                 {% if video.duration %}
                                     ⏱️ {{ "%.0f"|format(video.duration // 60) }}:{{ "%02.0f"|format(video.duration % 60) }} • 
                                 {% endif %}
+                                {% if video.published_at %}
+                                    📅 {{ video.published_at[:10] }} • 
+                                {% endif %}
                                 📝 {{ video.transcript_entries or 'N/A' }} entries
                                 {% if video.chapters_count and video.chapters_count > 0 %}
                                     • 📚 {{ video.chapters_count }} chapters
@@ -56,7 +62,6 @@
                             <div style="display: flex; gap: 8px;">
                                 <a href="{% if video.url_path and channel_info.handle %}/{{ channel_info.handle }}/{{ video.url_path }}{% else %}/watch?v={{ video.video_id }}{% endif %}" style="background: #007bff; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">View</a>
                                 <a href="https://www.youtube.com/watch?v={{ video.video_id }}" target="_blank" style="background: #ff0000; color: white; padding: 4px 8px; text-decoration: none; border-radius: 3px; font-size: 11px;">YouTube</a>
-                                <button onclick="deleteVideo('{{ video.video_id }}', '{{ video.title|e }}')" style="background: #dc3545; color: white; padding: 4px 8px; border: none; border-radius: 3px; font-size: 11px; cursor: pointer;">🗑️ Delete</button>
                             </div>
                         </div>
                     </div>

@@ -24,30 +24,61 @@ class TranscriptSummarizer:
     
     def __init__(self):
         """Initialize the summarizer with AI clients and configuration"""
-        # OpenAI configuration
-        self.openai_api_key = os.getenv('OPENAI_API_KEY')
-        self.openai_client = None
-        self.openai_model = os.getenv('OPENAI_MODEL', 'gpt-4.1')
-        self.openai_max_tokens = int(os.getenv('OPENAI_MAX_TOKENS', '100000'))
-        self.openai_temperature = float(os.getenv('OPENAI_TEMPERATURE', '0.7'))
+        # Load settings from database first, fallback to environment variables
+        self._load_settings()
         
-        # Anthropic configuration
-        self.anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
-        self.anthropic_client = None
-        self.anthropic_model = os.getenv('ANTHROPIC_MODEL', 'claude-3-5-sonnet-20241022')
-        
-        # Legacy compatibility
-        self.api_key = self.openai_api_key
+        # Client references
         self.client = None
-        self.model = self.openai_model
-        self.max_tokens = self.openai_max_tokens
-        self.temperature = self.openai_temperature
         
         # Initialize clients lazily to avoid proxy conflicts during import
         if self.openai_api_key:
             self._initialize_openai_client()
         if self.anthropic_api_key and ANTHROPIC_AVAILABLE:
             self._initialize_anthropic_client()
+    
+    def _load_settings(self):
+        """Load settings from database with fallbacks to environment variables"""
+        try:
+            # Import here to avoid circular imports
+            from .database_storage import database_storage
+            
+            # Get database settings
+            db_settings = database_storage.get_summarizer_settings()
+            
+            # API Keys (always from environment for security)
+            self.openai_api_key = os.getenv('OPENAI_API_KEY')
+            self.openai_client = None
+            self.anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
+            self.anthropic_client = None
+            
+            # Generic settings (from database with fallbacks)
+            self.model = db_settings.get('model') or os.getenv('OPENAI_MODEL', 'gpt-4.1')
+            self.max_tokens = db_settings.get('max_tokens') or int(os.getenv('OPENAI_MAX_TOKENS', '8192'))
+            self.temperature = db_settings.get('temperature') or float(os.getenv('OPENAI_TEMPERATURE', '0.7'))
+            self.preferred_provider = db_settings.get('preferred_provider', 'openai')
+            
+            # Summarization features
+            self.enable_chapter_awareness = db_settings.get('enable_chapter_awareness', True)
+            self.enable_metadata_inclusion = db_settings.get('enable_metadata_inclusion', True)
+            self.enable_clickable_chapters = db_settings.get('enable_clickable_chapters', True)
+            
+        except Exception as e:
+            print(f"Warning: Could not load settings from database, using environment variables: {e}")
+            # Fallback to environment variables only
+            self.openai_api_key = os.getenv('OPENAI_API_KEY')
+            self.openai_client = None
+            self.anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
+            self.anthropic_client = None
+            
+            # Generic fallback settings
+            self.model = os.getenv('OPENAI_MODEL', 'gpt-4.1')
+            self.max_tokens = int(os.getenv('OPENAI_MAX_TOKENS', '8192'))
+            self.temperature = float(os.getenv('OPENAI_TEMPERATURE', '0.7'))
+            self.preferred_provider = 'openai'
+            
+            self.enable_chapter_awareness = True
+            self.enable_metadata_inclusion = True
+            self.enable_clickable_chapters = True
     
     def _initialize_openai_client(self):
         """Initialize OpenAI client with proper error handling"""
@@ -88,7 +119,7 @@ class TranscriptSummarizer:
                    self.anthropic_client is not None and 
                    ANTHROPIC_AVAILABLE)
         else:
-            # Legacy compatibility - check OpenAI by default
+            # Default to OpenAI check
             return self.openai_api_key is not None and self.openai_client is not None
     
     def get_available_models(self) -> Dict[str, List[str]]:
@@ -230,25 +261,31 @@ Please analyze this transcript:
         if not self.is_configured('anthropic'):
             raise Exception("Anthropic client not configured properly")
         
-        # Use provided model or default
-        model_to_use = model or self.anthropic_model
+        # Use provided model or default from database settings
+        model_to_use = model or self.model
         print(f"Anthropic API call using model: {model_to_use}")
         
-        # Enhanced processing for chapter-based content
-        if chapters and len(chapters) > 1 and not custom_prompt:
+        # Enhanced processing for chapter-based content (if enabled in settings)
+        if (self.enable_chapter_awareness and chapters and len(chapters) > 1 and not custom_prompt):
             # Parse transcript content and organize by chapters
             chapter_organized_content = self._organize_transcript_by_chapters_for_ai(transcript_content, chapters)
             prompt = self.create_summary_prompt(chapter_organized_content, chapters, custom_prompt)
         else:
-            prompt = self.create_summary_prompt(transcript_content, chapters, custom_prompt)
+            # Use basic summarization without chapter organization
+            chapters_to_use = chapters if self.enable_chapter_awareness else None
+            prompt = self.create_summary_prompt(transcript_content, chapters_to_use, custom_prompt)
         
         try:
-            # Enhanced system prompt for chapter-aware summarization
-            system_prompt = "You are a helpful assistant that creates clear, comprehensive summaries of educational video transcripts. When chapters are present, you excel at analyzing how content flows between chapters and identifying progressive learning patterns. Focus on extracting key insights, actionable advice, and important details while maintaining readability and respecting the chapter structure."
+            # Enhanced system prompt based on chapter awareness setting
+            if self.enable_chapter_awareness and chapters:
+                system_prompt = "You are a helpful assistant that creates clear, comprehensive summaries of educational video transcripts. When chapters are present, you excel at analyzing how content flows between chapters and identifying progressive learning patterns. Focus on extracting key insights, actionable advice, and important details while maintaining readability and respecting the chapter structure."
+            else:
+                system_prompt = "You are a helpful assistant that creates clear, comprehensive summaries of educational video transcripts. Focus on extracting key insights, actionable advice, and important details while maintaining readability and creating a well-structured summary."
             
             response = self.anthropic_client.messages.create(
                 model=model_to_use,
-                max_tokens=8192,
+                max_tokens=self.max_tokens,
+                temperature=self.temperature,
                 system=system_prompt,
                 messages=[
                     {"role": "user", "content": prompt}
@@ -271,29 +308,38 @@ Please analyze this transcript:
         if not self.is_configured():
             raise Exception("OpenAI client not configured properly")
         
-        # Enhanced processing for chapter-based content
-        if chapters and len(chapters) > 1 and not custom_prompt:
+        # Use provided model or default from database settings
+        model_to_use = model or self.model
+        
+        # Enhanced processing for chapter-based content (if enabled in settings)
+        if (self.enable_chapter_awareness and chapters and len(chapters) > 1 and not custom_prompt):
             # Parse transcript content and organize by chapters
             chapter_organized_content = self._organize_transcript_by_chapters_for_ai(transcript_content, chapters)
             prompt = self.create_summary_prompt(chapter_organized_content, chapters, custom_prompt)
         else:
-            prompt = self.create_summary_prompt(transcript_content, chapters, custom_prompt)
+            # Use basic summarization without chapter organization
+            chapters_to_use = chapters if self.enable_chapter_awareness else None
+            prompt = self.create_summary_prompt(transcript_content, chapters_to_use, custom_prompt)
         
         try:
-            # Enhanced system prompt for chapter-aware summarization
-            system_prompt = "You are a helpful assistant that creates clear, comprehensive summaries of educational video transcripts. When chapters are present, you excel at analyzing how content flows between chapters and identifying progressive learning patterns. Focus on extracting key insights, actionable advice, and important details while maintaining readability and respecting the chapter structure."
+            # Enhanced system prompt based on chapter awareness setting
+            if self.enable_chapter_awareness and chapters:
+                system_prompt = "You are a helpful assistant that creates clear, comprehensive summaries of educational video transcripts. When chapters are present, you excel at analyzing how content flows between chapters and identifying progressive learning patterns. Focus on extracting key insights, actionable advice, and important details while maintaining readability and respecting the chapter structure."
+            else:
+                system_prompt = "You are a helpful assistant that creates clear, comprehensive summaries of educational video transcripts. Focus on extracting key insights, actionable advice, and important details while maintaining readability and creating a well-structured summary."
             
-            # Use the specified model or fallback to default
-            selected_model = model if model else self.model
-            print(f"OpenAI API call using model: {selected_model}")
+            # Use provided model or default from database settings
+            model_to_use = model or self.model
+            print(f"OpenAI API call using model: {model_to_use}")
             
             response = self.client.chat.completions.create(
-                model=selected_model,
+                model=model_to_use,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=self.temperature
+                temperature=self.temperature,
+                max_tokens=self.max_tokens
             )
             
             summary = response.choices[0].message.content
@@ -340,18 +386,42 @@ Please analyze this transcript:
             custom_prompt="You are a helpful AI assistant. Respond directly to the user's question using the provided context. Be conversational and helpful."
         )
     
+    def summarize_with_preferred_provider(self, transcript_content: str, chapters: Optional[List[Dict]] = None, video_id: str = None, video_info: Optional[Dict] = None, custom_prompt: str = None) -> str:
+        """Generate summary using the preferred provider from settings"""
+        print(f"Preferred provider: {self.preferred_provider}")
+        print(f"OpenAI configured: {self.is_configured('openai')}")
+        print(f"Anthropic configured: {self.is_configured('anthropic')}")
+        
+        if self.preferred_provider == 'anthropic' and self.is_configured('anthropic'):
+            print("Using Anthropic API for summarization")
+            return self.summarize_with_anthropic(transcript_content, chapters, video_id, video_info, None, custom_prompt)
+        elif self.preferred_provider == 'openai' and self.is_configured('openai'):
+            print("Using OpenAI API for summarization")
+            return self.summarize_with_openai(transcript_content, chapters, video_id, video_info, None, custom_prompt)
+        else:
+            # Fallback logic
+            print(f"Preferred provider '{self.preferred_provider}' not available, using fallback")
+            if self.is_configured('openai'):
+                print("Falling back to OpenAI")
+                return self.summarize_with_openai(transcript_content, chapters, video_id, video_info, None, custom_prompt)
+            elif self.is_configured('anthropic'):
+                print("Falling back to Anthropic")
+                return self.summarize_with_anthropic(transcript_content, chapters, video_id, video_info, None, custom_prompt)
+            else:
+                raise Exception("No AI provider is properly configured")
+    
     def _post_process_summary(self, summary: str, chapters: Optional[List[Dict]] = None, video_id: str = None, video_info: Optional[Dict] = None) -> str:
         """Post-process the generated summary with additional formatting"""
-        # Add prefix sections if available
+        # Add prefix sections if available (based on settings)
         prefix_sections = []
         
-        # Add clickable chapters section if chapters and video_id are provided
-        if chapters and video_id:
+        # Add clickable chapters section if enabled in settings and data is available
+        if (self.enable_clickable_chapters and chapters and video_id):
             chapters_section = self._create_clickable_chapters_section(chapters, video_id)
             prefix_sections.append(chapters_section)
         
-        # Add video metadata section if available
-        if video_info:
+        # Add video metadata section if enabled in settings and data is available
+        if (self.enable_metadata_inclusion and video_info):
             metadata_section = self._create_metadata_section(video_info)
             prefix_sections.append(metadata_section)
         
@@ -503,7 +573,7 @@ def summarize_transcript_with_chapters(transcript_content: str, chapters: Option
     Returns:
         Generated summary text
     """
-    return summarizer.summarize_with_openai(transcript_content, chapters, video_id, video_info, None, custom_prompt)
+    return summarizer.summarize_with_preferred_provider(transcript_content, chapters, video_id, video_info, custom_prompt)
 
 
 def summarize_transcript_simple(transcript: List[Dict]) -> str:

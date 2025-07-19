@@ -23,7 +23,7 @@ class TranscriptSummarizer:
         self._new_summarizer = NewTranscriptSummarizer()
         
         # Expose the same interface for backward compatibility
-        self.api_key = self._new_summarizer.api_key
+        self.api_key = self._new_summarizer.openai_api_key
         self.client = self._new_summarizer.client
         self.model = self._new_summarizer.model
         self.max_tokens = self._new_summarizer.max_tokens

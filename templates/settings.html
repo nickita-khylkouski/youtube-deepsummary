@@ -112,6 +112,11 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link" href="#summarizer" data-bs-toggle="tab">
+                    <i class="fas fa-brain me-2"></i>Summarizer
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link" href="#import-settings" data-bs-toggle="tab">
                     <i class="fas fa-download me-2"></i>Video Imports
                 </a>
@@ -175,6 +180,186 @@
                     </div>
                     {% endfor %}
                 </div>
+            </div>
+            
+            <!-- Summarizer Settings Tab -->
+            <div class="tab-pane fade" id="summarizer">
+                <!-- Summarizer Settings Header -->
+                <div class="row mb-3">
+                    <div class="col">
+                        <h3>AI Summarizer Configuration</h3>
+                        <p class="text-muted">Configure AI model settings and summarization parameters.</p>
+                    </div>
+                </div>
+
+                <form id="summarizerSettingsForm">
+                    <div class="row">
+                        <!-- Model Configuration -->
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-microchip me-2"></i>Model Configuration</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="summarizerProvider" class="form-label">AI Provider</label>
+                                        <select class="form-select" id="summarizerProvider" name="provider">
+                                            <option value="openai">OpenAI</option>
+                                            <option value="anthropic">Anthropic (Claude)</option>
+                                        </select>
+                                        <div class="form-text">Choose the AI provider for summarization</div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="model" class="form-label">Model</label>
+                                        <select class="form-select" id="model" name="model">
+                                            <!-- Options populated dynamically based on provider -->
+                                        </select>
+                                        <div class="form-text">Select the AI model to use for summarization</div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="temperature" class="form-label">Temperature</label>
+                                        <input type="range" class="form-range" id="temperature" name="temperature" min="0" max="2" step="0.1" value="0.7">
+                                        <div class="d-flex justify-content-between">
+                                            <small class="text-muted">0 (Focused)</small>
+                                            <span id="temperatureValue" class="badge bg-primary">0.7</span>
+                                            <small class="text-muted">2 (Creative)</small>
+                                        </div>
+                                        <div class="form-text">Controls randomness in responses. Lower values are more focused.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- API Configuration -->
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-key me-2"></i>API Configuration</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="openaiApiKey" class="form-label">OpenAI API Key</label>
+                                        <div class="input-group">
+                                            <input type="password" class="form-control" id="openaiApiKey" name="openai_api_key" placeholder="sk-...">
+                                            <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('openaiApiKey')">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                        <div class="form-text">Your OpenAI API key (stored in environment)</div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="anthropicApiKey" class="form-label">Anthropic API Key</label>
+                                        <div class="input-group">
+                                            <input type="password" class="form-control" id="anthropicApiKey" name="anthropic_api_key" placeholder="sk-ant-...">
+                                            <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('anthropicApiKey')">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                        <div class="form-text">Your Anthropic API key (stored in environment)</div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="row">
+                                            <div class="col">
+                                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="testApiConnection('openai')">
+                                                    <i class="fas fa-plug me-1"></i>Test OpenAI
+                                                </button>
+                                            </div>
+                                            <div class="col">
+                                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="testApiConnection('anthropic')">
+                                                    <i class="fas fa-plug me-1"></i>Test Anthropic
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div id="apiStatusArea" class="mb-3"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <!-- Summarization Parameters -->
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-sliders-h me-2"></i>Summarization Parameters</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="maxTokens" class="form-label">Max Output Tokens</label>
+                                        <input type="number" class="form-control" id="maxTokens" name="max_tokens" min="100" max="100000" value="8192">
+                                        <div class="form-text">Maximum number of tokens in the summary response</div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="enableChapterAwareness" name="enable_chapter_awareness" checked>
+                                            <label class="form-check-label" for="enableChapterAwareness">
+                                                Chapter-Aware Summarization
+                                            </label>
+                                            <div class="form-text">Use chapter information to improve summary structure</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="enableMetadataInclusion" name="enable_metadata_inclusion" checked>
+                                            <label class="form-check-label" for="enableMetadataInclusion">
+                                                Include Video Metadata
+                                            </label>
+                                            <div class="form-text">Include video title, duration, and channel info in summaries</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="enableClickableChapters" name="enable_clickable_chapters" checked>
+                                            <label class="form-check-label" for="enableClickableChapters">
+                                                Clickable Chapter Links
+                                            </label>
+                                            <div class="form-text">Add clickable YouTube chapter links to summaries</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Model Availability -->
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-check-circle me-2"></i>Model Availability</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="modelAvailabilityList">
+                                        <div class="d-flex justify-content-center">
+                                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                            <span class="ms-2">Checking available models...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col text-end">
+                            <button type="button" class="btn btn-secondary me-2" onclick="resetSummarizerSettings()">
+                                <i class="fas fa-undo me-2"></i>Reset to Defaults
+                            </button>
+                            <button type="button" class="btn btn-primary" onclick="saveSummarizerSettings()">
+                                <i class="fas fa-save me-2"></i>Save Settings
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </div>
             
             <!-- Video Imports Tab -->
@@ -809,10 +994,273 @@
             });
         }
 
+        // Summarizer Settings Functions
+        function togglePasswordVisibility(fieldId) {
+            const field = document.getElementById(fieldId);
+            const icon = field.nextElementSibling.querySelector('i');
+            
+            if (field.type === 'password') {
+                field.type = 'text';
+                icon.className = 'fas fa-eye-slash';
+            } else {
+                field.type = 'password';
+                icon.className = 'fas fa-eye';
+            }
+        }
+
+        function updateTemperatureValue() {
+            const slider = document.getElementById('temperature');
+            const valueDisplay = document.getElementById('temperatureValue');
+            valueDisplay.textContent = slider.value;
+        }
+
+        function updateModelOptions() {
+            const provider = document.getElementById('summarizerProvider').value;
+            const modelSelect = document.getElementById('model');
+            
+            // Clear existing options
+            modelSelect.innerHTML = '';
+            
+            if (provider === 'openai') {
+                modelSelect.innerHTML = `
+                    <option value="gpt-4.1">GPT-4.1</option>
+                    <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
+                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                `;
+            } else if (provider === 'anthropic') {
+                modelSelect.innerHTML = `
+                    <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
+                    <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                `;
+            }
+        }
+
+        function loadSummarizerSettings() {
+            fetch('/settings/summarizer-settings')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        populateSummarizerSettingsForm(data.settings);
+                    } else {
+                        showAlert('Error loading summarizer settings', 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading summarizer settings:', error);
+                    showAlert('Error loading summarizer settings', 'danger');
+                });
+        }
+
+        function populateSummarizerSettingsForm(settings) {
+            // Temporarily remove the event listener to prevent interference
+            const providerSelect = document.getElementById('summarizerProvider');
+            providerSelect.removeEventListener('change', updateModelOptions);
+            
+            // First set all form values
+            for (const [key, value] of Object.entries(settings)) {
+                const element = document.getElementById(key);
+                if (element) {
+                    if (element.type === 'checkbox') {
+                        element.checked = value;
+                    } else if (element.type === 'range') {
+                        element.value = value;
+                        if (key === 'temperature') {
+                            updateTemperatureValue();
+                        }
+                    } else {
+                        element.value = value;
+                    }
+                }
+            }
+            
+            // Now update model options based on the provider and set the model value
+            updateModelOptions();
+            if (settings.model) {
+                document.getElementById('model').value = settings.model;
+            }
+            
+            // Re-add the event listener
+            providerSelect.addEventListener('change', updateModelOptions);
+        }
+
+        function saveSummarizerSettings() {
+            const settings = {};
+            const formFields = [
+                { id: 'summarizerProvider', type: 'select' },
+                { id: 'model', type: 'select' },
+                { id: 'temperature', type: 'number' },
+                { id: 'openaiApiKey', type: 'text' },
+                { id: 'anthropicApiKey', type: 'text' },
+                { id: 'maxTokens', type: 'number' },
+                { id: 'enableChapterAwareness', type: 'checkbox' },
+                { id: 'enableMetadataInclusion', type: 'checkbox' },
+                { id: 'enableClickableChapters', type: 'checkbox' }
+            ];
+            
+            formFields.forEach(field => {
+                const element = document.getElementById(field.id);
+                if (element) {
+                    if (field.type === 'checkbox') {
+                        settings[field.id] = element.checked;
+                    } else if (field.type === 'number') {
+                        settings[field.id] = parseFloat(element.value) || 0;
+                    } else {
+                        settings[field.id] = element.value;
+                    }
+                }
+            });
+
+            const saveButton = document.querySelector('button[onclick="saveSummarizerSettings()"]');
+            const originalText = saveButton.innerHTML;
+            saveButton.disabled = true;
+            saveButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+
+            fetch('/settings/summarizer-settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(settings)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert('Summarizer settings saved successfully');
+                } else {
+                    showAlert(data.message || 'Error saving summarizer settings', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving summarizer settings:', error);
+                showAlert('Error saving summarizer settings', 'danger');
+            })
+            .finally(() => {
+                saveButton.disabled = false;
+                saveButton.innerHTML = originalText;
+            });
+        }
+
+        function resetSummarizerSettings() {
+            if (confirm('Reset all summarizer settings to defaults? This will clear your current configuration.')) {
+                // Reset form to default values
+                document.getElementById('summarizerProvider').value = 'openai';
+                updateModelOptions(); // Update model options for OpenAI
+                document.getElementById('model').value = 'gpt-4.1';
+                document.getElementById('temperature').value = '0.7';
+                document.getElementById('maxTokens').value = '8192';
+                document.getElementById('enableChapterAwareness').checked = true;
+                document.getElementById('enableMetadataInclusion').checked = true;
+                document.getElementById('enableClickableChapters').checked = true;
+                
+                updateTemperatureValue();
+                showAlert('Settings reset to defaults', 'info');
+            }
+        }
+
+        function loadAvailableModels() {
+            fetch('/settings/available-models')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        displayAvailableModels(data.models);
+                    } else {
+                        document.getElementById('modelAvailabilityList').innerHTML = 
+                            '<div class="text-danger">Error loading available models</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading available models:', error);
+                    document.getElementById('modelAvailabilityList').innerHTML = 
+                        '<div class="text-danger">Error loading available models</div>';
+                });
+        }
+
+        function displayAvailableModels(models) {
+            const container = document.getElementById('modelAvailabilityList');
+            let html = '';
+            
+            for (const [provider, modelList] of Object.entries(models)) {
+                const providerName = provider === 'openai' ? 'OpenAI' : 'Anthropic';
+                const statusClass = modelList.length > 0 ? 'text-success' : 'text-muted';
+                const icon = modelList.length > 0 ? 'fa-check-circle' : 'fa-times-circle';
+                
+                html += `
+                    <div class="mb-2">
+                        <div class="d-flex align-items-center">
+                            <i class="fas ${icon} ${statusClass} me-2"></i>
+                            <strong>${providerName}</strong>
+                            <span class="badge bg-light text-dark ms-2">${modelList.length} models</span>
+                        </div>
+                        ${modelList.length > 0 ? 
+                            `<small class="text-muted ms-3">${modelList.join(', ')}</small>` : 
+                            '<small class="text-muted ms-3">Not configured</small>'
+                        }
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+
+        function testApiConnection(provider) {
+            const button = document.querySelector(`button[onclick="testApiConnection('${provider}')"]`);
+            const originalText = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Testing...';
+
+            fetch('/settings/test-api', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ provider: provider })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const statusArea = document.getElementById('apiStatusArea');
+                const statusClass = data.status === 'success' ? 'alert-success' : 'alert-danger';
+                const icon = data.status === 'success' ? 'fa-check-circle' : 'fa-times-circle';
+                
+                statusArea.innerHTML = `
+                    <div class="alert ${statusClass} alert-dismissible fade show">
+                        <i class="fas ${icon} me-2"></i>
+                        ${provider.toUpperCase()}: ${data.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                `;
+            })
+            .catch(error => {
+                console.error('Error testing API connection:', error);
+                const statusArea = document.getElementById('apiStatusArea');
+                statusArea.innerHTML = `
+                    <div class="alert alert-danger alert-dismissible fade show">
+                        <i class="fas fa-times-circle me-2"></i>
+                        ${provider.toUpperCase()}: Connection test failed
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                `;
+            })
+            .finally(() => {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            });
+        }
+
         // Load import settings when the page loads
         document.addEventListener('DOMContentLoaded', function() {
             initializeFallbackStrategies();
             loadImportSettings();
+            loadAvailableModels();
+            
+            // Add event listeners for summarizer settings
+            document.getElementById('temperature').addEventListener('input', updateTemperatureValue);
+            document.getElementById('summarizerProvider').addEventListener('change', updateModelOptions);
+            
+            // Initialize temperature display
+            updateTemperatureValue();
+            
+            // Load summarizer settings (this will set the correct provider and model)
+            loadSummarizerSettings();
         });
     </script>
 </body>

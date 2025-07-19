@@ -94,23 +94,26 @@ class TranscriptFormatter:
         
         for entry in transcript:
             text = entry.get('text', '').strip()
-            time = entry.get('time', 0)
-            formatted_time = entry.get('formatted_time', self._format_timestamp(time))
             
             if not text:
                 continue
             
-            # Add timestamp to first entry of paragraph
-            if sentence_count == 0:
-                current_paragraph.append(f"[{formatted_time}] {text}")
-            else:
-                current_paragraph.append(text)
+            current_paragraph.append(text)
             
-            # Count sentences (rough approximation)
-            sentence_count += len(re.findall(r'[.!?]+', text))
+            # Count actual sentences based on punctuation
+            sentences_in_text = len(re.findall(r'[.!?]+', text))
+            sentence_count += max(1, sentences_in_text)  # At least count the entry itself
             
-            # Start new paragraph after reaching sentence limit
-            if sentence_count >= sentences_per_paragraph:
+            # Natural break detection
+            ends_with_period = text.rstrip().endswith('.')
+            ends_with_strong = text.rstrip().endswith(('!', '?'))
+            starts_transition = bool(re.match(r'^(so|now|well|okay|alright|anyway|first|second|next)\b', text.lower().strip()))
+            
+            # Break when we have enough sentences AND a natural break point
+            has_enough_content = sentence_count >= sentences_per_paragraph
+            has_natural_break = ends_with_period or ends_with_strong or starts_transition
+            
+            if has_enough_content and has_natural_break:
                 paragraphs.append(" ".join(current_paragraph))
                 current_paragraph = []
                 sentence_count = 0

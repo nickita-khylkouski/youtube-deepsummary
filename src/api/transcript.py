@@ -3,7 +3,7 @@ Transcript API endpoint
 Handles transcript-specific operations only
 """
 from flask import request, jsonify
-from ..chapter_extractor import extract_video_info
+from ..youtube_api import youtube_api
 from ..database_storage import database_storage
 from ..video_processing import video_processor
 
@@ -46,7 +46,9 @@ def transcript_only(video_id):
                 
                 # Get minimal video info (just for metadata)
                 try:
-                    video_info = extract_video_info(video_id, extract_chapters=False)
+                    video_info = youtube_api.get_video_info(video_id)
+                    if not video_info:
+                        video_info = {'title': 'Unknown Title'}
                 except Exception:
                     video_info = {'title': 'Unknown Title'}
                 

@@ -45,12 +45,23 @@ class VideoProcessor:
                 print(f"Force transcript extraction enabled for {video_id}")
             print(f"Import settings - Transcript extraction: {enable_transcript_extraction}, Auto summary: {enable_auto_summary}, Chapter extraction: {enable_chapter_extraction}")
             
-            # Get video info (always needed for metadata)
+            # Get video info from YouTube API (always needed for metadata)
             print(f"Getting video info for {video_id}")
-            video_info = self.chapter_extractor.extract_video_info(video_id, extract_chapters=enable_chapter_extraction)
+            video_info = youtube_api.get_video_info(video_id)
             
-            if not enable_chapter_extraction:
+            if not video_info:
+                print(f"Failed to get video info for {video_id}")
+                return {'status': 'failed', 'error': 'Failed to get video information'}
+            
+            # Get chapters separately if enabled
+            chapters = None
+            if enable_chapter_extraction:
+                print(f"Getting chapters for {video_id}")
+                chapters = self.chapter_extractor.extract_chapters(video_id)
+                video_info['chapters'] = chapters
+            else:
                 print(f"Chapter extraction disabled for {video_id} (disabled in settings)")
+                video_info['chapters'] = None
             
             # Get transcript only if enabled
             transcript = None
@@ -87,11 +98,23 @@ class VideoProcessor:
             if enable_auto_summary and self.summarizer and self.summarizer.is_configured():
                 try:
                     print(f"Generating AI summary for {video_id}")
-                    summary = self.summarizer.summarize_with_openai(formatted_transcript, 
-                                                                 chapters=video_info.get('chapters'), 
-                                                                 video_id=video_id, 
-                                                                 video_info=video_info)
-                    database_storage.save_summary(video_id, summary)
+                    
+                    # Get default prompt from database
+                    default_prompt_data = database_storage.get_default_prompt()
+                    custom_prompt = default_prompt_data['prompt_text'] if default_prompt_data else None
+                    
+                    summary = self.summarizer.summarize_with_preferred_provider(
+                        formatted_transcript, 
+                        chapters=video_info.get('chapters'), 
+                        video_id=video_id, 
+                        video_info=video_info,
+                        custom_prompt=custom_prompt
+                    )
+                    
+                    # Save summary with default prompt information
+                    prompt_id = default_prompt_data['id'] if default_prompt_data else None
+                    prompt_name = default_prompt_data['name'] if default_prompt_data else None
+                    database_storage.save_summary(video_id, summary, self.summarizer.model, prompt_id, prompt_name)
                     summary_generated = True
                     print(f"AI summary generated and saved for {video_id}")
                 except Exception as e:
@@ -129,6 +152,10 @@ class VideoProcessor:
         else:
             print(f"Force regenerating summary for video {video_id}")
         
+        # Get default prompt from database
+        default_prompt_data = database_storage.get_default_prompt()
+        custom_prompt = default_prompt_data['prompt_text'] if default_prompt_data else None
+        
         # Get video info and chapters from database to include in summary
         cached_data = database_storage.get(video_id)
         chapters = None
@@ -137,13 +164,21 @@ class VideoProcessor:
             video_info = cached_data['video_info']
             chapters = video_info.get('chapters')
         
-        # Generate new summary using provided formatted transcript text
+        # Generate new summary using the default prompt from database
         print(f"Generating new summary for video {video_id}")
-        summary = self.summarizer.summarize_with_openai(formatted_transcript, chapters=chapters, video_id=video_id, video_info=video_info)
+        summary = self.summarizer.summarize_with_preferred_provider(
+            formatted_transcript, 
+            chapters=chapters, 
+            video_id=video_id, 
+            video_info=video_info,
+            custom_prompt=custom_prompt
+        )
         
-        # Save the summary to database
+        # Save the summary to database with default prompt information
         try:
-            database_storage.save_summary(video_id, summary)
+            prompt_id = default_prompt_data['id'] if default_prompt_data else None
+            prompt_name = default_prompt_data['name'] if default_prompt_data else None
+            database_storage.save_summary(video_id, summary, self.summarizer.model, prompt_id, prompt_name)
             print(f"Summary saved to database for video {video_id}")
         except Exception as e:
             print(f"Warning: Failed to save summary to database: {e}")

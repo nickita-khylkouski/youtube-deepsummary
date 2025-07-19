@@ -3,7 +3,6 @@ API routes for the YouTube Deep Summary application
 """
 from flask import Blueprint, request, jsonify
 from urllib.parse import unquote
-from ..chapter_extractor import extract_video_info
 from ..database_storage import database_storage
 from ..video_processing import video_processor
 from ..youtube_api import youtube_api
