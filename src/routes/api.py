@@ -135,9 +135,14 @@ def generate_chapter_summary():
                 'summary': formatted_summary,
                 'chapter_title': chapter_title,
                 'video_id': video_id,
+                'model_used': existing_summary['model_used'],
                 'cached': True
             })
 
+        # Get the chapter summary model from settings
+        summarizer_settings = database_storage.get_summarizer_settings()
+        chapter_summary_model = summarizer_settings.get('chapter_summary_model', 'claude-sonnet-4-20250514')
+        
         # Generate summary for the chapter
         summary = video_processor.summarizer.summarize_chapter(
             chapter_transcript, 
@@ -152,7 +157,7 @@ def generate_chapter_summary():
             chapter_time, 
             chapter_title, 
             summary,
-            video_processor.summarizer.model
+            chapter_summary_model
         )
 
         if not summary_id:
@@ -169,6 +174,7 @@ def generate_chapter_summary():
             'summary': formatted_summary,
             'chapter_title': chapter_title,
             'video_id': video_id,
+            'model_used': chapter_summary_model,
             'cached': False
         })
 

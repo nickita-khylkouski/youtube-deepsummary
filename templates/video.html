@@ -134,6 +134,7 @@
                                         data-chapter-time="{{ chapter.time|int }}"
                                         data-chapter-title="{{ chapter.title|e }}"
                                         data-summary-text="{{ chapter_summary.summary_text|e }}"
+                                        data-model-used="{{ chapter_summary.model_used|e }}"
                                         style="background: #4CAF50; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: all 0.2s ease;" 
                                         onmouseover="this.style.background='#45a049'" 
                                         onmouseout="this.style.background='#4CAF50'"
@@ -433,15 +434,19 @@
                 .then(data => {
                     if (data.success) {
                         // Show chapter summary in a modal or section
-                        showChapterSummaryModal(chapterTitle, data.summary);
+                        showChapterSummaryModal(chapterTitle, data.summary, data.model_used);
                         
                         // Reset button
                         btn.textContent = '✅ View Summary';
                         btn.disabled = false;
                         btn.style.background = '#4CAF50';
                         
+                        // Update button data attributes with the new summary and model
+                        btn.setAttribute('data-summary-text', data.summary);
+                        btn.setAttribute('data-model-used', data.model_used);
+                        
                         // Change the onclick to show the existing summary
-                        btn.onclick = () => showChapterSummaryModal(chapterTitle, data.summary);
+                        btn.onclick = () => viewChapterSummary(chapterTime);
                     } else {
                         // Show error
                         alert('Error generating chapter summary: ' + data.error);
@@ -463,8 +468,8 @@
                 });
         }
         
-        function showChapterSummaryModal(chapterTitle, summary) {
-            console.log('showChapterSummaryModal called with:', { chapterTitle, summary, summaryType: typeof summary });
+        function showChapterSummaryModal(chapterTitle, summary, modelUsed = null) {
+            console.log('showChapterSummaryModal called with:', { chapterTitle, summary, summaryType: typeof summary, modelUsed });
             
             // Remove any existing modal
             const existingModal = document.getElementById('chapterSummaryModal');
@@ -522,7 +527,7 @@
                                 🤖 AI-Generated Summary
                             </span>
                             <span style="background: #f0f0f0; padding: 3px 8px; border-radius: 12px; font-size: 12px;">
-                                Chapter | claude-sonnet-4-20250514
+                                Chapter | <span id="chapterModelUsed">${modelUsed || 'Unknown Model'}</span>
                             </span>
                         </div>
                         <div class="markdown-content chapter-summary-content">${formattedSummary}</div>
@@ -608,11 +613,12 @@
             // Get data from button attributes
             const chapterTitle = button.getAttribute('data-chapter-title');
             const summaryText = button.getAttribute('data-summary-text');
+            const modelUsed = button.getAttribute('data-model-used');
             
-            console.log('Found button data:', { chapterTitle, summaryTextPreview: summaryText.substring(0, 50) + '...' });
+            console.log('Found button data:', { chapterTitle, summaryTextPreview: summaryText.substring(0, 50) + '...', modelUsed });
             
-            // Call the modal function
-            showChapterSummaryModal(chapterTitle, summaryText);
+            // Call the modal function with model info
+            showChapterSummaryModal(chapterTitle, summaryText, modelUsed);
         }
         
 
