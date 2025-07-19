@@ -204,6 +204,40 @@ def export_summaries(channel_handle):
         return jsonify({'error': f'Export failed: {str(e)}'}), 500
 
 
+@channels_bp.route('/@<channel_handle>/blog')
+def channel_blog(channel_handle):
+    """Display blog-style listing of AI summaries with infinite scrolling"""
+    try:
+        # Get channel info by handle
+        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return render_template('error.html', 
+                                 error_message=f"Channel not found: {channel_handle}"), 404
+        
+        # Get summary count for this channel to show if blog should be available
+        channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
+        
+        summary_count = 0
+        for video in channel_videos:
+            summary = database_storage.get_summary(video['video_id'])
+            if summary:
+                summary_count += 1
+        
+        # Only show blog if there are summaries available
+        if summary_count == 0:
+            return render_template('error.html', 
+                                 error_message=f"No blog posts available for {channel_info['channel_name']}. Blog requires at least one AI summary."), 404
+        
+        return render_template('blog.html', 
+                             channel_info=channel_info,
+                             channel_handle=channel_handle,
+                             summary_count=summary_count)
+        
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading blog page: {str(e)}"), 500
+
+
 @channels_bp.route('/@<channel_handle>/chat', strict_slashes=False)
 def channel_chat(channel_handle):
     """Display dedicated chat page for a specific channel"""
