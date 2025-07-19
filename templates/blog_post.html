@@ -1,0 +1,269 @@
+{% extends "blog_base.html" %}
+
+{% block title %}{{ post.title }} - {{ channel_info.channel_name }} Blog{% endblock %}
+
+{% block content %}
+<!-- Blog Post Container -->
+<article class="blog-post-single" style="max-width: 800px; margin: 0 auto;">
+    <!-- Post Header -->
+    <header style="margin-bottom: 30px;">
+        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+            {% if channel_info.thumbnail_url %}
+                <img src="{{ channel_info.thumbnail_url }}" 
+                     alt="{{ channel_info.channel_name }} thumbnail" 
+                     style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid #667eea;">
+            {% else %}
+                <div style="width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 24px;">
+                    {{ channel_info.channel_name[0]|upper if channel_info.channel_name else '📝' }}
+                </div>
+            {% endif %}
+            <div>
+                <h3 style="margin: 0; font-size: 18px; color: #667eea; font-weight: 600;">
+                    <a href="/{{ channel_info.handle }}" style="color: #667eea; text-decoration: none;">{{ channel_info.channel_name }}</a>
+                </h3>
+            </div>
+        </div>
+        
+        <h1 style="margin: 0 0 15px 0; font-size: 32px; font-weight: 700; line-height: 1.2; color: #1a1a1a;">
+            {{ post.title }}
+        </h1>
+        
+        <div style="display: flex; align-items: center; gap: 20px; color: #666; font-size: 15px; margin-bottom: 20px;">
+            {% if post.published_at %}
+                <time datetime="{{ post.published_at }}" style="font-weight: 500;">
+                    📅 {{ post.published_at[:10] }}
+                </time>
+            {% endif %}
+            {% if post.duration %}
+                <span>⏱️ {{ post.duration }}</span>
+            {% endif %}
+            <span>📝 AI Summary</span>
+        </div>
+        
+        <!-- Video Thumbnail and Actions -->
+        <div style="display: flex; align-items: center; gap: 20px; padding: 20px; background: #f8f9fa; border-radius: 12px; margin-bottom: 30px;">
+            <img src="https://img.youtube.com/vi/{{ post.video_id }}/maxresdefault.jpg" 
+                 alt="{{ post.title }}" 
+                 style="width: 200px; height: 150px; object-fit: cover; border-radius: 8px; flex-shrink: 0;">
+            <div style="flex: 1;">
+                <p style="margin: 0 0 15px 0; color: #555; font-size: 16px; line-height: 1.5;">
+                    Watch the full video with detailed chapters and timestamps, or continue reading the AI-generated summary below.
+                </p>
+                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                    <a href="/{{ channel_info.handle }}/{{ post.url_path }}" 
+                       style="background: #667eea; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 8px;"
+                       onmouseover="this.style.background='#5a6fd8'"
+                       onmouseout="this.style.background='#667eea'">
+                        📺 Watch Video
+                    </a>
+                    <a href="https://youtube.com/watch?v={{ post.video_id }}" 
+                       target="_blank" 
+                       style="background: #ff0000; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 8px;"
+                       onmouseover="this.style.background='#e60000'"
+                       onmouseout="this.style.background='#ff0000'">
+                        🔗 YouTube
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Post Content (AI Summary) -->
+    <div class="blog-post-content" style="background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e5e5; margin-bottom: 40px;">
+        {{ post.summary | safe }}
+    </div>
+    
+    <!-- Post Navigation -->
+    {% if prev_post or next_post %}
+    <nav class="post-navigation" style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e5e5; margin-bottom: 30px;">
+        <h3 style="margin: 0 0 20px 0; font-size: 18px; color: #333; text-align: center;">More from {{ channel_info.channel_name }}</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div style="text-align: left;">
+                {% if prev_post %}
+                    <a href="/{{ channel_info.handle[1:] if channel_info.handle.startswith('@') else channel_info.handle }}/{{ prev_post.url_path }}" 
+                       style="color: #667eea; text-decoration: none; display: block; padding: 15px; border: 1px solid #e5e5e5; border-radius: 8px; transition: all 0.2s ease;"
+                       onmouseover="this.style.borderColor='#667eea'; this.style.transform='translateY(-2px)'"
+                       onmouseout="this.style.borderColor='#e5e5e5'; this.style.transform='translateY(0)'">
+                        <div style="font-size: 12px; color: #888; margin-bottom: 5px;">← PREVIOUS POST</div>
+                        <div style="font-weight: 500; line-height: 1.3;">{{ prev_post.title[:60] }}{% if prev_post.title|length > 60 %}...{% endif %}</div>
+                    </a>
+                {% endif %}
+            </div>
+            <div style="text-align: right;">
+                {% if next_post %}
+                    <a href="/{{ channel_info.handle[1:] if channel_info.handle.startswith('@') else channel_info.handle }}/{{ next_post.url_path }}" 
+                       style="color: #667eea; text-decoration: none; display: block; padding: 15px; border: 1px solid #e5e5e5; border-radius: 8px; transition: all 0.2s ease;"
+                       onmouseover="this.style.borderColor='#667eea'; this.style.transform='translateY(-2px)'"
+                       onmouseout="this.style.borderColor='#e5e5e5'; this.style.transform='translateY(0)'">
+                        <div style="font-size: 12px; color: #888; margin-bottom: 5px;">NEXT POST →</div>
+                        <div style="font-weight: 500; line-height: 1.3;">{{ next_post.title[:60] }}{% if next_post.title|length > 60 %}...{% endif %}</div>
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+    
+    <!-- Back to Blog -->
+    <div style="text-align: center; margin-bottom: 30px;">
+        <a href="/{{ channel_info.handle[1:] if channel_info.handle.startswith('@') else channel_info.handle }}" 
+           style="background: #9c27b0; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 15px; font-weight: 500; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 8px;"
+           onmouseover="this.style.background='#8e24aa'"
+           onmouseout="this.style.background='#9c27b0'">
+            ← Back to {{ channel_info.channel_name }} Blog
+        </a>
+    </div>
+</article>
+
+<style>
+/* Breadcrumb navigation styles */
+.breadcrumb-nav a:hover {
+    background: #e3f2fd !important;
+    color: #1565c0 !important;
+    transform: translateY(-1px);
+}
+
+/* Blog post content styles */
+.blog-post-content h1,
+.blog-post-content h2,
+.blog-post-content h3,
+.blog-post-content h4,
+.blog-post-content h5,
+.blog-post-content h6 {
+    color: #1a1a1a;
+    margin-top: 28px;
+    margin-bottom: 16px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.blog-post-content h1 { font-size: 28px; }
+.blog-post-content h2 { font-size: 24px; }
+.blog-post-content h3 { font-size: 22px; }
+.blog-post-content h4 { font-size: 20px; }
+
+.blog-post-content ul,
+.blog-post-content ol {
+    margin: 20px 0;
+    padding-left: 28px;
+}
+
+.blog-post-content li {
+    margin-bottom: 10px;
+    line-height: 1.7;
+}
+
+.blog-post-content p {
+    margin: 20px 0;
+    line-height: 1.7;
+    font-size: 16px;
+    color: #333;
+}
+
+.blog-post-content strong {
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+.blog-post-content em {
+    font-style: italic;
+    color: #555;
+}
+
+.blog-post-content code {
+    background: #f5f5f5;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 14px;
+    color: #d63384;
+}
+
+.blog-post-content blockquote {
+    border-left: 4px solid #667eea;
+    padding-left: 20px;
+    margin: 24px 0;
+    color: #555;
+    font-style: italic;
+    background: #f8f9fa;
+    padding: 16px 20px;
+    border-radius: 0 8px 8px 0;
+}
+
+.blog-post-content hr {
+    border: none;
+    height: 1px;
+    background: #e5e5e5;
+    margin: 32px 0;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .blog-post-single {
+        max-width: 100% !important;
+        padding: 0 15px;
+    }
+    
+    .blog-post-single header h1 {
+        font-size: 24px !important;
+    }
+    
+    .blog-post-single header > div:nth-child(4) {
+        flex-direction: column !important;
+        gap: 15px !important;
+    }
+    
+    .blog-post-single header img {
+        width: 100% !important;
+        height: 200px !important;
+        max-width: 300px;
+    }
+    
+    .blog-post-content {
+        padding: 25px !important;
+    }
+    
+    .post-navigation {
+        padding: 20px !important;
+    }
+    
+    .post-navigation > div {
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
+    }
+    
+    .post-navigation > div > div:last-child {
+        text-align: left !important;
+    }
+    
+    .breadcrumb-nav {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+    
+    .breadcrumb-nav a,
+    .breadcrumb-nav span {
+        font-size: 13px !important;
+    }
+}
+
+/* Print styles */
+@media print {
+    .breadcrumb-nav,
+    .post-navigation,
+    .blog-post-single > div:last-child {
+        display: none !important;
+    }
+    
+    .blog-post-single header > div:nth-child(4) {
+        display: none !important;
+    }
+    
+    .blog-post-content {
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+    }
+}
+</style>
+{% endblock %}

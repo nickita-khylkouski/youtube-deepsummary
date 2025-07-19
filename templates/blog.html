@@ -1,16 +1,8 @@
-{% extends "base.html" %}
+{% extends "blog_base.html" %}
 
 {% block title %}{{ channel_info.channel_name }} - Blog{% endblock %}
 
 {% block content %}
-<div style="margin-bottom: 25px;">
-    <div class="breadcrumb-nav" style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
-        <a href="/channels" style="color: #555; text-decoration: none; font-size: 15px; font-weight: 500; padding: 8px 12px; border-radius: 6px; background: #f5f5f5; transition: all 0.2s ease;">← All Channels</a>
-        <span style="color: #ccc; font-size: 16px;">•</span>
-        <a href="/{{ channel_info.handle }}" style="color: #555; text-decoration: none; font-size: 15px; font-weight: 500; padding: 8px 12px; border-radius: 6px; background: #f5f5f5; transition: all 0.2s ease;">Channel Overview</a>
-    </div>
-</div>
-
 <!-- Channel Header -->
 <div class="blog-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 20px; border-radius: 12px; margin-bottom: 30px; position: relative;">
     <div style="display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap;">
@@ -24,11 +16,9 @@
             </div>
         {% endif %}
         <div style="flex: 1; min-width: 0;">
-            <h1 style="margin: 0 0 10px 0; font-size: 32px; font-weight: bold;">📝 {{ channel_info.channel_name }} Blog</h1>
-            <p style="margin: 0 0 15px 0; font-size: 18px; opacity: 0.9;">{{ channel_info.handle }}</p>
-            <p style="margin: 0; opacity: 0.8; line-height: 1.5; font-size: 16px;">
-                AI summaries organized chronologically like a blog
-            </p>
+            <h1 style="margin: 0; font-size: 32px; font-weight: bold;">
+                📝 <a href="{{ channel_info.handle }}" style="color: white; text-decoration: none; transition: opacity 0.2s ease;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">{{ channel_info.channel_name }}</a> Blog
+            </h1>
         </div>
     </div>
 </div>
