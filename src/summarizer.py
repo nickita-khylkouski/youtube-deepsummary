@@ -570,11 +570,14 @@ Please analyze this chapter transcript:
 {chapter_transcript}"""
 
         try:
+            # Use a smaller max_tokens for chapter summaries to avoid API limits
+            chapter_max_tokens = min(self.max_tokens, 4096)  # Cap at 4096 tokens for chapters
+            
             # Use the preferred provider for summarization
             if self.preferred_provider == 'anthropic' and self.is_configured('anthropic'):
                 response = self.anthropic_client.messages.create(
                     model=self.model,
-                    max_tokens=self.max_tokens,
+                    max_tokens=chapter_max_tokens,
                     temperature=self.temperature,
                     system="You are a helpful assistant that creates clear, focused summaries of specific video chapters. Concentrate on extracting the most valuable insights and actionable advice from the provided chapter content.",
                     messages=[
@@ -590,7 +593,7 @@ Please analyze this chapter transcript:
                         {"role": "user", "content": prompt}
                     ],
                     temperature=self.temperature,
-                    max_tokens=self.max_tokens
+                    max_tokens=chapter_max_tokens
                 )
                 summary = response.choices[0].message.content
             else:
