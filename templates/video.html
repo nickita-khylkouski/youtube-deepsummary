@@ -751,11 +751,29 @@
         let selectionTimeout = null;
         let buttonCreateTime = 0;
         let lastSaveTime = 0;
+        let currentSelectionRange = null;
         
         function initializeSnippets() {
             // Listen for text selection in summary content
             document.addEventListener('mouseup', handleTextSelection);
             document.addEventListener('keyup', handleTextSelection);
+            
+            // Add scroll event listener to update snippet button position
+            window.addEventListener('scroll', updateSnippetButtonPosition);
+            window.addEventListener('resize', updateSnippetButtonPosition);
+            
+            // Hide button when clicking outside (with delay to avoid interfering with selection)
+            document.addEventListener('click', function(e) {
+                const button = document.getElementById('saveSnippetBtn');
+                if (button && !button.contains(e.target) && !buttonClickInProgress) {
+                    setTimeout(() => {
+                        const currentButton = document.getElementById('saveSnippetBtn');
+                        if (currentButton && !buttonClickInProgress) {
+                            hideSaveSnippetButton();
+                        }
+                    }, 200);
+                }
+            });
             
             // Create the save snippet modal
             createSaveSnippetModal();
@@ -802,7 +820,7 @@
                         hideSaveSnippetButton();
                     }
                 }
-            }, 100); // 100ms delay
+            }, 300); // 300ms delay to allow selection to complete
         }
         
         function getTextContext(range, container) {
@@ -819,18 +837,32 @@
         }
         
         function showSaveSnippetButton(selection) {
-            hideSaveSnippetButton(); // Remove any existing button
+            // Remove any existing button first
+            const existingButton = document.getElementById('saveSnippetBtn');
+            if (existingButton) {
+                existingButton.remove();
+            }
+            
+            // Don't show button if no text is selected
+            if (!selection.toString().trim()) {
+                return;
+            }
             
             const range = selection.getRangeAt(0);
             const rect = range.getBoundingClientRect();
             
+            // Store the current selection range for position updates
+            currentSelectionRange = range.cloneRange();
+            
             const button = document.createElement('button');
             button.id = 'saveSnippetBtn';
             button.innerHTML = '💾 Save as Snippet';
+            
+            // Use absolute positioning for both summaries and transcripts
             button.style.cssText = `
-                position: fixed;
-                top: ${rect.bottom + 5}px;
-                left: ${rect.left}px;
+                position: absolute;
+                top: ${rect.bottom + window.scrollY + 5}px;
+                left: ${rect.left + window.scrollX}px;
                 background: #4CAF50;
                 color: white;
                 border: none;
@@ -841,6 +873,7 @@
                 z-index: 9999;
                 box-shadow: 0 2px 8px rgba(0,0,0,0.2);
                 white-space: nowrap;
+                transition: all 0.1s ease;
             `;
             
             // Add event listener
@@ -859,20 +892,15 @@
             document.body.appendChild(button);
             buttonCreateTime = Date.now();
             
-            // Auto-hide after 10 seconds
-            setTimeout(hideSaveSnippetButton, 10000);
+            // Button will be hidden when user clicks outside or scrolls away
         }
         
         function hideSaveSnippetButton() {
             const existingButton = document.getElementById('saveSnippetBtn');
             if (existingButton) {
-                // Don't remove the button if it was created less than 2 seconds ago
-                const timeSinceCreation = Date.now() - buttonCreateTime;
-                if (timeSinceCreation < 2000) {
-                    return;
-                }
                 existingButton.remove();
             }
+            currentSelectionRange = null;
         }
         
         function createSaveSnippetModal() {
@@ -1209,6 +1237,29 @@
             }
             
             return content;
+        }
+        
+        // Update snippet button position on scroll
+        function updateSnippetButtonPosition() {
+            const button = document.getElementById('saveSnippetBtn');
+            if (button && currentSelectionRange) {
+                try {
+                    const rect = currentSelectionRange.getBoundingClientRect();
+                    
+                    // Check if the selection is still visible
+                    if (rect.width > 0 && rect.height > 0) {
+                        button.style.top = `${rect.bottom + window.scrollY + 5}px`;
+                        button.style.left = `${rect.left + window.scrollX}px`;
+                        button.style.position = 'absolute';
+                    } else {
+                        // Selection is no longer visible, hide the button
+                        hideSaveSnippetButton();
+                    }
+                } catch (error) {
+                    // Selection range is no longer valid, hide the button
+                    hideSaveSnippetButton();
+                }
+            }
         }
         
         // Summary History Management Functions
