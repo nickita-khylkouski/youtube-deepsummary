@@ -618,6 +618,102 @@ def import_channel_videos(channel_handle):
         }), 500
 
 
+@api_bp.route('/@<channel_handle>/blog-posts')
+def get_blog_posts(channel_handle):
+    """API endpoint to get paginated blog posts (videos with summaries) for infinite scrolling"""
+    try:
+        # Get channel info by handle
+        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return jsonify({
+                'success': False,
+                'error': f'Channel not found: {channel_handle}'
+            }), 404
+        
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+        
+        # Ensure reasonable pagination limits
+        if page < 1:
+            page = 1
+        if per_page < 1 or per_page > 50:
+            per_page = 10
+        
+        # Get videos for this channel
+        channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
+        
+        if not channel_videos:
+            return jsonify({
+                'success': True,
+                'posts': [],
+                'pagination': {
+                    'page': page,
+                    'per_page': per_page,
+                    'total': 0,
+                    'total_pages': 0,
+                    'has_next': False,
+                    'has_prev': False
+                }
+            })
+        
+        # Filter videos that have summaries and sort by published_at (most recent first)
+        videos_with_summaries = []
+        for video in channel_videos:
+            summary = database_storage.get_summary(video['video_id'])
+            if summary:
+                videos_with_summaries.append({
+                    'video_id': video['video_id'],
+                    'title': video['title'],
+                    'channel_name': video.get('channel_name'),
+                    'channel_id': video.get('channel_id'),
+                    'duration': video['duration'],
+                    'thumbnail_url': f"https://img.youtube.com/vi/{video['video_id']}/maxresdefault.jpg",
+                    'summary': summary,
+                    'published_at': video.get('published_at'),
+                    'url_path': video.get('url_path'),
+                    'uploader': video.get('uploader')
+                })
+        
+        # Sort by published_at descending (most recent first), then by created_at as fallback
+        videos_with_summaries.sort(
+            key=lambda x: x.get('published_at') or '1970-01-01', 
+            reverse=True
+        )
+        
+        # Calculate pagination
+        total_posts = len(videos_with_summaries)
+        total_pages = (total_posts + per_page - 1) // per_page
+        
+        # Get posts for current page
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        posts_page = videos_with_summaries[start_idx:end_idx]
+        
+        # Format summaries as HTML
+        for post in posts_page:
+            post['summary'] = format_summary_html(post['summary'])
+        
+        return jsonify({
+            'success': True,
+            'posts': posts_page,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': total_posts,
+                'total_pages': total_pages,
+                'has_next': page < total_pages,
+                'has_prev': page > 1
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @api_bp.route('/@<channel_handle>/chat', methods=['POST'])
 def chat_with_channel(channel_handle):
     """API endpoint to chat with AI using channel summaries as context"""
