@@ -111,11 +111,22 @@
                 
                 <!-- Actions -->
                 <div style="border-top: 1px solid #f0f0f0; padding-top: 8px; margin-top: auto; margin-bottom: 6px;">
-                    <div class="actions-section" style="display: flex; justify-content: center;">
+                    <div class="actions-section" style="display: flex; flex-direction: column; gap: 6px;">
                         <button onclick="importChannelVideos('{{ channel.handle }}')" 
                                 style="background: #4caf50; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.2s; width: 100%;">
                             ⬇️ Import Latest Videos
                         </button>
+                        {% if channel.summary_count > 0 %}
+                            <button onclick="openChannelChat('{{ channel.handle }}')" 
+                                    style="background: #9c27b0; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.2s; width: 100%;">
+                                💬 Chat with Channel
+                            </button>
+                        {% else %}
+                            <button disabled 
+                                    style="background: #e0e0e0; color: #999; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: not-allowed; width: 100%;">
+                                💬 Chat (No summaries)
+                            </button>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -186,6 +197,11 @@
         color: white !important;
     }
     
+    /* Chat button hover effects */
+    .channel-card button[onclick*="openChannelChat"]:hover {
+        background: #7b1fa2 !important;
+    }
+    
     /* Mobile responsive */
     @media (max-width: 768px) {
         .header {
@@ -240,7 +256,7 @@
             padding: 5px 8px !important;
         }
         
-        /* Make action button responsive on mobile */
+        /* Make action buttons responsive on mobile */
         .channel-card .actions-section > button {
             text-align: center !important;
             font-size: 11px !important;
@@ -332,6 +348,11 @@ async function importChannelVideos(channelHandle) {
         button.innerHTML = originalText;
         button.style.background = '#4caf50';
     }
+}
+
+function openChannelChat(channelHandle) {
+    // Navigate to the channel's chat page
+    window.location.href = `/@${channelHandle}/chat`;
 }
 
 function showNotification(message, type) {

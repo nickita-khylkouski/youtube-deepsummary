@@ -16,12 +16,12 @@
 .chat-header {
     position: sticky;
     top: 0;
-    height: 60px;
+    height: 45px;
     background: white;
     border-bottom: 1px solid #e5e5e5;
     display: flex;
     align-items: center;
-    padding: 0 20px;
+    padding: 0 15px;
     z-index: 1000;
 }
 
@@ -32,7 +32,7 @@
 }
 
 .chat-sidebar {
-    width: 260px;
+    width: 240px;
     background: #f8f9fa;
     border-right: 1px solid #e5e5e5;
     overflow-y: auto;
@@ -50,12 +50,12 @@
 .chat-messages-container {
     flex: 1;
     overflow-y: auto;
-    padding: 20px 30px;
+    padding: 15px 20px;
 }
 
 .chat-input-area {
     border-top: 1px solid #e5e5e5;
-    padding: 20px 30px;
+    padding: 12px 20px;
     background: white;
 }
 
@@ -92,10 +92,10 @@
         display: none;
     }
     .chat-messages-container {
-        padding: 15px 20px;
+        padding: 10px 15px;
     }
     .chat-input-area {
-        padding: 15px 20px;
+        padding: 10px 15px;
     }
 }
 </style>
@@ -149,11 +149,11 @@
     <div class="chat-main">
         <!-- Chat History Sidebar -->
         <div class="chat-sidebar">
-            <div style="padding: 20px 15px 15px 15px; border-bottom: 1px solid #e5e5e5;">
-                <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #333;">Chat History</h3>
-                <p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">All conversations across channels</p>
+            <div style="padding: 15px 12px 12px 12px; border-bottom: 1px solid #e5e5e5;">
+                <h3 style="margin: 0; font-size: 14px; font-weight: 600; color: #333;">Chat History</h3>
+                <p style="margin: 3px 0 0 0; font-size: 11px; color: #666;">All conversations across channels</p>
             </div>
-            <div id="chatHistoryList" style="flex: 1; padding: 10px; overflow-y: auto;">
+            <div id="chatHistoryList" style="flex: 1; padding: 8px; overflow-y: auto;">
                 <!-- Chat history items will be loaded here -->
             </div>
         </div>
@@ -161,13 +161,13 @@
         <!-- Chat Content Area -->
         <div class="chat-content">
             <!-- Welcome Screen -->
-            <div id="chatWelcome" style="flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; padding: 40px;">
+            <div id="chatWelcome" style="flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px;">
                 <div style="max-width: 500px;">
-                    <div style="font-size: 48px; margin-bottom: 20px;">💬</div>
-                    <h2 style="margin: 0 0 10px 0; color: #333; font-size: 24px;">
+                    <div style="font-size: 36px; margin-bottom: 15px;">💬</div>
+                    <h2 style="margin: 0 0 8px 0; color: #333; font-size: 20px;">
                         {% if current_channel %}Chat with {{ current_channel.channel_name }}{% else %}AI Chat{% endif %}
                     </h2>
-                    <p style="color: #666; font-size: 16px; line-height: 1.5; margin-bottom: 30px;">
+                    <p style="color: #666; font-size: 14px; line-height: 1.5; margin-bottom: 20px;">
                         {% if current_channel %}
                             Ask questions about this channel's content based on {{ summary_count }} video summaries.
                         {% else %}
@@ -273,6 +273,23 @@ document.addEventListener('DOMContentLoaded', function() {
     loadModels();
     loadGlobalChatHistory();
     startPlaceholderAnimation();
+    
+    // Auto-scroll to bottom on page load
+    setTimeout(function() {
+        scrollToInputArea();
+    }, 100);
+    
+    // Add model selection change handler
+    const modelSelect = document.getElementById('modelSelect');
+    if (modelSelect) {
+        modelSelect.addEventListener('change', function() {
+            console.log(`Model changed to: ${this.value}`);
+            // Optional: Show a brief indicator that model was changed
+            if (currentConversationId) {
+                console.log('Model changed mid-conversation - next message will use new model');
+            }
+        });
+    }
 });
 
 // Sample question handlers
@@ -398,6 +415,21 @@ function loadConversation(conversationId, conversationData) {
                 addMessage(message.role, message.content, false);
             });
             scrollToBottom();
+            // Also scroll page to input area
+            setTimeout(() => scrollToInputArea(), 200);
+        }
+        
+        // Update model selection if conversation has model info
+        if (data.conversation && data.conversation.model_used) {
+            const modelSelect = document.getElementById('modelSelect');
+            if (modelSelect) {
+                // Check if the model exists in the options
+                const modelExists = Array.from(modelSelect.options).some(option => option.value === data.conversation.model_used);
+                if (modelExists) {
+                    modelSelect.value = data.conversation.model_used;
+                    console.log(`Updated model selection to: ${data.conversation.model_used}`);
+                }
+            }
         }
         
         // Update history display
@@ -451,8 +483,24 @@ function startNewConversation() {
     // Clear messages
     document.getElementById('chatMessages').innerHTML = '';
     
+    // Reset model selection to default
+    const modelSelect = document.getElementById('modelSelect');
+    if (modelSelect && modelSelect.options.length > 0) {
+        // Try to select Claude Sonnet 4 if available, otherwise first option
+        const claudeSonnet4 = Array.from(modelSelect.options).find(option => option.value === 'claude-sonnet-4-20250514');
+        if (claudeSonnet4) {
+            modelSelect.value = claudeSonnet4.value;
+        } else {
+            modelSelect.value = modelSelect.options[0].value;
+        }
+        console.log(`Reset model selection to default: ${modelSelect.value}`);
+    }
+    
     // Reload history
     loadGlobalChatHistory();
+    
+    // Scroll to input area
+    setTimeout(() => scrollToInputArea(), 100);
 }
 
 // Placeholder animation functions
@@ -604,6 +652,21 @@ function scrollToBottom() {
     container.scrollTop = container.scrollHeight;
 }
 
+// Scroll to input area (bottom of page)
+function scrollToInputArea() {
+    // Scroll the main page to the bottom to bring input area into view
+    window.scrollTo({
+        top: document.body.scrollHeight,
+        behavior: 'smooth'
+    });
+    
+    // Also scroll the chat messages container if it exists and has content
+    const container = document.getElementById('chatMessagesContainer');
+    if (container && container.style.display !== 'none') {
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
 // Convert markdown to HTML
 function convertMarkdownToHtml(markdown) {
     if (!markdown) return '';
@@ -703,7 +766,17 @@ function sendMessage() {
     const message = input.value.trim();
     const modelSelect = document.getElementById('modelSelect');
     
-    if (!message || !modelSelect.value) return;
+    if (!message) {
+        console.log('No message provided');
+        return;
+    }
+    
+    if (!modelSelect.value) {
+        console.log('No model selected');
+        return;
+    }
+    
+    console.log(`Sending message with model: ${modelSelect.value}`);
     
     // Show messages container if hidden
     if (document.getElementById('chatWelcome').style.display !== 'none') {
@@ -758,6 +831,14 @@ function sendMessage() {
             
             // Reload history
             loadGlobalChatHistory();
+            
+            // Focus back on input after response
+            setTimeout(() => {
+                const input = document.getElementById('chatInput');
+                if (input) {
+                    input.focus();
+                }
+            }, 1600);
         }
     })
     .catch(error => {
