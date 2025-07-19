@@ -41,18 +41,18 @@
                             </h3>
                         </div>
                         
-                        <div class="channel-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 20px;">
+                        <div class="channel-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px;">
                             {% for video in channel_group.videos %}
                                 <div class="video-card" data-channel="{{ video.channel_name or 'Unknown Channel' }}" style="background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); {% if not video.is_valid %}opacity: 0.6; border-left: 4px solid #dc3545;{% else %}border-left: 4px solid #28a745;{% endif %}">
                                     <!-- Video Thumbnail and Info -->
-                                    <div style="display: flex; padding: 15px;">
-                                        <div style="flex-shrink: 0; margin-right: 15px;">
+                                    <div style="display: flex; padding: 12px; flex-direction: column;">
+                                        <div style="margin-bottom: 12px;">
                                             <img src="https://img.youtube.com/vi/{{ video.video_id }}/maxresdefault.jpg" 
                                                  alt="Thumbnail" 
-                                                 style="width: 120px; height: 68px; object-fit: cover; border-radius: 4px;"
+                                                 style="width: 100%; height: auto; aspect-ratio: 16/9; object-fit: cover; border-radius: 4px;"
                                                  onerror="this.src='https://img.youtube.com/vi/{{ video.video_id }}/default.jpg'">
                                         </div>
-                                        <div style="flex-grow: 1; min-width: 0;">
+                                        <div>
                                             <h4 style="margin: 0 0 8px 0; font-size: 16px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
                                                 {% if video.is_valid %}
                                                     <a href="{% if video.url_path and video.handle %}/{{ video.handle }}/{{ video.url_path }}{% else %}/watch?v={{ video.video_id }}{% endif %}" style="color: #333; text-decoration: none;">{{ video.title }}</a>
@@ -103,18 +103,18 @@
                 {% endfor %}
             {% else %}
                 <!-- Regular Grid View -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 20px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px;">
                     {% for video in cached_videos %}
                         <div class="video-card" data-channel="{{ video.channel_name or 'Unknown Channel' }}" style="background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); {% if not video.is_valid %}opacity: 0.6; border-left: 4px solid #dc3545;{% else %}border-left: 4px solid #28a745;{% endif %}">
                             <!-- Video Thumbnail and Info -->
-                            <div style="display: flex; padding: 15px;">
-                                <div style="flex-shrink: 0; margin-right: 15px;">
+                            <div style="display: flex; padding: 12px; flex-direction: column;">
+                                <div style="margin-bottom: 12px;">
                                     <img src="https://img.youtube.com/vi/{{ video.video_id }}/maxresdefault.jpg" 
                                          alt="Thumbnail" 
-                                         style="width: 120px; height: 68px; object-fit: cover; border-radius: 4px;"
+                                         style="width: 100%; height: auto; aspect-ratio: 16/9; object-fit: cover; border-radius: 4px;"
                                          onerror="this.src='https://img.youtube.com/vi/{{ video.video_id }}/default.jpg'">
                                 </div>
-                                <div style="flex-grow: 1; min-width: 0;">
+                                <div>
                                     <h4 style="margin: 0 0 8px 0; font-size: 16px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
                                         {% if video.is_valid %}
                                             <a href="{% if video.url_path and video.handle %}/{{ video.handle }}/{{ video.url_path }}{% else %}/watch?v={{ video.video_id }}{% endif %}" style="color: #333; text-decoration: none;">{{ video.title }}</a>
