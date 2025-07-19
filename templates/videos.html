@@ -5,7 +5,7 @@
 {% block content %}
     <div style="margin-bottom: 15px; background: #f8f9fa; padding: 12px 16px; border-radius: 8px; border-left: 4px solid #ff9800;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h2 style="margin: 0; font-size: 20px; display: flex; align-items: center; gap: 8px;">🎬 Videos <span style="font-size: 14px; color: #666; font-weight: normal;">• {% if pagination %}{% if is_grouped %}{{ pagination.total }} channels{% else %}{{ pagination.total }} videos{% endif %}{% else %}{{ cached_videos|length }} videos{% endif %}</span></h2>
+            <h2 style="margin: 0; font-size: 20px; display: flex; align-items: center; gap: 8px;">🎬 Videos <span style="font-size: 14px; color: #666; font-weight: normal;">• {% if pagination %}{{ pagination.total }}{% else %}{{ cached_videos|length }}{% endif %}</span></h2>
             {% if cached_videos %}
                 {% if is_grouped %}
                     <a href="/videos" style="background: #5BA7F7; color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; display: inline-block; transition: all 0.2s ease;" onmouseover="this.style.background='#4A90E2'" onmouseout="this.style.background='#5BA7F7'">📋 Show All Videos</a>
@@ -289,13 +289,9 @@
                             if (videoCountSpan) {
                                 {% if pagination %}
                                     const totalVideos = {{ pagination.total }} - 1; // Subtract 1 for deleted video
-                                    {% if is_grouped %}
-                                        videoCountSpan.textContent = `• ${totalVideos} channels`;
-                                    {% else %}
-                                        videoCountSpan.textContent = `• ${totalVideos} videos`;
-                                    {% endif %}
+                                    videoCountSpan.textContent = `• ${totalVideos}`;
                                 {% else %}
-                                    videoCountSpan.textContent = `• ${remainingVideos} videos`;
+                                    videoCountSpan.textContent = `• ${remainingVideos}`;
                                 {% endif %}
                             }
                         }
