@@ -73,7 +73,7 @@
     {% endif %}
     
     {% if summary_count > 0 %}
-    <a href="/{{ channel_info.handle }}/blog" style="text-decoration: none; color: inherit;">
+    <a href="/{{ channel_info.handle[1:] if channel_info.handle.startswith('@') else channel_info.handle }}" style="text-decoration: none; color: inherit;">
         <div class="stat-card clickable" style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; border-left: 4px solid #9c27b0; transition: all 0.3s ease; cursor: pointer;">
             <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
                 <span style="font-size: 18px;">📝</span>

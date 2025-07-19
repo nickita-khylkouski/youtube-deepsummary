@@ -65,7 +65,7 @@ let currentPage = 1;
 let loading = false;
 let hasMorePosts = true;
 const postsPerPage = 10;
-const channelHandle = '{{ channel_handle }}';
+const channelHandle = '{{ channel_info.handle }}';
 
 // Initialize blog when page loads
 document.addEventListener('DOMContentLoaded', function() {
@@ -95,7 +95,7 @@ async function loadBlogPosts() {
     showLoading();
     
     try {
-        const response = await fetch(`/api/@${channelHandle}/blog-posts?page=${currentPage}&per_page=${postsPerPage}`);
+        const response = await fetch(`/api/${channelHandle}/blog-posts?page=${currentPage}&per_page=${postsPerPage}`);
         const data = await response.json();
         
         if (data.success) {
@@ -154,7 +154,7 @@ function createBlogPostElement(post) {
             <!-- Post Header -->
             <header style="margin-bottom: 25px;">
                 <h2 style="margin: 0 0 12px 0; font-size: 26px; font-weight: 600; line-height: 1.3;">
-                    <a href="${post.url_path ? `/${channelHandle}/${post.url_path}` : `/watch?v=${post.video_id}`}" 
+                    <a href="${post.url_path ? `/${channelHandle.replace('@', '')}/${post.url_path}` : `/watch?v=${post.video_id}`}" 
                        style="color: #1a1a1a; text-decoration: none; transition: color 0.2s ease;"
                        onmouseover="this.style.color='#667eea'"
                        onmouseout="this.style.color='#1a1a1a'">
@@ -186,7 +186,7 @@ function createBlogPostElement(post) {
             <footer style="margin-top: 25px; padding-top: 20px; border-top: 1px solid #e5e5e5;">
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
                     <div style="display: flex; gap: 12px;">
-                        <a href="${post.url_path ? `/${channelHandle}/${post.url_path}` : `/watch?v=${post.video_id}`}" 
+                        <a href="${post.url_path ? `/${channelHandle.replace('@', '')}/${post.url_path}` : `/watch?v=${post.video_id}`}" 
                            style="background: #667eea; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease;"
                            onmouseover="this.style.background='#5a6fd8'"
                            onmouseout="this.style.background='#667eea'">
