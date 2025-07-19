@@ -232,6 +232,7 @@ Please analyze this transcript:
         
         # Use provided model or default
         model_to_use = model or self.anthropic_model
+        print(f"Anthropic API call using model: {model_to_use}")
         
         # Enhanced processing for chapter-based content
         if chapters and len(chapters) > 1 and not custom_prompt:
@@ -282,8 +283,12 @@ Please analyze this transcript:
             # Enhanced system prompt for chapter-aware summarization
             system_prompt = "You are a helpful assistant that creates clear, comprehensive summaries of educational video transcripts. When chapters are present, you excel at analyzing how content flows between chapters and identifying progressive learning patterns. Focus on extracting key insights, actionable advice, and important details while maintaining readability and respecting the chapter structure."
             
+            # Use the specified model or fallback to default
+            selected_model = model if model else self.model
+            print(f"OpenAI API call using model: {selected_model}")
+            
             response = self.client.chat.completions.create(
-                model=self.model,
+                model=selected_model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
@@ -321,6 +326,19 @@ Please analyze this transcript:
             
             # Fallback to OpenAI if model not found
             raise Exception(f"Unknown model: {model}. Available models: {available_models}")
+    
+    def chat_with_context(self, message: str, context: str, model: str = None) -> str:
+        """Chat method for conversational AI responses with context"""
+        # Use the same underlying method but format as a chat response
+        combined_prompt = f"{context}\n\nUser: {message}\n\nAssistant:"
+        
+        # Use the model-specific summarization method
+        return self.summarize_with_model(
+            transcript_content=combined_prompt,
+            model=model,
+            chapters=None,
+            custom_prompt="You are a helpful AI assistant. Respond directly to the user's question using the provided context. Be conversational and helpful."
+        )
     
     def _post_process_summary(self, summary: str, chapters: Optional[List[Dict]] = None, video_id: str = None, video_info: Optional[Dict] = None) -> str:
         """Post-process the generated summary with additional formatting"""
