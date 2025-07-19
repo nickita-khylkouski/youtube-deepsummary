@@ -1676,6 +1676,20 @@ class DatabaseStorage:
             print(f"Error getting default AI prompt: {e}")
             return None
 
+    def get_ai_prompt_by_name(self, name: str) -> Optional[Dict]:
+        """Get AI prompt by name"""
+        try:
+            result = self.supabase.table('ai_prompts')\
+                .select('*')\
+                .eq('name', name)\
+                .execute()
+            
+            return result.data[0] if result.data else None
+            
+        except Exception as e:
+            print(f"Error getting AI prompt by name {name}: {e}")
+            return None
+
     def create_ai_prompt(self, name: str, prompt_text: str, is_default: bool = False, description: str = None) -> Optional[int]:
         """Create a new AI prompt"""
         try:

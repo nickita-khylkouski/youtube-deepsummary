@@ -536,8 +536,52 @@ Please analyze this transcript:
         Returns:
             Generated chapter summary text
         """
-        # Create a chapter-specific prompt
-        prompt = f"""Please provide a comprehensive summary of this specific chapter from a YouTube video.
+        # Get Chapter prompt from database
+        try:
+            from .database_storage import database_storage
+            chapter_prompt_data = database_storage.get_ai_prompt_by_name('Chapter')
+            
+            if chapter_prompt_data:
+                prompt_template = chapter_prompt_data['prompt_text']
+                # Replace placeholders in the prompt template
+                prompt = prompt_template.replace('{chapter_title}', chapter_title).replace('{chapter_transcript}', chapter_transcript)
+            else:
+                # Fallback to hardcoded prompt if Chapter prompt not found in database
+                prompt = f"""Please provide a comprehensive summary of this specific chapter from a YouTube video.
+
+Chapter Title: {chapter_title}
+
+Focus on:
+- The main topics and concepts covered in this chapter
+- Key insights and takeaways specific to this section
+- Actionable strategies or advice mentioned
+- Important examples, statistics, or case studies
+- Any warnings or pitfalls discussed
+
+Structure your response as follows:
+
+## Chapter Overview
+Brief summary of what this chapter covers.
+
+## Key Points
+Main concepts and insights from this chapter.
+
+## Actionable Takeaways  
+Practical advice or strategies that can be implemented.
+
+## Important Details
+Specific examples, statistics, or details worth noting.
+
+## Warnings & Considerations
+Any cautions or potential pitfalls mentioned.
+
+Please analyze this chapter transcript:
+
+{chapter_transcript}"""
+        except Exception as e:
+            print(f"Error loading Chapter prompt from database: {e}")
+            # Use fallback hardcoded prompt
+            prompt = f"""Please provide a comprehensive summary of this specific chapter from a YouTube video.
 
 Chapter Title: {chapter_title}
 

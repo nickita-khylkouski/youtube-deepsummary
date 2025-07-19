@@ -229,13 +229,6 @@
                                         <div class="form-text">Controls randomness in responses. Lower values are more focused.</div>
                                     </div>
                                     
-                                    <div class="mb-3">
-                                        <label for="chapterSummaryModel" class="form-label">Chapter Summary Model</label>
-                                        <select class="form-select" id="chapterSummaryModel" name="chapter_summary_model">
-                                            <!-- Options populated dynamically based on provider -->
-                                        </select>
-                                        <div class="form-text">Select the AI model to use specifically for chapter summaries</div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -302,6 +295,14 @@
                                         <label for="maxTokens" class="form-label">Max Output Tokens</label>
                                         <input type="number" class="form-control" id="maxTokens" name="max_tokens" min="100" max="100000" value="8192">
                                         <div class="form-text">Maximum number of tokens in the summary response</div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="chapterSummaryModel" class="form-label">Chapter Summary Model</label>
+                                        <select class="form-select" id="chapterSummaryModel" name="chapter_summary_model">
+                                            <!-- Options populated dynamically -->
+                                        </select>
+                                        <div class="form-text">Select the AI model for chapter-specific summaries</div>
                                     </div>
                                     
                                     <div class="mb-3">
