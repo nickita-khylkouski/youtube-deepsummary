@@ -72,7 +72,7 @@
                                                         • {{ video.channel_name or 'Unknown Channel' }}
                                                     {% endif %}
                                                 </div>
-                                                <button onclick="deleteVideo('{{ video.video_id }}', '{{ video.title|e }}', true)" style="background: white; color: #333; border: 1px solid #ddd; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);" title="Delete Video">🗑️</button>
+                                                <button onclick="event.stopPropagation(); deleteVideo('{{ video.video_id }}', '{{ video.title|e }}', true)" style="background: white; color: #333; border: 1px solid #ddd; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);" title="Delete Video">🗑️</button>
                                             </div>
                                             <div style="color: #888; font-size: 12px;">
                                                 {% if video.published_at %}
@@ -134,7 +134,7 @@
                                                 • {{ video.channel_name or 'Unknown Channel' }}
                                             {% endif %}
                                         </div>
-                                        <button onclick="deleteVideo('{{ video.video_id }}', '{{ video.title|e }}')" style="background: white; color: #333; border: 1px solid #ddd; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);" title="Delete Video">🗑️</button>
+                                        <button onclick="event.stopPropagation(); deleteVideo('{{ video.video_id }}', '{{ video.title|e }}')" style="background: white; color: #333; border: 1px solid #ddd; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);" title="Delete Video">🗑️</button>
                                     </div>
                                     <div style="color: #888; font-size: 12px;">
                                         {% if video.published_at %}
@@ -256,7 +256,7 @@
             // Show loading state
             const button = event.target;
             const originalText = button.textContent;
-            button.textContent = '⏳ Deleting...';
+            button.textContent = '⏳';
             button.disabled = true;
             
             fetch(`/api/delete/${videoId}`, {
@@ -274,7 +274,7 @@
                         videoCard.remove();
                         
                         // If in grouped mode, also remove from cached data
-                        if (isFromGrouped && allVideosCache) {
+                        if (isFromGrouped && typeof allVideosCache !== 'undefined') {
                             allVideosCache = allVideosCache.filter(video => video.video_id !== videoId);
                         }
                         
@@ -283,8 +283,8 @@
                         if (remainingVideos === 0) {
                             // Reload the page to show the empty state
                             window.location.reload();
-                        } else if (!isGrouped) {
-                            // Update the video count display only in paginated mode
+                        } else {
+                            // Update the video count display
                             const videoCountSpan = document.querySelector('h2 span');
                             if (videoCountSpan) {
                                 {% if pagination %}
