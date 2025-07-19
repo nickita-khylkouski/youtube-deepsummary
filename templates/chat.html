@@ -308,20 +308,34 @@ function loadModels() {
     .then(response => response.json())
     .then(data => {
         select.innerHTML = '';
-        if (data.models && data.models.length > 0) {
-            data.models.forEach(model => {
-                const option = document.createElement('option');
-                option.value = model.id;
-                option.textContent = model.name;
-                select.appendChild(option);
-            });
+        if (data.success && data.models) {
+            let modelSelected = false;
             
-            // Auto-select Claude Sonnet 4 if available
-            const claudeSonnet4 = data.models.find(m => m.id === 'claude-sonnet-4-20250514');
-            if (claudeSonnet4) {
-                select.value = claudeSonnet4.id;
-            } else if (data.models.length > 0) {
-                select.value = data.models[0].id;
+            // Add providers and models
+            for (const [provider, models] of Object.entries(data.models)) {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = provider.charAt(0).toUpperCase() + provider.slice(1);
+                
+                models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model;
+                    option.textContent = model;
+                    
+                    // Auto-select Claude Sonnet 4 if available
+                    if (model === 'claude-sonnet-4-20250514') {
+                        option.selected = true;
+                        modelSelected = true;
+                    }
+                    
+                    optgroup.appendChild(option);
+                });
+                
+                select.appendChild(optgroup);
+            }
+            
+            // If no model was selected, select first available
+            if (!modelSelected && select.options.length > 0) {
+                select.selectedIndex = 0;
             }
         } else {
             select.innerHTML = '<option value="">No models available</option>';
