@@ -25,7 +25,9 @@
       "Bash(curl:*)",
       "Bash(unzip:*)",
       "Bash(true)",
-      "Bash(printenv)"
+      "Bash(printenv)",
+      "Bash(git checkout:*)",
+      "Bash(git reset:*)"
     ],
     "deny": []
   }

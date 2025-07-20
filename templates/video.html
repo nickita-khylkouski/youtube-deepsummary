@@ -237,6 +237,8 @@
         }
         
         function scrollToChapter(chapterTime) {
+            console.log('scrollToChapter called with time:', chapterTime);
+            
             // Check if transcript elements exist
             const formattedDiv = document.getElementById('formatted-transcript');
             const detailedDiv = document.getElementById('detailed-transcript');
@@ -248,11 +250,15 @@
             }
             
             const chapterId = 'chapter-' + chapterTime;
+            console.log('Looking for chapter ID:', chapterId);
             
             if (formattedDiv && formattedDiv.style.display !== 'none') {
                 // In formatted view - scroll to the chapter anchor
                 const chapterAnchor = document.getElementById(chapterId);
+                console.log('Looking for chapter anchor:', chapterId, 'Found:', !!chapterAnchor);
+                
                 if (chapterAnchor) {
+                    console.log('Scrolling to chapter anchor');
                     chapterAnchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     
                     // Highlight the section temporarily
@@ -263,9 +269,44 @@
                         formattedContent.parentElement.style.backgroundColor = originalBg;
                     }, 2000);
                 } else {
-                    // Fallback: scroll to formatted transcript
-                    const formattedContent = document.getElementById('formatted-transcript-content');
-                    formattedContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    console.log('Chapter anchor not found, trying alternative approaches...');
+                    // Try to find heading with chapter title
+                    const headings = document.querySelectorAll('#formatted-transcript-content h2, #formatted-transcript-content h3');
+                    let foundHeading = null;
+                    
+                    headings.forEach(heading => {
+                        const headingText = heading.textContent.toLowerCase();
+                        if (headingText.includes('[') && headingText.includes(']')) {
+                            // Extract timestamp from heading like "Chapter Title [MM:SS]"
+                            const timeMatch = headingText.match(/\[(\d+):(\d+)\]/);
+                            if (timeMatch) {
+                                const headingTime = parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]);
+                                if (Math.abs(headingTime - chapterTime) <= 5) { // Within 5 seconds
+                                    foundHeading = heading;
+                                }
+                            }
+                        }
+                    });
+                    
+                    if (foundHeading) {
+                        console.log('Found heading for chapter, scrolling to it');
+                        foundHeading.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        
+                        // Highlight the heading temporarily
+                        const originalBg = foundHeading.style.backgroundColor;
+                        const originalBorder = foundHeading.style.border;
+                        foundHeading.style.backgroundColor = '#fff3cd';
+                        foundHeading.style.border = '2px solid #ffc107';
+                        setTimeout(() => {
+                            foundHeading.style.backgroundColor = originalBg;
+                            foundHeading.style.border = originalBorder;
+                        }, 3000);
+                    } else {
+                        console.log('No chapter heading found, scrolling to transcript start');
+                        // Fallback: scroll to formatted transcript
+                        const formattedContent = document.getElementById('formatted-transcript-content');
+                        formattedContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
                 }
             } else if (detailedDiv) {
                 // In detailed view - find the closest timestamp entry
