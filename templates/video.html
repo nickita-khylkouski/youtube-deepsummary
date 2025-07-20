@@ -3,6 +3,15 @@
 {% block title %}{% if video_title %}{{ video_title }}{% else %}{{ video_id }}{% endif %} - YouTube Deep Summary{% endblock %}
 
 {% block content %}
+    <!-- Include Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    
+    <style>
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
     <div class="video-info" style="position: relative;">
         <!-- Delete Icon -->
         <button onclick="deleteVideo('{{ video_id }}', '{{ video_title|e }}')" style="position: absolute; top: 10px; right: 10px; background: white; color: #333; border: 1px solid #ddd; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" title="Delete Video">🗑️</button>
@@ -55,39 +64,33 @@
     
     {% if chapters %}
         <div class="chapters-info">
-            <h3>🤖 AI Summaries ({{ chapters|length }} chapters):</h3>
-            <ul style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0; list-style: none;">
+            <h3 onclick="toggleChaptersList()" style="cursor: pointer; user-select: none; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="chevron-down" id="chapters-chevron" style="width: 20px; height: 20px; transition: transform 0.2s;"></i>
+                🤖 AI Summaries ({{ chapters|length }} chapters):
+            </h3>
+            <ul id="chapters-list" style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0; list-style: none;">
                 {% for chapter in chapters %}
                     <li style="margin-bottom: 8px; position: relative;">
-                        • <strong>{{ chapter.title }}</strong> - 
-                        <a href="javascript:void(0)" onclick="scrollToChapter({{ chapter.time|int }})" style="color: #0066cc; text-decoration: underline; margin-right: 8px;" title="Go to transcript section">{{ "%.0f"|format(chapter.time // 60) }}:{{ "%02.0f"|format(chapter.time % 60) }}</a>
-                        <a href="https://www.youtube.com/watch?v={{ video_id }}&t={{ chapter.time|int }}s" target="_blank" style="text-decoration: none; margin-left: 4px; margin-right: 8px;" title="Watch on YouTube">
-                            <svg width="16" height="16" viewBox="0 0 24 24" style="vertical-align: middle;">
-                                <path fill="#ff0000" d="M23.498 6.186a2.998 2.998 0 00-2.112-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.386.505A2.998 2.998 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a2.998 2.998 0 002.112 2.136c1.881.505 9.386.505 9.386.505s7.505 0 9.386-.505a2.998 2.998 0 002.112-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                            </svg>
-                        </a>
+                        • <strong>{{ chapter.title }}</strong> - {{ "%.0f"|format(chapter.time // 60) }}:{{ "%02.0f"|format(chapter.time % 60) }}  
                         {% if summarize_enabled %}
                             {% set chapter_summary = chapter_summaries_lookup.get(chapter.time|int) %}
                             {% if chapter_summary %}
-                                <button onclick="viewChapterSummary({{ chapter.time|int }})" 
-                                        data-chapter-time="{{ chapter.time|int }}"
-                                        data-chapter-title="{{ chapter.title|e }}"
-                                        data-summary-text="{{ chapter_summary.summary_text|e }}"
-                                        data-model-used="{{ chapter_summary.model_used|e }}"
-                                        style="background: #4CAF50; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: all 0.2s ease;" 
-                                        onmouseover="this.style.background='#45a049'" 
-                                        onmouseout="this.style.background='#4CAF50'"
-                                        title="View AI summary for this chapter">
-                                    ✅ View Summary
-                                </button>
+                                <span onclick="viewChapterSummary({{ chapter.time|int }})" 
+                                      data-chapter-time="{{ chapter.time|int }}"
+                                      data-chapter-title="{{ chapter.title|e }}"
+                                      data-summary-text="{{ chapter_summary.summary_text|e }}"
+                                      data-model-used="{{ chapter_summary.model_used|e }}"
+                                      style="cursor: pointer; margin-left: 8px; color: #4CAF50;" 
+                                      title="View AI summary for this chapter">
+                                    <i data-lucide="check-circle" style="width: 16px; height: 16px;"></i>
+                                </span>
                             {% else %}
-                                <button onclick="generateChapterSummary('{{ video_id }}', {{ chapter.time|int }}, '{{ chapter.title|e }}')" 
-                                        style="background: #9C27B0; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: all 0.2s ease;" 
-                                        onmouseover="this.style.background='#7B1FA2'" 
-                                        onmouseout="this.style.background='#9C27B0'"
-                                        title="Generate AI summary for this chapter">
-                                    🤖 Summarize Chapter
-                                </button>
+                                <span onclick="generateChapterSummary('{{ video_id }}', {{ chapter.time|int }}, '{{ chapter.title|e }}')" 
+                                      style="cursor: pointer; margin-left: 8px; color: #9C27B0;" 
+                                      title="Generate AI summary for this chapter"
+                                      id="chapter-icon-{{ chapter.time|int }}">
+                                    <i data-lucide="brain" style="width: 16px; height: 16px;"></i>
+                                </span>
                             {% endif %}
                         {% endif %}
                     </li>
@@ -422,17 +425,22 @@
         }
         
         function generateChapterSummary(videoId, chapterTime, chapterTitle) {
-            // Find the button that was clicked
-            const buttons = document.querySelectorAll(`button[onclick*="generateChapterSummary('${videoId}', ${chapterTime}"]`);
-            const btn = buttons[0];
+            // Find the icon span that was clicked
+            const iconSpan = document.getElementById(`chapter-icon-${chapterTime}`);
             
-            if (!btn) return;
+            if (!iconSpan) return;
             
-            // Update button to show loading state
-            const originalText = btn.textContent;
-            btn.textContent = '⏳ Generating...';
-            btn.disabled = true;
-            btn.style.background = '#666';
+            // Update icon to show loading state
+            const originalIcon = iconSpan.innerHTML;
+            iconSpan.innerHTML = '<i data-lucide="loader-2" style="width: 16px; height: 16px; animation: spin 1s linear infinite;"></i>';
+            iconSpan.style.color = '#666';
+            iconSpan.style.cursor = 'default';
+            iconSpan.onclick = null; // Disable clicking during loading
+            
+            // Initialize the new loading icon
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
             
             // Get the chapter transcript segment
             fetch(`/api/chapter-summary`, {
@@ -452,35 +460,55 @@
                         // Show chapter summary in a modal or section
                         showChapterSummaryModal(chapterTitle, data.summary, data.model_used);
                         
-                        // Reset button
-                        btn.textContent = '✅ View Summary';
-                        btn.disabled = false;
-                        btn.style.background = '#4CAF50';
+                        // Update icon to success state
+                        iconSpan.innerHTML = '<i data-lucide="check-circle" style="width: 16px; height: 16px;"></i>';
+                        iconSpan.style.color = '#4CAF50';
+                        iconSpan.style.cursor = 'pointer';
+                        iconSpan.title = 'View AI summary for this chapter';
                         
-                        // Update button data attributes with the new summary and model
-                        btn.setAttribute('data-summary-text', data.summary);
-                        btn.setAttribute('data-model-used', data.model_used);
+                        // Update span data attributes with the new summary and model
+                        iconSpan.setAttribute('data-summary-text', data.summary);
+                        iconSpan.setAttribute('data-model-used', data.model_used);
+                        iconSpan.setAttribute('data-chapter-time', chapterTime);
+                        iconSpan.setAttribute('data-chapter-title', chapterTitle);
                         
                         // Change the onclick to show the existing summary
-                        btn.onclick = () => viewChapterSummary(chapterTime);
+                        iconSpan.onclick = () => viewChapterSummary(chapterTime);
+                        
+                        // Initialize the new success icon
+                        if (typeof lucide !== 'undefined') {
+                            lucide.createIcons();
+                        }
                     } else {
                         // Show error
                         alert('Error generating chapter summary: ' + data.error);
                         
-                        // Reset button
-                        btn.textContent = originalText;
-                        btn.disabled = false;
-                        btn.style.background = '#9C27B0';
+                        // Reset icon
+                        iconSpan.innerHTML = originalIcon;
+                        iconSpan.style.color = '#9C27B0';
+                        iconSpan.style.cursor = 'pointer';
+                        iconSpan.onclick = () => generateChapterSummary(videoId, chapterTime, chapterTitle);
+                        
+                        // Re-initialize the original icon
+                        if (typeof lucide !== 'undefined') {
+                            lucide.createIcons();
+                        }
                     }
                 })
                 .catch(error => {
                     // Show error
                     alert('Failed to generate chapter summary: ' + error.message);
                     
-                    // Reset button
-                    btn.textContent = originalText;
-                    btn.disabled = false;
-                    btn.style.background = '#9C27B0';
+                    // Reset icon
+                    iconSpan.innerHTML = originalIcon;
+                    iconSpan.style.color = '#9C27B0';
+                    iconSpan.style.cursor = 'pointer';
+                    iconSpan.onclick = () => generateChapterSummary(videoId, chapterTime, chapterTitle);
+                    
+                    // Re-initialize the original icon
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
                 });
         }
         
@@ -605,19 +633,19 @@
         function viewChapterSummary(chapterTime) {
             console.log('viewChapterSummary called with chapterTime:', chapterTime);
             
-            // Find the button that was clicked
-            const button = document.querySelector(`button[data-chapter-time="${chapterTime}"]`);
-            if (!button) {
-                console.error('Button not found for chapter time:', chapterTime);
+            // Find the span that was clicked (check both buttons and spans for compatibility)
+            const element = document.querySelector(`span[data-chapter-time="${chapterTime}"], button[data-chapter-time="${chapterTime}"]`);
+            if (!element) {
+                console.error('Element not found for chapter time:', chapterTime);
                 return;
             }
             
-            // Get data from button attributes
-            const chapterTitle = button.getAttribute('data-chapter-title');
-            const summaryText = button.getAttribute('data-summary-text');
-            const modelUsed = button.getAttribute('data-model-used');
+            // Get data from element attributes
+            const chapterTitle = element.getAttribute('data-chapter-title');
+            const summaryText = element.getAttribute('data-summary-text');
+            const modelUsed = element.getAttribute('data-model-used');
             
-            console.log('Found button data:', { chapterTitle, summaryTextPreview: summaryText.substring(0, 50) + '...', modelUsed });
+            console.log('Found element data:', { chapterTitle, summaryTextPreview: summaryText ? summaryText.substring(0, 50) + '...' : 'No text', modelUsed });
             
             // Call the modal function with model info
             showChapterSummaryModal(chapterTitle, summaryText, modelUsed);
@@ -1860,6 +1888,20 @@
             }, 1500);
         }
 
+        // Collapse/expand chapters list functionality
+        function toggleChaptersList() {
+            const chaptersList = document.getElementById('chapters-list');
+            const chevron = document.getElementById('chapters-chevron');
+            
+            if (chaptersList.style.display === 'none') {
+                chaptersList.style.display = 'block';
+                chevron.style.transform = 'rotate(0deg)';
+            } else {
+                chaptersList.style.display = 'none';
+                chevron.style.transform = 'rotate(-90deg)';
+            }
+        }
+
         // Initialize snippets functionality when page loads
         document.addEventListener('DOMContentLoaded', function() {
             initializeSnippets();
@@ -1874,6 +1916,11 @@
             {% if summary %}
             loadSummaryHistory('{{ video_id }}');
             {% endif %}
+            
+            // Initialize Lucide icons
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
         });
         
         // Extract chapters functionality
