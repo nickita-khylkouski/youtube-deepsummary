@@ -135,10 +135,8 @@ def get_summarizer_settings():
             'openaiApiKey': '***' if summarizer.openai_api_key else '',
             'anthropicApiKey': '***' if summarizer.anthropic_api_key else '',
             'maxTokens': db_settings.get('max_tokens', 8192),
-            'chapterSummaryModel': db_settings.get('chapter_summary_model', 'claude-sonnet-4-20250514'),
             'enableChapterAwareness': db_settings.get('enable_chapter_awareness', True),
-            'enableMetadataInclusion': db_settings.get('enable_metadata_inclusion', True),
-            'enableClickableChapters': db_settings.get('enable_clickable_chapters', True)
+            'enableMetadataInclusion': db_settings.get('enable_metadata_inclusion', True)
         }
         
         return jsonify({'status': 'success', 'settings': settings})
@@ -174,10 +172,8 @@ def update_summarizer_settings():
             'model': data.get('model', 'gpt-4.1'),
             'temperature': temperature,
             'max_tokens': max_tokens,
-            'chapter_summary_model': data.get('chapterSummaryModel', 'claude-sonnet-4-20250514'),
             'enable_chapter_awareness': data.get('enableChapterAwareness', True),
-            'enable_metadata_inclusion': data.get('enableMetadataInclusion', True),
-            'enable_clickable_chapters': data.get('enableClickableChapters', True)
+            'enable_metadata_inclusion': data.get('enableMetadataInclusion', True)
         }
         
         # Store settings in database

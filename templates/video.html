@@ -68,10 +68,10 @@
     {% if chapters %}
         <div class="chapters-info">
             <h3 onclick="toggleChaptersList()" style="cursor: pointer; user-select: none; display: flex; align-items: center; gap: 8px;">
-                <i data-lucide="chevron-down" id="chapters-chevron" style="width: 20px; height: 20px; transition: transform 0.2s;"></i>
-                🤖 AI Summaries ({{ chapters|length }} chapters):
+                <i data-lucide="chevron-right" id="chapters-chevron" style="width: 20px; height: 20px; transition: transform 0.2s;"></i>
+                📚 Chapter Summaries ({{ chapters|length }})
             </h3>
-            <ul id="chapters-list" style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0; list-style: none;">
+            <ul id="chapters-list" style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0; list-style: none; display: none;">
                 {% for chapter in chapters %}
                     <li style="margin-bottom: 8px; position: relative;">
                         • <strong>{{ chapter.title }}</strong> - {{ "%.0f"|format(chapter.time // 60) }}:{{ "%02.0f"|format(chapter.time % 60) }}  
@@ -237,8 +237,6 @@
         }
         
         function scrollToChapter(chapterTime) {
-            console.log('scrollToChapter called with time:', chapterTime);
-            
             // Check if transcript elements exist
             const formattedDiv = document.getElementById('formatted-transcript');
             const detailedDiv = document.getElementById('detailed-transcript');
@@ -249,64 +247,89 @@
                 return;
             }
             
-            const chapterId = 'chapter-' + chapterTime;
-            console.log('Looking for chapter ID:', chapterId);
-            
             if (formattedDiv && formattedDiv.style.display !== 'none') {
-                // In formatted view - scroll to the chapter anchor
-                const chapterAnchor = document.getElementById(chapterId);
-                console.log('Looking for chapter anchor:', chapterId, 'Found:', !!chapterAnchor);
+                // In formatted view - try to find closest position using transcript data
+                const transcriptData = {{ transcript|tojson }};
+                let closestEntryIndex = 0;
+                let closestDiff = Infinity;
                 
-                if (chapterAnchor) {
-                    console.log('Scrolling to chapter anchor');
-                    chapterAnchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // Find the closest transcript entry to the chapter time
+                transcriptData.forEach((entry, index) => {
+                    const diff = Math.abs(entry.time - chapterTime);
+                    if (diff < closestDiff) {
+                        closestDiff = diff;
+                        closestEntryIndex = index;
+                    }
+                });
+                
+                const formattedContent = document.getElementById('formatted-transcript-content');
+                const closestEntry = transcriptData[closestEntryIndex];
+                
+                if (closestEntry && formattedContent) {
+                    // First, scroll the page to show the transcript section
+                    formattedDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     
-                    // Highlight the section temporarily
-                    const formattedContent = document.getElementById('formatted-transcript-content');
-                    const originalBg = formattedContent.parentElement.style.backgroundColor;
-                    formattedContent.parentElement.style.backgroundColor = '#fff3cd';
+                    // Wait for the initial scroll to complete, then scroll within the transcript
                     setTimeout(() => {
-                        formattedContent.parentElement.style.backgroundColor = originalBg;
-                    }, 2000);
-                } else {
-                    console.log('Chapter anchor not found, trying alternative approaches...');
-                    // Try to find heading with chapter title
-                    const headings = document.querySelectorAll('#formatted-transcript-content h2, #formatted-transcript-content h3');
-                    let foundHeading = null;
-                    
-                    headings.forEach(heading => {
-                        const headingText = heading.textContent.toLowerCase();
-                        if (headingText.includes('[') && headingText.includes(']')) {
-                            // Extract timestamp from heading like "Chapter Title [MM:SS]"
-                            const timeMatch = headingText.match(/\[(\d+):(\d+)\]/);
-                            if (timeMatch) {
-                                const headingTime = parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]);
-                                if (Math.abs(headingTime - chapterTime) <= 5) { // Within 5 seconds
-                                    foundHeading = heading;
-                                }
+                        // Try to find the approximate position in the formatted transcript
+                        const transcriptText = formattedContent.textContent;
+                        
+                        // Look for the text in the formatted transcript using multiple search strategies
+                        let textPosition = -1;
+                        
+                        // Strategy 1: Try full text match (first 40 chars)
+                        let searchText = closestEntry.text.substring(0, 40).trim();
+                        textPosition = transcriptText.indexOf(searchText);
+                        
+                        // Strategy 2: Try shorter text if not found
+                        if (textPosition === -1 && searchText.length > 20) {
+                            searchText = closestEntry.text.substring(0, 20).trim();
+                            textPosition = transcriptText.indexOf(searchText);
+                        }
+                        
+                        // Strategy 3: Try first meaningful words
+                        if (textPosition === -1) {
+                            const words = closestEntry.text.trim().split(' ').slice(0, 3).join(' ');
+                            if (words.length > 0) {
+                                textPosition = transcriptText.indexOf(words);
                             }
                         }
-                    });
-                    
-                    if (foundHeading) {
-                        console.log('Found heading for chapter, scrolling to it');
-                        foundHeading.scrollIntoView({ behavior: 'smooth', block: 'start' });
                         
-                        // Highlight the heading temporarily
-                        const originalBg = foundHeading.style.backgroundColor;
-                        const originalBorder = foundHeading.style.border;
-                        foundHeading.style.backgroundColor = '#fff3cd';
-                        foundHeading.style.border = '2px solid #ffc107';
+                        let targetScrollTop = 0;
+                        
+                        if (textPosition !== -1) {
+                            // Calculate the scroll position based on text position
+                            const textPercentage = textPosition / transcriptText.length;
+                            const contentHeight = formattedContent.scrollHeight - formattedContent.clientHeight;
+                            targetScrollTop = contentHeight * textPercentage;
+                        } else {
+                            // Fallback: estimate position based on transcript index
+                            const entryPercentage = closestEntryIndex / transcriptData.length;
+                            const contentHeight = formattedContent.scrollHeight - formattedContent.clientHeight;
+                            targetScrollTop = contentHeight * entryPercentage;
+                        }
+                        
+                        // Ensure scroll position is within bounds
+                        targetScrollTop = Math.max(0, Math.min(targetScrollTop, formattedContent.scrollHeight - formattedContent.clientHeight));
+                        
+                        // Scroll the transcript content itself
+                        formattedContent.scrollTop = targetScrollTop;
+                        
+                        // Highlight the transcript temporarily
+                        const originalBg = formattedContent.style.backgroundColor;
+                        const originalBorder = formattedContent.style.border;
+                        formattedContent.style.backgroundColor = '#fff3cd';
+                        formattedContent.style.border = '3px solid #ffc107';
+                        
                         setTimeout(() => {
-                            foundHeading.style.backgroundColor = originalBg;
-                            foundHeading.style.border = originalBorder;
+                            formattedContent.style.backgroundColor = originalBg;
+                            formattedContent.style.border = originalBorder;
                         }, 3000);
-                    } else {
-                        console.log('No chapter heading found, scrolling to transcript start');
-                        // Fallback: scroll to formatted transcript
-                        const formattedContent = document.getElementById('formatted-transcript-content');
-                        formattedContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
+                        
+                    }, 500); // Wait for initial scroll to complete
+                } else {
+                    // Fallback: scroll to formatted transcript
+                    formattedDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
             } else if (detailedDiv) {
                 // In detailed view - find the closest timestamp entry
@@ -328,14 +351,18 @@
                     
                     // Highlight the entry temporarily
                     const originalBg = closestEntry.style.backgroundColor;
+                    const originalBorder = closestEntry.style.borderLeft;
+                    const originalPadding = closestEntry.style.paddingLeft;
+                    
                     closestEntry.style.backgroundColor = '#fff3cd';
                     closestEntry.style.borderLeft = '4px solid #ffc107';
                     closestEntry.style.paddingLeft = '10px';
+                    
                     setTimeout(() => {
                         closestEntry.style.backgroundColor = originalBg;
-                        closestEntry.style.borderLeft = '';
-                        closestEntry.style.paddingLeft = '';
-                    }, 2000);
+                        closestEntry.style.borderLeft = originalBorder;
+                        closestEntry.style.paddingLeft = originalPadding;
+                    }, 3000);
                 }
             } else {
                 // No transcript available, open YouTube at chapter timestamp
@@ -1888,10 +1915,15 @@
             
             if (chaptersList.style.display === 'none') {
                 chaptersList.style.display = 'block';
-                chevron.style.transform = 'rotate(0deg)';
+                chevron.innerHTML = '<i data-lucide="chevron-down" style="width: 20px; height: 20px; transition: transform 0.2s;"></i>';
             } else {
                 chaptersList.style.display = 'none';
-                chevron.style.transform = 'rotate(-90deg)';
+                chevron.innerHTML = '<i data-lucide="chevron-right" style="width: 20px; height: 20px; transition: transform 0.2s;"></i>';
+            }
+            
+            // Re-initialize Lucide icons after changing the chevron
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
             }
         }
 

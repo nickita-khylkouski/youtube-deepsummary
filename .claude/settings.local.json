@@ -29,10 +29,9 @@
       "Bash(git checkout:*)",
       "Bash(git reset:*)",
       "Bash(git fsck:*)",
-      "Bash(for commit in bff2f8eaf466df0f2c680f6e4a248c511fed84d0 8623676dff53e9c5dd2ebfb1d257198e7a782fbc e26337989b89c3a170d1385efeecfd69dd11b159 2bb47798ee5de72d5fca8ac83950f4dea7d6a763 37045e4c576b1c8a7b800a2e087b5639b883f09c 0797df78d456fcf3f6407e36f6e7304ec51c6dbf d177efae16c97c4e2f8c7e15326d975f1d2b6f92 19682e54d8411ee43f676a84a71ca54da4bacfad 75d8cf7aaa39c7d82a93a00fdf8ac41186b136e5 7bba368ff43a6222e23574c3713ef2b2cdfc36ba c0ea1900154930ce2bba5a9e1db37dfec2729b59 fdabad1344a160188ed2e39cfe07ba7b43123cfa 320cc846e38ad0359f4a1f30538630fccb318bcf 3b8c5c215de45a3a33619267038582a5c2ff2500)",
-      "Bash(do echo \"=== $commit ===\")",
-      "Bash(git log:*)",
-      "Bash(done)"
+      "mcp__supabase-deepsearch__execute_sql",
+      "Bash(git stash:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": []
   }
