@@ -30,7 +30,8 @@
       "mcp__supabase-deepsearch__execute_sql",
       "Bash(git rebase:*)",
       "Bash(git config:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(git push:*)"
     ],
     "deny": []
   }
