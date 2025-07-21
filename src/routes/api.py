@@ -141,9 +141,9 @@ def generate_chapter_summary():
                 'cached': True
             })
 
-        # Get the chapter summary model from settings
+        # Get the main AI model from settings (same as used for video summaries)
         summarizer_settings = database_storage.get_summarizer_settings()
-        chapter_summary_model = summarizer_settings.get('chapter_summary_model', 'claude-sonnet-4-20250514')
+        main_model = summarizer_settings.get('model', 'gpt-4.1-mini')  # Use main model setting
         
         # Generate summary for the chapter
         summary = video_processor.summarizer.summarize_chapter(
@@ -159,7 +159,7 @@ def generate_chapter_summary():
             chapter_time, 
             chapter_title, 
             summary,
-            chapter_summary_model
+            main_model
         )
 
         if not summary_id:
@@ -176,7 +176,7 @@ def generate_chapter_summary():
             'summary': formatted_summary,
             'chapter_title': chapter_title,
             'video_id': video_id,
-            'model_used': chapter_summary_model,
+            'model_used': main_model,
             'cached': False
         })
 

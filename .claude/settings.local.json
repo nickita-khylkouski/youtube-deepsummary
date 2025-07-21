@@ -25,7 +25,13 @@
       "Bash(curl:*)",
       "Bash(unzip:*)",
       "Bash(true)",
-      "Bash(printenv)"
+      "Bash(printenv)",
+      "Bash(git checkout:*)",
+      "Bash(git reset:*)",
+      "Bash(git fsck:*)",
+      "mcp__supabase-deepsearch__execute_sql",
+      "Bash(git stash:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": []
   }

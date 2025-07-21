@@ -65,10 +65,10 @@
     {% if chapters %}
         <div class="chapters-info">
             <h3 onclick="toggleChaptersList()" style="cursor: pointer; user-select: none; display: flex; align-items: center; gap: 8px;">
-                <i data-lucide="chevron-down" id="chapters-chevron" style="width: 20px; height: 20px; transition: transform 0.2s;"></i>
-                🤖 AI Summaries ({{ chapters|length }} chapters):
+                <i data-lucide="chevron-right" id="chapters-chevron" style="width: 20px; height: 20px; transition: transform 0.2s;"></i>
+                📚 Chapter Summaries ({{ chapters|length }})
             </h3>
-            <ul id="chapters-list" style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0; list-style: none;">
+            <ul id="chapters-list" style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0; list-style: none; display: none;">
                 {% for chapter in chapters %}
                     <li style="margin-bottom: 8px; position: relative;">
                         • <strong>{{ chapter.title }}</strong> - {{ "%.0f"|format(chapter.time // 60) }}:{{ "%02.0f"|format(chapter.time % 60) }}  
@@ -190,7 +190,7 @@
         
         <!-- Formatted readable transcript (default view) -->
         <div id="formatted-transcript" class="transcript-container" style="display: block;">
-            <div class="formatted-text" style="background: #f9f9f9; padding: 15px; border-radius: 5px; line-height: 1.6; font-family: Georgia, serif;">
+            <div class="formatted-text" style="background: #f9f9f9; padding: 15px; border-radius: 5px; line-height: 1.6; font-family: Georgia, serif; max-height: 600px; overflow-y: auto;">
                 <div id="formatted-transcript-content" style="white-space: pre-wrap; font-family: Georgia, serif; margin: 0;">{{ formatted_transcript|safe }}</div>
             </div>
         </div>
@@ -233,7 +233,25 @@
             }
         }
         
+        function getTextNodes(element) {
+            const textNodes = [];
+            const walker = document.createTreeWalker(
+                element,
+                NodeFilter.SHOW_TEXT,
+                null,
+                false
+            );
+            
+            let node;
+            while (node = walker.nextNode()) {
+                textNodes.push(node);
+            }
+            return textNodes;
+        }
+        
         function scrollToChapter(chapterTime) {
+            console.log('scrollToChapter called with time:', chapterTime);
+            
             // Check if transcript elements exist
             const formattedDiv = document.getElementById('formatted-transcript');
             const detailedDiv = document.getElementById('detailed-transcript');
@@ -244,25 +262,89 @@
                 return;
             }
             
-            const chapterId = 'chapter-' + chapterTime;
-            
             if (formattedDiv && formattedDiv.style.display !== 'none') {
-                // In formatted view - scroll to the chapter anchor
+                // In formatted view - first try to find chapter anchor
+                const chapterId = 'chapter-' + chapterTime;
                 const chapterAnchor = document.getElementById(chapterId);
+                console.log('Looking for chapter anchor:', chapterId, 'Found:', !!chapterAnchor);
+                
                 if (chapterAnchor) {
+                    // Found chapter anchor - scroll to it
+                    console.log('Scrolling to chapter anchor');
                     chapterAnchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     
-                    // Highlight the section temporarily
-                    const formattedContent = document.getElementById('formatted-transcript-content');
-                    const originalBg = formattedContent.parentElement.style.backgroundColor;
-                    formattedContent.parentElement.style.backgroundColor = '#fff3cd';
+                    // Highlight the chapter section briefly
+                    const originalBg = chapterAnchor.style.backgroundColor;
+                    chapterAnchor.style.backgroundColor = '#fff3cd';
+                    chapterAnchor.style.border = '2px solid #ffc107';
+                    chapterAnchor.style.borderRadius = '4px';
+                    chapterAnchor.style.padding = '4px';
                     setTimeout(() => {
-                        formattedContent.parentElement.style.backgroundColor = originalBg;
-                    }, 2000);
+                        chapterAnchor.style.backgroundColor = originalBg;
+                        chapterAnchor.style.border = '';
+                        chapterAnchor.style.borderRadius = '';
+                        chapterAnchor.style.padding = '';
+                    }, 3000);
+                    return;
+                }
+                
+                // No chapter anchor found - use transcript data to estimate position
+                console.log('No chapter anchor found, estimating position...');
+                const transcriptData = {{ transcript|tojson }};
+                let closestEntryIndex = 0;
+                let closestDiff = Infinity;
+                
+                // Find the closest transcript entry to the chapter time
+                transcriptData.forEach((entry, index) => {
+                    const diff = Math.abs(entry.time - chapterTime);
+                    if (diff < closestDiff) {
+                        closestDiff = diff;
+                        closestEntryIndex = index;
+                    }
+                });
+                
+                const formattedContent = document.getElementById('formatted-transcript-content');
+                const closestEntry = transcriptData[closestEntryIndex];
+                console.log('Closest entry found at index:', closestEntryIndex, 'with time:', closestEntry?.time);
+                
+                if (closestEntry && formattedContent) {
+                    // Calculate scroll position within the transcript container
+                    const progressPercentage = closestEntryIndex / transcriptData.length;
+                    console.log('Scrolling to estimated position:', Math.round(progressPercentage * 100) + '%');
+                    
+                    // Get the scrollable container (the .formatted-text div)
+                    const scrollableContainer = formattedContent.parentElement;
+                    const contentHeight = formattedContent.scrollHeight;
+                    const containerHeight = scrollableContainer.clientHeight;
+                    
+                    // Calculate target scroll position within the container
+                    const maxScrollTop = contentHeight - containerHeight;
+                    const targetScrollTop = maxScrollTop * progressPercentage;
+                    
+                    console.log('Container height:', containerHeight, 'Content height:', contentHeight, 'Max scroll:', maxScrollTop, 'Target scroll:', targetScrollTop);
+                    
+                    // First, scroll the page to show the transcript section
+                    formattedDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    
+                    // Then scroll within the transcript container
+                    setTimeout(() => {
+                        scrollableContainer.scrollTo({ 
+                            top: Math.max(0, Math.min(targetScrollTop, maxScrollTop)), 
+                            behavior: 'smooth' 
+                        });
+                        
+                        // Highlight the scrolled area briefly
+                        scrollableContainer.style.borderLeft = '4px solid #ffc107';
+                        scrollableContainer.style.backgroundColor = '#fff9e6';
+                        setTimeout(() => {
+                            scrollableContainer.style.borderLeft = '';
+                            scrollableContainer.style.backgroundColor = '';
+                        }, 2000);
+                    }, 300); // Wait for page scroll to start before internal scroll
                 } else {
-                    // Fallback: scroll to formatted transcript
-                    const formattedContent = document.getElementById('formatted-transcript-content');
-                    formattedContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    // Fallback: scroll to formatted transcript start
+                    console.log('No transcript entry found, scrolling to transcript start');
+                    formattedDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
             } else if (detailedDiv) {
                 // In detailed view - find the closest timestamp entry
@@ -284,14 +366,18 @@
                     
                     // Highlight the entry temporarily
                     const originalBg = closestEntry.style.backgroundColor;
+                    const originalBorder = closestEntry.style.borderLeft;
+                    const originalPadding = closestEntry.style.paddingLeft;
+                    
                     closestEntry.style.backgroundColor = '#fff3cd';
                     closestEntry.style.borderLeft = '4px solid #ffc107';
                     closestEntry.style.paddingLeft = '10px';
+                    
                     setTimeout(() => {
                         closestEntry.style.backgroundColor = originalBg;
-                        closestEntry.style.borderLeft = '';
-                        closestEntry.style.paddingLeft = '';
-                    }, 2000);
+                        closestEntry.style.borderLeft = originalBorder;
+                        closestEntry.style.paddingLeft = originalPadding;
+                    }, 3000);
                 }
             } else {
                 // No transcript available, open YouTube at chapter timestamp
@@ -1895,10 +1981,15 @@
             
             if (chaptersList.style.display === 'none') {
                 chaptersList.style.display = 'block';
-                chevron.style.transform = 'rotate(0deg)';
+                chevron.innerHTML = '<i data-lucide="chevron-down" style="width: 20px; height: 20px; transition: transform 0.2s;"></i>';
             } else {
                 chaptersList.style.display = 'none';
-                chevron.style.transform = 'rotate(-90deg)';
+                chevron.innerHTML = '<i data-lucide="chevron-right" style="width: 20px; height: 20px; transition: transform 0.2s;"></i>';
+            }
+            
+            // Re-initialize Lucide icons after changing the chevron
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
             }
         }
 

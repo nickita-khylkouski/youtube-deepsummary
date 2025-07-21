@@ -298,14 +298,6 @@
                                     </div>
                                     
                                     <div class="mb-3">
-                                        <label for="chapterSummaryModel" class="form-label">Chapter Summary Model</label>
-                                        <select class="form-select" id="chapterSummaryModel" name="chapter_summary_model">
-                                            <!-- Options populated dynamically -->
-                                        </select>
-                                        <div class="form-text">Select the AI model for chapter-specific summaries</div>
-                                    </div>
-                                    
-                                    <div class="mb-3">
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" id="enableChapterAwareness" name="enable_chapter_awareness" checked>
                                             <label class="form-check-label" for="enableChapterAwareness">
@@ -325,15 +317,6 @@
                                         </div>
                                     </div>
                                     
-                                    <div class="mb-3">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="enableClickableChapters" name="enable_clickable_chapters" checked>
-                                            <label class="form-check-label" for="enableClickableChapters">
-                                                Clickable Chapter Links
-                                            </label>
-                                            <div class="form-text">Add clickable YouTube chapter links to summaries</div>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1044,25 +1027,6 @@
             }
         }
 
-        function updateChapterSummaryModelOptions() {
-            const chapterModelSelect = document.getElementById('chapterSummaryModel');
-            
-            // Clear existing options
-            chapterModelSelect.innerHTML = '';
-            
-            // Show all available models from both providers
-            chapterModelSelect.innerHTML = `
-                <optgroup label="OpenAI Models">
-                    <option value="gpt-4.1">GPT-4.1</option>
-                    <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
-                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                </optgroup>
-                <optgroup label="Anthropic Models">
-                    <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
-                    <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
-                </optgroup>
-            `;
-        }
 
         function loadSummarizerSettings() {
             fetch('/settings/summarizer-settings')
@@ -1109,10 +1073,6 @@
             }
             
             // Update chapter summary model options and set value
-            updateChapterSummaryModelOptions();
-            if (settings.chapterSummaryModel) {
-                document.getElementById('chapterSummaryModel').value = settings.chapterSummaryModel;
-            }
             
             // Re-add the event listener
             providerSelect.addEventListener('change', updateModelOptions);
@@ -1127,10 +1087,8 @@
                 { id: 'openaiApiKey', type: 'text' },
                 { id: 'anthropicApiKey', type: 'text' },
                 { id: 'maxTokens', type: 'number' },
-                { id: 'chapterSummaryModel', type: 'select' },
                 { id: 'enableChapterAwareness', type: 'checkbox' },
-                { id: 'enableMetadataInclusion', type: 'checkbox' },
-                { id: 'enableClickableChapters', type: 'checkbox' }
+                { id: 'enableMetadataInclusion', type: 'checkbox' }
             ];
             
             formFields.forEach(field => {
@@ -1181,14 +1139,11 @@
                 // Reset form to default values
                 document.getElementById('summarizerProvider').value = 'openai';
                 updateModelOptions(); // Update model options for OpenAI
-                updateChapterSummaryModelOptions(); // Update chapter summary model options
                 document.getElementById('model').value = 'gpt-4.1';
-                document.getElementById('chapterSummaryModel').value = 'claude-sonnet-4-20250514';
                 document.getElementById('temperature').value = '0.7';
                 document.getElementById('maxTokens').value = '8192';
                 document.getElementById('enableChapterAwareness').checked = true;
                 document.getElementById('enableMetadataInclusion').checked = true;
-                document.getElementById('enableClickableChapters').checked = true;
                 
                 updateTemperatureValue();
                 showAlert('Settings reset to defaults', 'info');
