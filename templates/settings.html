@@ -446,6 +446,16 @@
                                             <div class="form-text">Skip videos that already exist in the database</div>
                                         </div>
                                     </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="importShorts" name="import_shorts">
+                                            <label class="form-check-label" for="importShorts">
+                                                Import YouTube Shorts
+                                            </label>
+                                            <div class="form-text">Import videos ≤ 60 seconds (YouTube Shorts). Default: disabled</div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -854,6 +864,7 @@
                 { id: 'enableTranscriptExtraction', type: 'checkbox' },
                 { id: 'enableChapterExtraction', type: 'checkbox' },
                 { id: 'skipExistingVideos', type: 'checkbox' },
+                { id: 'importShorts', type: 'checkbox' },
                 { id: 'importStrategy', type: 'select' },
                 { id: 'fallbackStrategies', type: 'text' },
                 { id: 'batchProcessing', type: 'checkbox' },

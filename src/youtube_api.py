@@ -196,15 +196,18 @@ class YouTubeAPI:
         
         return hours * 3600 + minutes * 60 + seconds
     
-    def get_channel_videos(self, channel_name, max_results=5, days_back=30):
+    def get_channel_videos(self, channel_name, max_results=5, days_back=30, import_settings_override=None):
         """Get latest videos from a channel using YouTube Data API within specified time range"""
         if not self.service:
             raise Exception("YouTube Data API not available or not configured")
         
         try:
-            # Get import settings
+            # Get import settings (use override if provided)
             from .database_storage import database_storage
-            import_settings = database_storage.get_import_settings()
+            if import_settings_override:
+                import_settings = import_settings_override
+            else:
+                import_settings = database_storage.get_import_settings()
             
             # Apply settings if available
             if import_settings:
@@ -319,7 +322,9 @@ class YouTubeAPI:
             for strategy in strategies_to_try:
                 videos = self._try_import_strategy(strategy, actual_channel_id, channel_name, max_results, days_back)
                 if videos:
-                    return videos
+                    # Apply duration filtering based on import_shorts setting
+                    filtered_videos = self._filter_videos_by_duration(videos, import_settings)
+                    return filtered_videos
             
             # If all strategies failed, return empty list
             print("All import strategies failed")
@@ -468,6 +473,82 @@ class YouTubeAPI:
             print(f"Search API failed: {e}")
         
         return []
+
+    def _filter_videos_by_duration(self, videos, import_settings):
+        """Filter videos based on duration (Shorts vs full videos) according to import_shorts setting"""
+        try:
+            # Get import_shorts setting (default: False - don't import Shorts)
+            import_shorts = import_settings.get('import_shorts', False)
+            
+            if import_settings.get('log_import_operations', True):
+                print(f"Duration filtering: import_shorts={import_shorts}")
+            
+            # If import_shorts is True, return all videos (no filtering needed)
+            if import_shorts:
+                print(f"Importing all videos (including Shorts): {len(videos)} videos")
+                return videos
+            
+            # Need to get detailed video info to check durations
+            # Batch video IDs for efficient API calls (up to 50 per request)
+            video_ids = [video['video_id'] for video in videos]
+            filtered_videos = []
+            
+            # Process videos in batches of 50 (YouTube API limit)
+            batch_size = 50
+            for i in range(0, len(video_ids), batch_size):
+                batch_ids = video_ids[i:i + batch_size]
+                batch_videos_dict = {video['video_id']: video for video in videos[i:i + batch_size]}
+                
+                try:
+                    # Get video details including duration
+                    video_request = self.service.videos().list(
+                        part='contentDetails',
+                        id=','.join(batch_ids)
+                    )
+                    video_response = video_request.execute()
+                    
+                    for item in video_response.get('items', []):
+                        video_id = item['id']
+                        content_details = item.get('contentDetails', {})
+                        
+                        # Parse duration
+                        duration_seconds = None
+                        if 'duration' in content_details:
+                            duration_seconds = self._parse_iso8601_duration(content_details['duration'])
+                        
+                        # Filter out Shorts (videos <= 60 seconds)
+                        if duration_seconds is None:
+                            # If we can't get duration, include the video (be conservative)
+                            filtered_videos.append(batch_videos_dict[video_id])
+                            if import_settings.get('log_import_operations', True):
+                                print(f"Video {video_id}: duration unknown, including")
+                        elif duration_seconds > 60:
+                            # Full video (> 60 seconds) - include it
+                            filtered_videos.append(batch_videos_dict[video_id])
+                            if import_settings.get('log_import_operations', True):
+                                print(f"Video {video_id}: {duration_seconds}s (full video), including")
+                        else:
+                            # Short video (<= 60 seconds) - exclude it
+                            if import_settings.get('log_import_operations', True):
+                                print(f"Video {video_id}: {duration_seconds}s (Short), excluding")
+                
+                except Exception as e:
+                    print(f"Error getting video details for batch: {e}")
+                    # If we can't get details, include all videos in this batch (be conservative)
+                    filtered_videos.extend([batch_videos_dict[vid] for vid in batch_ids])
+            
+            total_filtered = len(videos) - len(filtered_videos)
+            if total_filtered > 0:
+                print(f"Filtered out {total_filtered} Shorts, {len(filtered_videos)} videos remaining")
+            else:
+                print(f"No Shorts found, {len(filtered_videos)} videos remaining")
+            
+            return filtered_videos
+            
+        except Exception as e:
+            print(f"Error during duration filtering: {e}")
+            # If filtering fails, return original videos (be conservative)
+            return videos
 
 
 # Global YouTube API instance

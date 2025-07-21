@@ -539,6 +539,14 @@ def import_channel_videos(channel_handle):
         max_results = int(data.get('max_results', default_max_results))
         days_back = int(data.get('days_back', default_days_back))
         
+        # Support per-request override of import_shorts setting
+        request_import_shorts = data.get('import_shorts')
+        if request_import_shorts is not None:
+            # Temporarily override the import_shorts setting for this request
+            original_import_shorts = import_settings.get('import_shorts', False)
+            import_settings['import_shorts'] = bool(request_import_shorts)
+            print(f"Overriding import_shorts setting for this request: {bool(request_import_shorts)}")
+        
         # Validate parameters using settings
         if max_results > max_results_limit:
             max_results = max_results_limit
@@ -554,7 +562,7 @@ def import_channel_videos(channel_handle):
         
         # Get latest videos from channel using channel name for the YouTube API
         print(f"Fetching {max_results} videos from channel: {channel_info['channel_name']} within {days_back} days")
-        videos = youtube_api.get_channel_videos(channel_info['channel_name'], max_results, days_back)
+        videos = youtube_api.get_channel_videos(channel_info['channel_name'], max_results, days_back, import_settings)
         
         if not videos:
             return jsonify({

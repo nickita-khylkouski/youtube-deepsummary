@@ -26,7 +26,8 @@ INSERT INTO import_settings (setting_key, setting_value, setting_type, descripti
 ('max_retry_attempts', '3', 'integer', 'Maximum number of retry attempts for failed imports'),
 ('import_timeout', '300', 'integer', 'Timeout in seconds for import operations'),
 ('enable_progress_tracking', 'true', 'boolean', 'Show progress updates during import operations'),
-('log_import_operations', 'true', 'boolean', 'Log detailed information about import operations');
+('log_import_operations', 'true', 'boolean', 'Log detailed information about import operations'),
+('import_shorts', 'false', 'boolean', 'Import YouTube Shorts (videos ≤ 60 seconds). Default: false');
 
 -- Create index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_import_settings_key ON import_settings(setting_key); 
