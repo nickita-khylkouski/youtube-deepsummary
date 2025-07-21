@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="blog-header" style="text-align: center; padding: 60px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin: -20px -20px 40px -20px; border-radius: 0 0 20px 20px;">
+    <h1 style="margin: 0 0 15px 0; font-size: 42px; font-weight: 700;">📝 AI Video Blog</h1>
+    <p style="margin: 0; font-size: 18px; opacity: 0.9; max-width: 600px; margin: 0 auto;">Discover insights from YouTube videos through AI-powered summaries presented as engaging blog posts</p>
+</div>
+
+<div class="blog-stats" style="display: flex; justify-content: center; gap: 40px; margin-bottom: 40px; flex-wrap: wrap;">
+    <div class="stat-card" style="background: #f8f9fa; padding: 20px 30px; border-radius: 12px; text-align: center; border: 1px solid #e9ecef;">
+        <div style="font-size: 28px; font-weight: 700; color: #495057; margin-bottom: 5px;" id="total-posts">{{ total_count }}</div>
+        <div style="color: #6c757d; font-size: 14px; font-weight: 500;">AI Blog Posts</div>
+    </div>
+    <div class="stat-card" style="background: #f8f9fa; padding: 20px 30px; border-radius: 12px; text-align: center; border: 1px solid #e9ecef;">
+        <div style="font-size: 28px; font-weight: 700; color: #495057; margin-bottom: 5px;" id="total-channels">—</div>
+        <div style="color: #6c757d; font-size: 14px; font-weight: 500;">Channels</div>
+    </div>
+</div>
+
+<div class="blog-container" style="max-width: 1200px; margin: 0 auto; padding: 0 20px;">
+    <div class="blog-grid" id="blog-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 30px; margin-bottom: 40px;">
+        <!-- Initial posts loaded from server -->
+        {% for post in initial_posts %}
+            {% include 'blog/blog_card.html' %}
+        {% endfor %}
+    </div>
+    
+    <!-- Loading indicator -->
+    <div id="loading-indicator" style="text-align: center; padding: 40px; display: none;">
+        <div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <p style="margin-top: 15px; color: #6c757d;">Loading more posts...</p>
+    </div>
+    
+    <!-- End of content indicator -->
+    <div id="end-indicator" style="text-align: center; padding: 40px; color: #6c757d; display: none;">
+        <p style="margin: 0; font-size: 16px;">🎉 You've reached the end! Check back later for new AI blog posts.</p>
+    </div>
+</div>
+
+<style>
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .blog-card {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: 1px solid #e9ecef;
+    }
+    
+    .blog-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+    
+    @media (max-width: 768px) {
+        .blog-grid {
+            grid-template-columns: 1fr !important;
+            gap: 20px !important;
+        }
+        
+        .blog-stats {
+            gap: 20px !important;
+        }
+        
+        .stat-card {
+            padding: 15px 20px !important;
+        }
+        
+        .blog-header h1 {
+            font-size: 32px !important;
+        }
+        
+        .blog-header p {
+            font-size: 16px !important;
+        }
+    }
+</style>
+
+<script>
+let currentOffset = {{ initial_posts|length }};
+let isLoading = false;
+let hasMorePosts = {{ 'true' if initial_posts|length >= 12 else 'false' }};
+
+// Load blog stats
+async function loadBlogStats() {
+    try {
+        const response = await fetch('/blog/api/stats');
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('total-channels').textContent = data.stats.total_channels;
+        }
+    } catch (error) {
+        console.error('Error loading blog stats:', error);
+    }
+}
+
+// Load more posts
+async function loadMorePosts() {
+    if (isLoading || !hasMorePosts) return;
+    
+    isLoading = true;
+    document.getElementById('loading-indicator').style.display = 'block';
+    
+    try {
+        const response = await fetch(`/blog/api/posts?offset=${currentOffset}&limit=12`);
+        const data = await response.json();
+        
+        if (data.success && data.posts.length > 0) {
+            const blogGrid = document.getElementById('blog-grid');
+            
+            data.posts.forEach(post => {
+                const card = createBlogCard(post);
+                blogGrid.appendChild(card);
+            });
+            
+            currentOffset += data.posts.length;
+            hasMorePosts = data.has_more;
+            
+            // Update total count
+            document.getElementById('total-posts').textContent = currentOffset;
+        } else {
+            hasMorePosts = false;
+        }
+        
+        if (!hasMorePosts) {
+            document.getElementById('end-indicator').style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error loading more posts:', error);
+        hasMorePosts = false;
+    } finally {
+        isLoading = false;
+        document.getElementById('loading-indicator').style.display = 'none';
+    }
+}
+
+// Create blog card HTML
+function createBlogCard(post) {
+    const card = document.createElement('div');
+    card.className = 'blog-card';
+    
+    const blogUrl = `/blog/${post.channel_handle}/${post.url_path}`;
+    const publishDate = new Date(post.published_at).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+    
+    card.innerHTML = `
+        <div style="position: relative;">
+            <img src="${post.thumbnail_url}" alt="${post.title}" 
+                 style="width: 100%; height: 200px; object-fit: cover;">
+            <div style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.8); color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">
+                ${post.duration}
+            </div>
+        </div>
+        <div style="padding: 20px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                <img src="${post.channel_thumbnail || '/static/default-avatar.png'}" alt="${post.channel_name}" 
+                     style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;">
+                <a href="/blog/${post.channel_handle}" style="color: #667eea; text-decoration: none; font-size: 14px; font-weight: 500;">
+                    ${post.channel_name}
+                </a>
+                <span style="color: #6c757d; font-size: 12px;">•</span>
+                <span style="color: #6c757d; font-size: 12px;">${publishDate}</span>
+            </div>
+            <h3 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; line-height: 1.4;">
+                <a href="${blogUrl}" style="color: #333; text-decoration: none;">${post.title}</a>
+            </h3>
+            <p style="margin: 0 0 15px 0; color: #6c757d; font-size: 14px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+                ${post.summary_preview || 'AI-generated summary available...'}
+            </p>
+            <a href="${blogUrl}" style="color: #667eea; text-decoration: none; font-size: 14px; font-weight: 500;">
+                Read full summary →
+            </a>
+        </div>
+    `;
+    
+    return card;
+}
+
+// Infinite scroll
+function handleScroll() {
+    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 1000) {
+        loadMorePosts();
+    }
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    loadBlogStats();
+    window.addEventListener('scroll', handleScroll);
+});
+</script>
+{% endblock %}
