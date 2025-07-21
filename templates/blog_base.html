@@ -114,6 +114,112 @@
             margin: 32px 0;
         }
 
+        /* Markdown formatting for summaries */
+        .markdown-content {
+            font-size: 15px;
+            line-height: 1.7;
+            color: #333;
+            max-width: none;
+        }
+        
+        .markdown-content h1,
+        .markdown-content h2,
+        .markdown-content h3,
+        .markdown-content h4,
+        .markdown-content h5,
+        .markdown-content h6 {
+            color: #2196f3;
+            margin: 16px 0 8px 0;
+            font-weight: 600;
+        }
+        
+        .markdown-content h2 {
+            font-size: 16px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 4px;
+        }
+        
+        .markdown-content h3 {
+            font-size: 15px;
+        }
+        
+        .markdown-content p {
+            margin: 12px 0;
+            line-height: 1.6;
+        }
+        
+        .markdown-content ul,
+        .markdown-content ol {
+            margin: 12px 0;
+            padding-left: 20px;
+        }
+        
+        .markdown-content li {
+            margin: 4px 0;
+            line-height: 1.5;
+        }
+        
+        .markdown-content a {
+            color: #2196f3;
+            text-decoration: none;
+        }
+        
+        .markdown-content a:hover {
+            text-decoration: underline;
+        }
+        
+        .markdown-content strong {
+            font-weight: 600;
+            color: #222;
+        }
+        
+        .markdown-content em {
+            font-style: italic;
+        }
+        
+        .markdown-content code {
+            background: #f1f1f1;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        
+        .markdown-content blockquote {
+            border-left: 3px solid #2196f3;
+            margin: 16px 0;
+            padding: 8px 16px;
+            background: #f8f9fa;
+            font-style: italic;
+        }
+        
+        /* H2 Section Snippet Icons */
+        .h2-snippet-icon {
+            display: inline-block;
+            margin-left: 8px;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s, transform 0.2s;
+            font-size: 14px;
+            vertical-align: middle;
+            background: #f0f0f0;
+            padding: 4px 6px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        
+        .h2-snippet-icon:hover {
+            opacity: 1;
+            transform: scale(1.1);
+            background: #4CAF50;
+            color: white;
+            border-color: #4CAF50;
+        }
+        
+        .markdown-content h2:hover .h2-snippet-icon {
+            opacity: 0.8;
+        }
+
         /* Breadcrumb styles */
         .breadcrumb-nav a:hover {
             background: #e3f2fd !important;
@@ -222,6 +328,10 @@
             .btn {
                 padding: 8px 16px;
                 font-size: 13px;
+            }
+
+            body {
+                padding: 0;
             }
         }
 

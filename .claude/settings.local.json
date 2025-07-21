@@ -25,7 +25,10 @@
       "Bash(curl:*)",
       "Bash(unzip:*)",
       "Bash(true)",
-      "Bash(printenv)"
+      "Bash(printenv)",
+      "mcp__supabase-deepsearch__list_tables",
+      "mcp__supabase-deepsearch__execute_sql",
+      "Bash(git rebase:*)"
     ],
     "deny": []
   }

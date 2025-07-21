@@ -1,0 +1,888 @@
+{% extends "blog_base.html" %}
+
+{% block title %}{{ channel_info.channel_name }} - Blog{% endblock %}
+
+{% block content %}
+<div class="blog-layout">
+    <!-- Compact Blog Header -->
+    <div class="blog-header-compact" style="background: linear-gradient(135deg, #f8f9fa 0%, #e3f2fd 100%); padding: 25px; border-radius: 8px; margin: 30px 0; border: 1px solid #e5e5e5; display: flex; align-items: center; gap: 20px;">
+        {% if channel_info and channel_info.thumbnail_url %}
+            <img src="{{ channel_info.thumbnail_url }}" 
+                 alt="{{ channel_info.channel_name }} thumbnail" 
+                 style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); flex-shrink: 0;">
+        {% else %}
+            <div style="width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 24px; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); flex-shrink: 0;">
+                {{ channel_info.channel_name[0]|upper if channel_info.channel_name else '📺' }}
+            </div>
+        {% endif %}
+        <div style="flex: 1;">
+            <h1 style="margin: 0 0 5px 0; font-size: 24px; color: #1a1a1a; font-weight: 700;">{{ channel_info.channel_name }}</h1>
+            {% if channel_info and channel_info.handle %}
+                <p style="margin: 0; color: #777; font-size: 13px;">{{ channel_info.handle }}</p>
+            {% endif %}
+        </div>
+        <div>
+            <a href="/" style="color: #2196f3; text-decoration: none; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 6px; padding: 8px 16px; border: 1px solid #2196f3; border-radius: 6px; transition: all 0.2s ease;">
+                ← Back to Home
+            </a>
+        </div>
+    </div>
+
+    <div class="blog-content-wrapper">
+        <!-- Recent Posts Sidebar -->
+        <div class="recent-posts-sidebar" id="recent-posts-sidebar">
+            <div class="sidebar-header">
+                <h3 style="margin: 0 0 15px 0; font-size: 16px; color: #333; font-weight: 600;">Recent Posts</h3>
+            </div>
+            <div class="sidebar-posts" id="sidebar-posts-list">
+                <!-- Will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Main Blog Content -->
+        <div class="blog-main-content">
+            {% if blog_posts or total_posts > 0 %}
+                <div class="blog-posts" id="blog-posts-container">
+        {% for post in blog_posts %}
+            <article class="blog-post" data-video-id="{{ post.video_id }}">
+                <div class="blog-post-header">
+                    <div class="blog-post-thumbnail">
+                        <img src="{{ post.thumbnail_url }}" alt="{{ post.title }}" style="width: 100%; height: 100%; object-fit: cover; object-position: center;" loading="lazy">
+                    </div>
+                    <div class="blog-post-meta">
+                        <h2 class="blog-post-title">
+                            <a href="/{{ channel_handle }}/{{ post.url_path }}">{{ post.title }}</a>
+                        </h2>
+                        {% if post.published_at %}
+                            <p class="blog-post-details">
+                                <span class="date">{{ post.published_at[:10] }}</span>
+                            </p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="blog-post-content">
+                    <div class="markdown-content">
+                        {{ post.summary|safe }}
+                    </div>
+                </div>
+                
+            </article>
+        {% endfor %}
+    </div>
+    
+    <!-- Loading indicator -->
+    <div id="loading-indicator" style="display: none; text-align: center; padding: 40px;">
+        <div class="loading-spinner"></div>
+        <p style="margin-top: 20px; color: #666; font-size: 16px;">Loading more posts...</p>
+    </div>
+    
+    <!-- Load more button (fallback for infinite scroll) -->
+    {% if has_more %}
+    <div id="load-more-container" style="text-align: center; margin: 40px 0;">
+        <button id="load-more-btn" onclick="loadMorePosts()" style="background: #2196f3; color: white; border: none; padding: 15px 30px; border-radius: 25px; font-size: 16px; font-weight: 500; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 2px 10px rgba(33, 150, 243, 0.3);">
+            📚 Load More Posts
+        </button>
+        <p style="margin-top: 15px; color: #666; font-size: 14px;">
+            Showing <span id="current-count">{{ blog_posts|length }}</span> of {{ total_posts }} posts
+        </p>
+    </div>
+    {% endif %}
+    
+    <!-- End of content indicator -->
+    <div id="end-of-content" style="display: {% if not has_more %}block{% else %}none{% endif %}; text-align: center; padding: 40px;">
+        <div style="width: 60px; height: 60px; margin: 0 auto 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px;">
+            🎉
+        </div>
+        <h3 style="margin: 0 0 10px 0; color: #333; font-size: 20px;">You've reached the end!</h3>
+        <p style="margin: 0; color: #666; font-size: 16px;">You've read all {{ total_posts }} AI summaries from this channel.</p>
+            </div>
+            
+            {% else %}
+                <div class="no-posts">
+                    <h3>No blog posts available</h3>
+                    <p>This channel doesn't have any AI summaries yet.</p>
+                    <p>Visit the <a href="/@{{ channel_handle }}">channel overview</a> to import videos and generate summaries.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Back to top button -->
+<button id="back-to-top" onclick="scrollToTop()" style="display: none; position: fixed; bottom: 30px; right: 30px; background: linear-gradient(135deg, #2196f3, #1976d2); color: white; border: none; width: 56px; height: 56px; border-radius: 50%; cursor: pointer; box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4); transition: all 0.3s ease; z-index: 1000; display: flex; align-items: center; justify-content: center;">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7 14L12 9L17 14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+</button>
+
+<style>
+    .blog-layout {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 20px;
+    }
+    
+    .blog-content-wrapper {
+        display: flex;
+        gap: 30px;
+        align-items: flex-start;
+    }
+    
+    .recent-posts-sidebar {
+        width: 250px;
+        position: sticky;
+        top: 20px;
+        background: white;
+        border: 1px solid #e5e5e5;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        max-height: calc(100vh - 40px);
+        overflow-y: auto;
+        flex-shrink: 0;
+    }
+    
+    .sidebar-posts {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .sidebar-post-item {
+        padding: 12px;
+        border: 1px solid #f0f0f0;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: #fafafa;
+    }
+    
+    .sidebar-post-item:hover {
+        background: #e3f2fd;
+        border-color: #2196f3;
+        transform: translateX(3px);
+    }
+    
+    .sidebar-post-item.active {
+        background: #e3f2fd;
+        border-color: #2196f3;
+    }
+    
+    .sidebar-post-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #333;
+        margin: 0 0 4px 0;
+        line-height: 1.3;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    
+    .sidebar-post-date {
+        font-size: 11px;
+        color: #666;
+        margin: 0;
+    }
+    
+    .blog-main-content {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .blog-posts {
+        margin: 0;
+        padding: 0;
+    }
+    
+    .blog-post {
+        background: white;
+        border: 1px solid #e5e5e5;
+        border-radius: 12px;
+        margin-bottom: 40px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        transition: box-shadow 0.3s ease, transform 0.3s ease;
+        opacity: 1;
+        transform: translateY(0);
+    }
+    
+    .blog-post.loading {
+        opacity: 0.7;
+        transform: translateY(20px);
+    }
+    
+    .blog-post:hover {
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    
+    .blog-post-header {
+        padding: 0;
+    }
+    
+    .blog-post-thumbnail {
+        width: 100%;
+        height: 240px;
+        overflow: hidden;
+        position: relative;
+        background: #f0f0f0;
+    }
+    
+    .blog-post-thumbnail img {
+        transition: transform 0.3s ease;
+    }
+    
+    .blog-post:hover .blog-post-thumbnail img {
+        transform: scale(1.05);
+    }
+    
+    .blog-post-meta {
+        padding: 20px 25px 0 25px;
+    }
+    
+    .blog-post-title {
+        margin: 0 0 10px 0;
+        font-size: 24px;
+        line-height: 1.3;
+        font-weight: 700;
+    }
+    
+    .blog-post-title a {
+        color: #1a1a1a;
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .blog-post-title a:hover {
+        color: #2196f3;
+    }
+    
+    .blog-post-details {
+        color: #666;
+        font-size: 14px;
+        margin: 0 0 20px 0;
+        font-weight: 500;
+    }
+    
+    .blog-post-content {
+        padding: 0 25px 25px 25px;
+    }
+    
+    .blog-post-actions {
+        padding: 0 25px 25px 25px;
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+    
+    .read-more-btn {
+        background: #2196f3;
+        color: white;
+        padding: 10px 16px;
+        text-decoration: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .read-more-btn:hover {
+        background: #1976d2;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+    }
+    
+    .youtube-btn {
+        background: #ff0000;
+        color: white;
+        padding: 10px 16px;
+        text-decoration: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .youtube-btn:hover {
+        background: #cc0000;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(255, 0, 0, 0.3);
+    }
+    
+    .markdown-content {
+        font-size: 16px;
+        line-height: 1.7;
+        color: #2c2c2c;
+    }
+    
+    .markdown-content h1,
+    .markdown-content h2,
+    .markdown-content h3,
+    .markdown-content h4,
+    .markdown-content h5,
+    .markdown-content h6 {
+        color: #1565c0;
+        margin: 24px 0 12px 0;
+        font-weight: 600;
+        line-height: 1.3;
+    }
+    
+    .markdown-content h2 {
+        font-size: 20px;
+        border-bottom: 2px solid #e3f2fd;
+        padding-bottom: 8px;
+        margin-top: 32px;
+    }
+    
+    .markdown-content h3 {
+        font-size: 18px;
+        margin-top: 24px;
+    }
+    
+    .markdown-content p {
+        margin: 16px 0;
+        line-height: 1.7;
+    }
+    
+    .markdown-content ul,
+    .markdown-content ol {
+        margin: 16px 0;
+        padding-left: 24px;
+    }
+    
+    .markdown-content li {
+        margin: 8px 0;
+        line-height: 1.6;
+    }
+    
+    .markdown-content a {
+        color: #2196f3;
+        text-decoration: none;
+    }
+    
+    .markdown-content a:hover {
+        text-decoration: underline;
+    }
+    
+    .markdown-content strong {
+        font-weight: 600;
+        color: #1a1a1a;
+    }
+    
+    .markdown-content em {
+        font-style: italic;
+        color: #444;
+    }
+    
+    .markdown-content code {
+        background: #f5f5f5;
+        padding: 3px 6px;
+        border-radius: 4px;
+        font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+        font-size: 14px;
+        color: #d73a49;
+    }
+    
+    .markdown-content blockquote {
+        border-left: 4px solid #1565c0;
+        margin: 20px 0;
+        padding: 12px 20px;
+        background: #f8f9fa;
+        font-style: italic;
+        border-radius: 0 4px 4px 0;
+    }
+    
+    .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #2196f3;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .blog-post.fade-in {
+        animation: fadeInUp 0.6s ease-out;
+    }
+    
+    #load-more-btn:hover {
+        background: #1976d2;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(33, 150, 243, 0.4);
+    }
+    
+    #load-more-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+    
+    #back-to-top:hover {
+        background: linear-gradient(135deg, #1976d2, #1565c0);
+        transform: translateY(-3px) scale(1.05);
+        box-shadow: 0 8px 25px rgba(33, 150, 243, 0.6);
+    }
+    
+    .no-posts {
+        text-align: center;
+        padding: 60px 30px;
+        background: #f8f9fa;
+        border-radius: 12px;
+        color: #666;
+        margin: 40px auto;
+        max-width: 600px;
+    }
+    
+    .no-posts h3 {
+        color: #1a1a1a;
+        margin-bottom: 20px;
+        font-size: 20px;
+        font-weight: 600;
+    }
+    
+    .no-posts p {
+        font-size: 16px;
+        line-height: 1.6;
+        margin: 12px 0;
+    }
+    
+    .no-posts a {
+        color: #2196f3;
+        text-decoration: none;
+    }
+    
+    .no-posts a:hover {
+        text-decoration: underline;
+    }
+    
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+        .blog-layout {
+            padding: 0 10px;
+        }
+        
+        .blog-header-compact {
+            padding: 20px !important;
+            margin-bottom: 20px !important;
+        }
+        
+        .blog-header-compact h1 {
+            font-size: 20px !important;
+        }
+        
+        .blog-content-wrapper {
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .recent-posts-sidebar {
+            width: 100%;
+            position: relative;
+            top: auto;
+            max-height: 200px;
+            order: -1;
+        }
+        
+        .sidebar-header h3 {
+            font-size: 14px !important;
+        }
+        
+        .blog-post {
+            margin-bottom: 30px;
+        }
+        
+        .blog-post-title {
+            font-size: 20px;
+        }
+        
+        .blog-post-meta,
+        .blog-post-content,
+        .blog-post-actions {
+            padding-left: 20px;
+            padding-right: 20px;
+        }
+        
+        .blog-post-actions {
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .read-more-btn,
+        .youtube-btn {
+            text-align: center;
+            justify-content: center;
+        }
+        
+        .markdown-content {
+            font-size: 15px;
+        }
+        
+        .markdown-content h2 {
+            font-size: 18px;
+        }
+        
+        .markdown-content h3 {
+            font-size: 16px;
+        }
+        
+        .no-posts {
+            padding: 40px 20px;
+            margin: 20px 10px;
+        }
+        
+        #back-to-top {
+            bottom: 20px;
+            right: 20px;
+            width: 45px;
+            height: 45px;
+            font-size: 18px;
+        }
+        
+        #load-more-btn {
+            padding: 12px 24px;
+            font-size: 14px;
+        }
+    }
+    
+    /* Print styles */
+    @media print {
+        .blog-post-actions,
+        #loading-indicator,
+        #load-more-container,
+        #back-to-top {
+            display: none;
+        }
+        
+        .blog-post {
+            box-shadow: none;
+            border: 1px solid #ccc;
+            break-inside: avoid;
+        }
+        
+        .blog-post-thumbnail img {
+            height: 150px;
+        }
+    }
+</style>
+
+<script>
+let currentPage = {{ current_page }};
+let isLoading = false;
+let hasMorePosts = {{ has_more|lower }};
+let totalPosts = {{ total_posts }};
+let channelHandle = '{{ channel_handle }}';
+
+// Initialize infinite scroll
+document.addEventListener('DOMContentLoaded', function() {
+    setupInfiniteScroll();
+    setupBackToTop();
+    setupSidebar();
+    setupScrollSpy();
+    
+    // Add animation to initial posts
+    const posts = document.querySelectorAll('.blog-post');
+    posts.forEach((post, index) => {
+        setTimeout(() => {
+            post.classList.add('fade-in');
+        }, index * 100);
+    });
+});
+
+function setupInfiniteScroll() {
+    window.addEventListener('scroll', function() {
+        if (isLoading || !hasMorePosts) return;
+        
+        const loadMoreContainer = document.getElementById('load-more-container');
+        if (!loadMoreContainer) return;
+        
+        const rect = loadMoreContainer.getBoundingClientRect();
+        const windowHeight = window.innerHeight;
+        
+        // Load more when the load more button is 200px from the bottom of the viewport
+        if (rect.top < windowHeight + 200) {
+            loadMorePosts();
+        }
+    });
+}
+
+function setupBackToTop() {
+    const backToTopBtn = document.getElementById('back-to-top');
+    
+    window.addEventListener('scroll', function() {
+        if (window.pageYOffset > 300) {
+            backToTopBtn.style.display = 'block';
+        } else {
+            backToTopBtn.style.display = 'none';
+        }
+    });
+}
+
+function scrollToTop() {
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+}
+
+async function loadMorePosts() {
+    if (isLoading || !hasMorePosts) return;
+    
+    isLoading = true;
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    const loadMoreContainer = document.getElementById('load-more-container');
+    
+    // Show loading state
+    loadingIndicator.style.display = 'block';
+    if (loadMoreBtn) {
+        loadMoreBtn.textContent = '⏳ Loading...';
+        loadMoreBtn.disabled = true;
+    }
+    
+    try {
+        const nextPage = currentPage + 1;
+        const response = await fetch(`/${channelHandle}?page=${nextPage}&format=json`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success && data.posts.length > 0) {
+            const container = document.getElementById('blog-posts-container');
+            
+            // Create new posts
+            data.posts.forEach((post, index) => {
+                const postElement = createPostElement(post);
+                container.appendChild(postElement);
+                
+                // Animate new posts
+                setTimeout(() => {
+                    postElement.classList.add('fade-in');
+                }, index * 150);
+            });
+            
+            // Update state
+            currentPage = nextPage;
+            hasMorePosts = data.has_more;
+            
+            // Update counters
+            const currentCount = document.querySelectorAll('.blog-post').length;
+            document.getElementById('posts-count').textContent = currentCount;
+            const currentCountElement = document.getElementById('current-count');
+            if (currentCountElement) {
+                currentCountElement.textContent = currentCount;
+            }
+            
+            // Handle end of content
+            if (!hasMorePosts) {
+                loadMoreContainer.style.display = 'none';
+                document.getElementById('end-of-content').style.display = 'block';
+            }
+            
+            // Update sidebar with new posts
+            updateSidebarForNewPosts();
+        } else {
+            // No more posts
+            hasMorePosts = false;
+            loadMoreContainer.style.display = 'none';
+            document.getElementById('end-of-content').style.display = 'block';
+        }
+        
+    } catch (error) {
+        console.error('Error loading more posts:', error);
+        
+        // Show error message
+        const errorMsg = document.createElement('div');
+        errorMsg.style.cssText = `
+            text-align: center;
+            padding: 20px;
+            color: #d32f2f;
+            background: #ffebee;
+            border-radius: 8px;
+            margin: 20px auto;
+            max-width: 800px;
+        `;
+        errorMsg.innerHTML = `
+            <p style="margin: 0; font-weight: 500;">❌ Failed to load more posts</p>
+            <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.8;">Please try again or refresh the page</p>
+        `;
+        
+        document.getElementById('blog-posts-container').appendChild(errorMsg);
+        
+        // Remove error message after 5 seconds
+        setTimeout(() => {
+            errorMsg.remove();
+        }, 5000);
+        
+    } finally {
+        isLoading = false;
+        loadingIndicator.style.display = 'none';
+        
+        if (loadMoreBtn && hasMorePosts) {
+            loadMoreBtn.textContent = '📚 Load More Posts';
+            loadMoreBtn.disabled = false;
+        }
+    }
+}
+
+function createPostElement(post) {
+    const article = document.createElement('article');
+    article.className = 'blog-post';
+    article.setAttribute('data-video-id', post.video_id);
+    
+    const channelInfo = {
+        handle: '{{ channel_info.handle }}',
+        name: '{{ channel_info.channel_name }}'
+    };
+    
+    article.innerHTML = `
+        <div class="blog-post-header">
+            <div class="blog-post-thumbnail">
+                <img src="${post.thumbnail_url}" alt="${post.title}" style="width: 100%; height: 100%; object-fit: cover; object-position: center;" loading="lazy">
+            </div>
+            <div class="blog-post-meta">
+                <h2 class="blog-post-title">
+                    <a href="/${channelInfo.handle}/${post.url_path}">${post.title}</a>
+                </h2>
+                ${post.published_at ? `<p class="blog-post-details"><span class="date">${post.published_at.substring(0, 10)}</span></p>` : ''}
+            </div>
+        </div>
+        
+        <div class="blog-post-content">
+            <div class="markdown-content">
+                ${post.summary}
+            </div>
+        </div>
+    `;
+    
+    return article;
+}
+
+function setupSidebar() {
+    const sidebarList = document.getElementById('sidebar-posts-list');
+    const posts = document.querySelectorAll('.blog-post');
+    
+    if (!sidebarList || posts.length === 0) return;
+    
+    // Clear existing sidebar content
+    sidebarList.innerHTML = '';
+    
+    posts.forEach((post, index) => {
+        const videoId = post.getAttribute('data-video-id');
+        const titleElement = post.querySelector('.blog-post-title a');
+        const dateElement = post.querySelector('.blog-post-details .date');
+        
+        if (!titleElement) return;
+        
+        const title = titleElement.textContent;
+        const date = dateElement ? dateElement.textContent.replace('• ', '') : '';
+        
+        const sidebarItem = document.createElement('div');
+        sidebarItem.className = 'sidebar-post-item';
+        sidebarItem.setAttribute('data-video-id', videoId);
+        sidebarItem.onclick = () => scrollToPost(videoId);
+        
+        sidebarItem.innerHTML = `
+            <div class="sidebar-post-title">${title}</div>
+            <div class="sidebar-post-date">${date}</div>
+        `;
+        
+        sidebarList.appendChild(sidebarItem);
+    });
+}
+
+function setupScrollSpy() {
+    const posts = document.querySelectorAll('.blog-post');
+    const sidebarItems = document.querySelectorAll('.sidebar-post-item');
+    
+    if (posts.length === 0 || sidebarItems.length === 0) return;
+    
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const videoId = entry.target.getAttribute('data-video-id');
+                
+                // Remove active class from all sidebar items
+                sidebarItems.forEach(item => item.classList.remove('active'));
+                
+                // Add active class to current item
+                const currentSidebarItem = document.querySelector(`.sidebar-post-item[data-video-id="${videoId}"]`);
+                if (currentSidebarItem) {
+                    currentSidebarItem.classList.add('active');
+                }
+            }
+        });
+    }, {
+        threshold: 0.3,
+        rootMargin: '-20% 0px -60% 0px'
+    });
+    
+    posts.forEach(post => observer.observe(post));
+}
+
+function scrollToPost(videoId) {
+    const post = document.querySelector(`.blog-post[data-video-id="${videoId}"]`);
+    if (post) {
+        post.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+        });
+        
+        // Add a subtle highlight effect
+        post.style.boxShadow = '0 8px 24px rgba(33, 150, 243, 0.3)';
+        setTimeout(() => {
+            post.style.boxShadow = '';
+        }, 2000);
+    }
+}
+
+function updateSidebarForNewPosts() {
+    setupSidebar();
+    setupScrollSpy();
+}
+
+// Smooth scrolling for anchor links
+document.addEventListener('click', function(e) {
+    if (e.target.tagName === 'A' && e.target.getAttribute('href').startsWith('#')) {
+        e.preventDefault();
+        const target = document.querySelector(e.target.getAttribute('href'));
+        if (target) {
+            target.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+    }
+});
+</script>
+
+{% endblock %}

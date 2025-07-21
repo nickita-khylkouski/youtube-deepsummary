@@ -80,6 +80,24 @@ def get_channel_url_identifier(channel_info=None, channel_name=None):
         return 'Unknown'
 
 
+def format_duration(seconds):
+    """Format duration from seconds to human-readable format"""
+    if not seconds:
+        return "Unknown"
+    
+    try:
+        seconds = int(seconds)
+        hours = seconds // 3600
+        minutes = (seconds % 3600) // 60
+        
+        if hours > 0:
+            return f"{hours}h {minutes}m"
+        else:
+            return f"{minutes}m"
+    except (ValueError, TypeError):
+        return "Unknown"
+
+
 def format_summary_html(summary):
     """Format AI summary text to HTML with markdown conversion"""
     if not summary:
