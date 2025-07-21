@@ -318,13 +318,19 @@ class YouTubeAPI:
             if import_settings.get('log_import_operations', True):
                 print(f"Using import strategies: {strategies_to_try}")
             
-            # Try each strategy in order
+            # Try each strategy in order with smart fetching for new videos
             for strategy in strategies_to_try:
-                videos = self._try_import_strategy(strategy, actual_channel_id, channel_name, max_results, days_back)
+                # Fetch more videos initially to account for existing ones we'll filter out
+                fetch_size = self._calculate_fetch_size(max_results, import_settings)
+                videos = self._try_import_strategy(strategy, actual_channel_id, channel_name, fetch_size, days_back)
+                
                 if videos:
                     # Apply duration filtering based on import_shorts setting
-                    filtered_videos = self._filter_videos_by_duration(videos, import_settings)
-                    return filtered_videos
+                    duration_filtered = self._filter_videos_by_duration(videos, import_settings)
+                    
+                    # Filter out existing videos and limit to target amount
+                    final_videos = self._filter_existing_videos(duration_filtered, import_settings, max_results)
+                    return final_videos
             
             # If all strategies failed, return empty list
             print("All import strategies failed")
@@ -473,6 +479,74 @@ class YouTubeAPI:
             print(f"Search API failed: {e}")
         
         return []
+
+    def _calculate_fetch_size(self, target_new_videos, import_settings):
+        """Calculate how many videos to fetch initially to account for existing ones being filtered out"""
+        try:
+            skip_existing_videos = import_settings.get('skipExistingVideos', import_settings.get('skip_existing_videos', True))
+            
+            if not skip_existing_videos:
+                # If not filtering existing videos, fetch exactly what's requested
+                return target_new_videos
+            
+            # Estimate that 30-50% of recent videos might already exist
+            # Fetch 2x the target amount to increase chances of getting enough new videos
+            # But cap it at reasonable limits to avoid excessive API usage
+            fetch_size = min(target_new_videos * 2, 100)  # Max 100 videos per API call
+            
+            if import_settings.get('log_import_operations', True):
+                print(f"📊 Fetch strategy: targeting {target_new_videos} new videos, fetching {fetch_size} total to account for existing videos")
+            
+            return fetch_size
+            
+        except Exception as e:
+            print(f"Error calculating fetch size: {e}")
+            return target_new_videos
+
+
+    def _filter_existing_videos(self, videos, import_settings, target_new_videos):
+        """Filter out existing videos and return up to target_new_videos new videos"""
+        try:
+            # Check if skip_existing_videos is enabled
+            skip_existing_videos = import_settings.get('skipExistingVideos', import_settings.get('skip_existing_videos', True))
+            
+            if not skip_existing_videos:
+                # If not skipping existing videos, return videos up to the target limit
+                return videos[:target_new_videos]
+            
+            from .database_storage import database_storage
+            
+            new_videos = []
+            existing_count = 0
+            
+            # Check each video to see if it already exists
+            for video in videos:
+                video_id = video['video_id']
+                existing_video = database_storage.get(video_id)
+                
+                if existing_video:
+                    existing_count += 1
+                    if import_settings.get('log_import_operations', True):
+                        print(f"⏭️ Skipping existing video: {video_id}")
+                else:
+                    new_videos.append(video)
+                    if import_settings.get('log_import_operations', True):
+                        print(f"✅ Found new video: {video_id} - {video.get('title', 'Unknown')}")
+                    
+                    # Stop when we have enough new videos
+                    if len(new_videos) >= target_new_videos:
+                        break
+            
+            if import_settings.get('log_import_operations', True):
+                print(f"🎯 Filtering results: {len(new_videos)} new videos selected (target: {target_new_videos})")
+                print(f"📊 Stats: {existing_count} existing videos skipped, {len(videos)} total videos processed")
+            
+            return new_videos
+                
+        except Exception as e:
+            print(f"Error filtering existing videos: {e}")
+            # If filtering fails, return original videos (be conservative)
+            return videos[:target_new_videos]
 
     def _filter_videos_by_duration(self, videos, import_settings):
         """Filter videos based on duration (Shorts vs full videos) according to import_shorts setting"""

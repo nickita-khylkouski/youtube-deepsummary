@@ -532,9 +532,10 @@ def import_channel_videos(channel_handle):
         
         # Get default values from import settings
         import_settings = database_storage.get_import_settings()
-        default_max_results = import_settings.get('default_max_results', 20)
-        default_days_back = import_settings.get('default_days_back', 30)
-        max_results_limit = import_settings.get('max_results_limit', 50)
+        # Prioritize camelCase settings (from frontend) over underscore settings (original)
+        default_max_results = import_settings.get('defaultMaxResults', import_settings.get('default_max_results', 20))
+        default_days_back = import_settings.get('defaultDaysBack', import_settings.get('default_days_back', 30))
+        max_results_limit = import_settings.get('maxResultsLimit', import_settings.get('max_results_limit', 50))
         
         max_results = int(data.get('max_results', default_max_results))
         days_back = int(data.get('days_back', default_days_back))
@@ -570,33 +571,18 @@ def import_channel_videos(channel_handle):
                 'error': f'No videos found for channel: {channel_handle}'
             }), 404
         
-        # Get import settings for processing behavior
-        skip_existing_videos = import_settings.get('skip_existing_videos', True)
-        
-        # Process each video
+        # Process each video (existing videos are already filtered out by YouTube API layer)
         results = []
         processed_count = 0
         skipped_count = 0
         error_count = 0
         
+        print(f"🚀 Processing {len(videos)} videos (existing videos already filtered out)")
+        
         for video in videos:
             video_id = video['video_id']
             channel_id = video.get('channel_id')
             print(f"Processing video: {video_id} - {video['title']}")
-            
-            # Check if video already exists and skip if configured
-            if skip_existing_videos:
-                existing_video = database_storage.get(video_id)
-                if existing_video:
-                    print(f"Skipping existing video: {video_id}")
-                    results.append({
-                        'status': 'exists',
-                        'video_id': video_id,
-                        'title': video['title'],
-                        'message': 'Video already exists in database'
-                    })
-                    skipped_count += 1
-                    continue
             
             result = video_processor.process_video_complete(video_id, channel_id)
             results.append(result)
