@@ -18,7 +18,7 @@
                     <h2>{{ video_title }}</h2>
                     <p style="color: #666; margin: 5px 0;">
                         {% if channel_info and channel_info.handle and channel_info.handle.strip() %}
-                            <strong>{{ channel_info.channel_name or 'Unknown Channel' }}</strong>
+                            <a href="/{{ channel_info.handle }}" style="color: #2196f3; text-decoration: none; font-weight: bold;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">{{ channel_info.channel_name or 'Unknown Channel' }}</a>
                         {% elif channel_info and channel_info.channel_name %}
                             <strong>{{ channel_info.channel_name }}</strong>
                         {% else %}
