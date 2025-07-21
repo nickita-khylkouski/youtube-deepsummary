@@ -2233,5 +2233,93 @@ class DatabaseStorage:
             print(f"Error getting summaries count: {e}")
             return 0
 
+    # Chat Settings Methods
+    def get_chat_settings(self) -> Dict:
+        """Get all chat settings"""
+        try:
+            response = self.supabase.table('chat_settings').select('*').execute()
+            settings = {}
+            
+            for setting in response.data:
+                key = setting['setting_key']
+                value = setting['setting_value']
+                settings[key] = value
+            
+            # Set defaults if not found
+            if 'default_model' not in settings:
+                settings['default_model'] = 'claude-sonnet-4-20250514'
+            if 'chat_prompt_template' not in settings:
+                settings['chat_prompt_template'] = ('You are a helpful AI assistant answering questions about a YouTube channel based on AI summaries of its videos.\n\n'
+                                                   'Format your responses with proper markdown for readability:\n'
+                                                   '- Use bullet points (-) for lists\n'
+                                                   '- Use **bold text** for emphasis\n'
+                                                   '- Use clear section headers when appropriate\n'
+                                                   '- Structure information logically with line breaks\n'
+                                                   '- Be conversational, helpful, and reference specific videos when relevant\n\n'
+                                                   'You have access to AI summaries from the YouTube channel "{channel_name}".\n\n'
+                                                   'Here are all the AI summaries from this channel\'s videos:\n\n{ai_summaries}\n\n'
+                                                   'Based on these summaries, please answer the user\'s question about this channel\'s content. '
+                                                   'You have comprehensive knowledge of all topics, themes, and insights covered in this channel\'s videos.\n\n'
+                                                   'Always format your response with clear structure and markdown formatting.\n\n'
+                                                   'User question: {user_message}')
+            
+            return settings
+            
+        except Exception as e:
+            print(f"Error getting chat settings: {e}")
+            return {
+                'default_model': 'claude-sonnet-4-20250514',
+                'chat_prompt_template': ('You are a helpful AI assistant answering questions about a YouTube channel based on AI summaries of its videos.\n\n'
+                                        'Format your responses with proper markdown for readability:\n'
+                                        '- Use bullet points (-) for lists\n'
+                                        '- Use **bold text** for emphasis\n'
+                                        '- Use clear section headers when appropriate\n'
+                                        '- Structure information logically with line breaks\n'
+                                        '- Be conversational, helpful, and reference specific videos when relevant\n\n'
+                                        'You have access to AI summaries from the YouTube channel "{channel_name}".\n\n'
+                                        'Here are all the AI summaries from this channel\'s videos:\n\n{ai_summaries}\n\n'
+                                        'Based on these summaries, please answer the user\'s question about this channel\'s content. '
+                                        'You have comprehensive knowledge of all topics, themes, and insights covered in this channel\'s videos.\n\n'
+                                        'Always format your response with clear structure and markdown formatting.\n\n'
+                                        'User question: {user_message}')
+            }
+
+    def update_chat_setting(self, key: str, value: str) -> bool:
+        """Update a chat setting (insert if doesn't exist)"""
+        try:
+            # Try to update first
+            response = self.supabase.table('chat_settings').update({
+                'setting_value': value,
+                'updated_at': datetime.now(timezone.utc).isoformat()
+            }).eq('setting_key', key).execute()
+            
+            # If no rows were updated, try to insert
+            if len(response.data) == 0:
+                setting_data = {
+                    'setting_key': key,
+                    'setting_value': value,
+                    'created_at': datetime.now(timezone.utc).isoformat(),
+                    'updated_at': datetime.now(timezone.utc).isoformat()
+                }
+                
+                response = self.supabase.table('chat_settings').insert(setting_data).execute()
+            
+            return True
+            
+        except Exception as e:
+            print(f"Error updating chat setting {key}: {e}")
+            return False
+
+    def update_chat_settings_batch(self, settings: Dict) -> bool:
+        """Update multiple chat settings at once"""
+        try:
+            for key, value in settings.items():
+                if not self.update_chat_setting(key, str(value)):
+                    return False
+            return True
+        except Exception as e:
+            print(f"Error updating chat settings batch: {e}")
+            return False
+
 # Global database storage instance
 database_storage = DatabaseStorage()

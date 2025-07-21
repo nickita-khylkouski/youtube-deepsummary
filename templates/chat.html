@@ -321,11 +321,8 @@ function loadModels() {
                     option.value = model;
                     option.textContent = model;
                     
-                    // Auto-select Claude Sonnet 4 if available
-                    if (model === 'claude-sonnet-4-20250514') {
-                        option.selected = true;
-                        modelSelected = true;
-                    }
+                    // Default model selection will be handled by loadChatSettings()
+                    // Don't pre-select any model here
                     
                     optgroup.appendChild(option);
                 });
@@ -333,10 +330,8 @@ function loadModels() {
                 select.appendChild(optgroup);
             }
             
-            // If no model was selected, select first available
-            if (!modelSelected && select.options.length > 0) {
-                select.selectedIndex = 0;
-            }
+            // Load chat settings to set the default model
+            loadChatSettingsForSelect(select);
         } else {
             select.innerHTML = '<option value="">No models available</option>';
         }
@@ -345,6 +340,53 @@ function loadModels() {
         console.error('Error loading models:', error);
         select.innerHTML = '<option value="">Error loading models</option>';
     });
+}
+
+// Load chat settings for model selection
+function loadChatSettingsForSelect(modelSelect) {
+    console.log('Loading chat settings for model select...');
+    fetch('/settings/chat-settings')
+        .then(response => {
+            console.log('Chat settings response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('Chat settings response data:', data);
+            if (data.status === 'success' && data.settings.default_model) {
+                const defaultModel = data.settings.default_model;
+                console.log('Found default model in settings:', defaultModel);
+                
+                // Set the default model in the dropdown
+                for (let i = 0; i < modelSelect.options.length; i++) {
+                    if (modelSelect.options[i].value === defaultModel) {
+                        modelSelect.selectedIndex = i;
+                        console.log('✅ Set default chat model to:', defaultModel);
+                        return;
+                    }
+                }
+                
+                // If default model not found, select first available
+                if (modelSelect.options.length > 0) {
+                    modelSelect.selectedIndex = 0;
+                    console.log('⚠️ Default model not found, selected first available:', modelSelect.value);
+                }
+            } else {
+                console.log('⚠️ No default model in settings or invalid response');
+                // If no settings found, select first available model
+                if (modelSelect.options.length > 0) {
+                    modelSelect.selectedIndex = 0;
+                    console.log('Selected first available:', modelSelect.value);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('❌ Error loading chat settings:', error);
+            // Fallback to first available model
+            if (modelSelect.options.length > 0) {
+                modelSelect.selectedIndex = 0;
+                console.log('Error fallback, selected first available:', modelSelect.value);
+            }
+        });
 }
 
 // Load global chat history
@@ -500,13 +542,8 @@ function startNewConversation() {
     // Reset model selection to default
     const modelSelect = document.getElementById('modelSelect');
     if (modelSelect && modelSelect.options.length > 0) {
-        // Try to select Claude Sonnet 4 if available, otherwise first option
-        const claudeSonnet4 = Array.from(modelSelect.options).find(option => option.value === 'claude-sonnet-4-20250514');
-        if (claudeSonnet4) {
-            modelSelect.value = claudeSonnet4.value;
-        } else {
-            modelSelect.value = modelSelect.options[0].value;
-        }
+        // Load chat settings to set the correct default model
+        loadChatSettingsForSelect(modelSelect);
         console.log(`Reset model selection to default: ${modelSelect.value}`);
     }
     

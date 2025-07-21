@@ -353,6 +353,56 @@ Please analyze this transcript:
             print(f"Error during OpenAI summarization: {e}")
             raise Exception(f"Failed to generate summary: {str(e)}")
     
+    def _chat_with_openai(self, full_prompt: str, model: str = None) -> str:
+        """Direct OpenAI chat call without video summarization prompts"""
+        try:
+            if not self.is_configured('openai'):
+                raise Exception("OpenAI API not configured")
+            
+            # Use provided model or default from database settings
+            model_to_use = model or self.model
+            print(f"OpenAI chat API call using model: {model_to_use}")
+            
+            response = self.client.chat.completions.create(
+                model=model_to_use,
+                messages=[
+                    {"role": "user", "content": full_prompt}
+                ],
+                temperature=self.temperature,
+                max_tokens=self.max_tokens
+            )
+            
+            return response.choices[0].message.content
+            
+        except Exception as e:
+            print(f"Error during OpenAI chat: {e}")
+            raise Exception(f"Failed to generate chat response: {str(e)}")
+    
+    def _chat_with_anthropic(self, full_prompt: str, model: str = None) -> str:
+        """Direct Anthropic chat call without video summarization prompts"""
+        try:
+            if not self.is_configured('anthropic'):
+                raise Exception("Anthropic API not configured")
+            
+            # Use provided model or default from database settings
+            model_to_use = model or self.anthropic_model
+            print(f"Anthropic chat API call using model: {model_to_use}")
+            
+            response = self.anthropic_client.messages.create(
+                model=model_to_use,
+                max_tokens=self.max_tokens,
+                temperature=self.temperature,
+                messages=[
+                    {"role": "user", "content": full_prompt}
+                ]
+            )
+            
+            return response.content[0].text
+            
+        except Exception as e:
+            print(f"Error during Anthropic chat: {e}")
+            raise Exception(f"Failed to generate chat response: {str(e)}")
+    
     def summarize_with_model(self, transcript_content: str, model: str, chapters: Optional[List[Dict]] = None, video_id: str = None, video_info: Optional[Dict] = None, custom_prompt: str = None) -> str:
         """Generate summary using specified model (either OpenAI or Anthropic)"""
         # Determine provider from model name
@@ -375,16 +425,26 @@ Please analyze this transcript:
     
     def chat_with_context(self, message: str, context: str, model: str = None) -> str:
         """Chat method for conversational AI responses with context"""
-        # Use the same underlying method but format as a chat response
-        combined_prompt = f"{context}\n\nUser: {message}\n\nAssistant:"
+        # For chat, we want to use the context as-is (it already contains the full prompt template)
+        # and bypass the video summarization prompts entirely
         
-        # Use the model-specific summarization method
-        return self.summarize_with_model(
-            transcript_content=combined_prompt,
-            model=model,
-            chapters=None,
-            custom_prompt="You are a helpful AI assistant. Respond directly to the user's question using the provided context. Be conversational and helpful."
-        )
+        # Determine provider from model name and call directly
+        if model.startswith('claude') or model.startswith('anthropic'):
+            return self._chat_with_anthropic(context, model)
+        elif model.startswith('gpt') or model.startswith('openai'):
+            return self._chat_with_openai(context, model)
+        else:
+            # Try to detect provider from available models
+            available_models = self.get_available_models()
+            for provider, model_list in available_models.items():
+                if model in model_list:
+                    if provider == 'anthropic':
+                        return self._chat_with_anthropic(context, model)
+                    elif provider == 'openai':
+                        return self._chat_with_openai(context, model)
+            
+            # Fallback to OpenAI if model not found
+            raise Exception(f"Unknown model: {model}. Available models: {available_models}")
     
     def summarize_with_preferred_provider(self, transcript_content: str, chapters: Optional[List[Dict]] = None, video_id: str = None, video_info: Optional[Dict] = None, custom_prompt: str = None) -> str:
         """Generate summary using the preferred provider from settings"""

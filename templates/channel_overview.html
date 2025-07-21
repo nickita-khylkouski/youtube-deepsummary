@@ -545,10 +545,8 @@ function loadAvailableModels() {
                         option.value = model;
                         option.textContent = model;
                         
-                        // Default to Claude Sonnet 4 if available
-                        if (model === 'claude-sonnet-4-20250514') {
-                            option.selected = true;
-                        }
+                        // Default will be set after loading chat settings
+                        // Don't pre-select any model here
                         
                         optgroup.appendChild(option);
                     });
@@ -556,10 +554,8 @@ function loadAvailableModels() {
                     modelSelect.appendChild(optgroup);
                 }
                 
-                // If no Claude model available, select first available model
-                if (modelSelect.selectedIndex === -1 && modelSelect.options.length > 0) {
-                    modelSelect.selectedIndex = 0;
-                }
+                // Load chat settings to set the default model
+                loadChatSettingsForModal(modelSelect);
                 
                 console.log('Models loaded successfully, total options:', modelSelect.options.length);
             } else {
@@ -729,11 +725,8 @@ function loadChatModels() {
                         
                         option.textContent = displayName;
                         
-                        // Default to Claude Sonnet 4 or GPT-4.1-mini for chat if available
-                        if (model === 'claude-sonnet-4-20250514' || 
-                            (model === 'gpt-4.1-mini' && !modelSelect.querySelector('[selected]'))) {
-                            option.selected = true;
-                        }
+                        // Default will be set after loading chat settings
+                        // Don't pre-select any model here
                         
                         optgroup.appendChild(option);
                     });
@@ -741,10 +734,8 @@ function loadChatModels() {
                     modelSelect.appendChild(optgroup);
                 }
                 
-                // If no GPT-4o mini available, select first available model
-                if (modelSelect.selectedIndex === -1 && modelSelect.options.length > 0) {
-                    modelSelect.selectedIndex = 0;
-                }
+                // Load chat settings to set the default model
+                loadChatSettingsForModal(modelSelect);
                 
                 console.log('Chat models loaded successfully, total options:', modelSelect.options.length);
             } else {
@@ -755,6 +746,46 @@ function loadChatModels() {
         .catch(error => {
             console.error('Error loading chat models:', error);
             modelSelect.innerHTML = '<option value="">Error loading models</option>';
+        });
+}
+
+// Load chat settings for modal and set default model
+function loadChatSettingsForModal(modelSelect) {
+    fetch('/settings/chat-settings')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success' && data.settings.default_model) {
+                const defaultModel = data.settings.default_model;
+                
+                // Set the default model in the dropdown
+                for (let i = 0; i < modelSelect.options.length; i++) {
+                    if (modelSelect.options[i].value === defaultModel) {
+                        modelSelect.selectedIndex = i;
+                        console.log('Set default chat model to:', defaultModel);
+                        return;
+                    }
+                }
+                
+                // If default model not found, select first available
+                if (modelSelect.options.length > 0) {
+                    modelSelect.selectedIndex = 0;
+                    console.log('Default model not found, selected first available:', modelSelect.value);
+                }
+            } else {
+                // If no settings found, select first available model
+                if (modelSelect.options.length > 0) {
+                    modelSelect.selectedIndex = 0;
+                    console.log('No chat settings found, selected first available:', modelSelect.value);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading chat settings:', error);
+            // Fallback to first available model
+            if (modelSelect.options.length > 0) {
+                modelSelect.selectedIndex = 0;
+                console.log('Error loading settings, selected first available:', modelSelect.value);
+            }
         });
 }
 
@@ -1132,10 +1163,8 @@ function loadChatTabModels() {
                         
                         option.textContent = displayName;
                         
-                        // Default to Claude Sonnet 4 if available
-                        if (model === 'claude-sonnet-4-20250514') {
-                            option.selected = true;
-                        }
+                        // Default will be set after loading chat settings
+                        // Don't pre-select any model here
                         
                         optgroup.appendChild(option);
                     });
@@ -1143,10 +1172,8 @@ function loadChatTabModels() {
                     select.appendChild(optgroup);
                 }
                 
-                // If no Claude model available, select first available model
-                if (select.selectedIndex === -1 && select.options.length > 0) {
-                    select.selectedIndex = 0;
-                }
+                // Load chat settings to set the default model for global chat
+                loadChatSettingsForModal(select);
                 
                 console.log('Chat tab models loaded successfully, total options:', select.options.length);
             } else {

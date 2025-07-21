@@ -121,6 +121,11 @@
                     <i class="fas fa-download me-2"></i>Video Imports
                 </a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#chat-settings" data-bs-toggle="tab">
+                    <i class="fas fa-comments me-2"></i>Chat Settings
+                </a>
+            </li>
         </ul>
 
         <!-- Alert Area -->
@@ -612,6 +617,68 @@
                         <div class="col text-end">
                             <button type="button" class="btn btn-primary" onclick="saveImportSettings()">
                                 <i class="fas fa-save me-2"></i>Save Settings
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Chat Settings Tab -->
+            <div class="tab-pane fade" id="chat-settings">
+                <!-- Chat Settings Header -->
+                <form id="chatSettingsForm">
+                    <div class="row mb-3">
+                        <div class="col">
+                            <h3>Channel Chat Settings</h3>
+                            <p class="text-muted">Configure AI model and prompt template for channel chat conversations.</p>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <!-- Model Settings -->
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-robot me-2"></i>AI Model Settings</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="chatDefaultModel" class="form-label">Default Chat Model</label>
+                                        <select class="form-select" id="chatDefaultModel" name="defaultModel">
+                                            <option value="">Loading models...</option>
+                                        </select>
+                                        <div class="form-text">Default AI model used for channel chat conversations</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Prompt Template Settings -->
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-edit me-2"></i>Prompt Template</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="chatPromptTemplate" class="form-label">Chat Prompt Template</label>
+                                        <textarea class="form-control prompt-textarea" id="chatPromptTemplate" name="chatPromptTemplate" rows="12" placeholder="Loading template..."></textarea>
+                                        <div class="form-text">
+                                            <strong>Available Variables:</strong><br>
+                                            <code>{channel_name}</code> - Name of the YouTube channel<br>
+                                            <code>{ai_summaries}</code> - All AI summaries from the channel<br>
+                                            <code>{user_message}</code> - User's question/message
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col text-end">
+                            <button type="button" class="btn btn-primary" onclick="saveChatSettings()">
+                                <i class="fas fa-save me-2"></i>Save Chat Settings
                             </button>
                         </div>
                     </div>
@@ -1284,11 +1351,113 @@
             });
         }
 
+        // Chat Settings Functions
+        function loadChatSettings() {
+            fetch('/settings/chat-settings')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const settings = data.settings;
+                        
+                        // Set default model
+                        const modelSelect = document.getElementById('chatDefaultModel');
+                        if (settings.default_model) {
+                            modelSelect.value = settings.default_model;
+                        }
+                        
+                        // Set prompt template
+                        const promptTextarea = document.getElementById('chatPromptTemplate');
+                        if (settings.chat_prompt_template) {
+                            promptTextarea.value = settings.chat_prompt_template;
+                        }
+                    } else {
+                        console.error('Error loading chat settings:', data.message);
+                        showAlert('danger', 'Failed to load chat settings: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading chat settings:', error);
+                    showAlert('danger', 'Failed to load chat settings');
+                });
+        }
+
+        function loadChatModelOptions() {
+            fetch('/settings/available-models')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const models = data.models;
+                        const select = document.getElementById('chatDefaultModel');
+                        
+                        // Clear existing options
+                        select.innerHTML = '<option value="">Select a model...</option>';
+                        
+                        // Add models grouped by provider
+                        for (const [provider, modelList] of Object.entries(models)) {
+                            if (modelList.length > 0) {
+                                const optgroup = document.createElement('optgroup');
+                                optgroup.label = provider === 'openai' ? 'OpenAI' : 'Anthropic';
+                                
+                                modelList.forEach(model => {
+                                    const option = document.createElement('option');
+                                    option.value = model;
+                                    option.textContent = model;
+                                    optgroup.appendChild(option);
+                                });
+                                
+                                select.appendChild(optgroup);
+                            }
+                        }
+                        
+                        // Load current settings after populating models
+                        loadChatSettings();
+                    } else {
+                        console.error('Error loading models:', data.message);
+                        document.getElementById('chatDefaultModel').innerHTML = '<option value="">Error loading models</option>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading models:', error);
+                    document.getElementById('chatDefaultModel').innerHTML = '<option value="">Error loading models</option>';
+                });
+        }
+
+        function saveChatSettings() {
+            const form = document.getElementById('chatSettingsForm');
+            const formData = new FormData(form);
+            
+            const settings = {
+                defaultModel: formData.get('defaultModel'),
+                chatPromptTemplate: formData.get('chatPromptTemplate')
+            };
+
+            fetch('/settings/chat-settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(settings)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert('success', 'Chat settings saved successfully!');
+                } else {
+                    showAlert('danger', 'Failed to save chat settings: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error saving chat settings:', error);
+                showAlert('danger', 'Failed to save chat settings');
+            });
+        }
+
         // Load import settings when the page loads
         document.addEventListener('DOMContentLoaded', function() {
             initializeFallbackStrategies();
             loadImportSettings();
             loadAvailableModels();
+            loadChatModelOptions(); // Load chat models
             
             // Add event listeners for summarizer settings
             document.getElementById('temperature').addEventListener('input', updateTemperatureValue);

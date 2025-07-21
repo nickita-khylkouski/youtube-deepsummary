@@ -226,3 +226,69 @@ def test_api_connection():
                 
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# Chat Settings API endpoints
+@settings_bp.route('/chat-settings')
+def get_chat_settings():
+    """API endpoint to get current chat settings."""
+    try:
+        settings = db_storage.get_chat_settings()
+        print(f"Chat settings API called - returning: {settings}")  # Debug log
+        return jsonify({'status': 'success', 'settings': settings})
+    except Exception as e:
+        print(f"Error in chat settings API: {e}")  # Debug log
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@settings_bp.route('/chat-settings', methods=['POST'])
+def update_chat_settings():
+    """API endpoint to update chat settings."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'status': 'error', 'message': 'No data provided'}), 400
+        
+        # Validate model (optional, will use default if not provided)
+        default_model = data.get('defaultModel')
+        if default_model:
+            # Get available models to validate
+            summarizer = TranscriptSummarizer()
+            available_models = summarizer.get_available_models()
+            model_found = False
+            for provider_models in available_models.values():
+                if default_model in provider_models:
+                    model_found = True
+                    break
+            
+            if not model_found:
+                return jsonify({'status': 'error', 'message': f'Invalid model: {default_model}'}), 400
+        
+        # Validate prompt template (must contain required variables)
+        prompt_template = data.get('chatPromptTemplate')
+        if prompt_template:
+            required_vars = ['{channel_name}', '{ai_summaries}', '{user_message}']
+            missing_vars = [var for var in required_vars if var not in prompt_template]
+            if missing_vars:
+                return jsonify({
+                    'status': 'error', 
+                    'message': f'Prompt template must contain these variables: {", ".join(missing_vars)}'
+                }), 400
+        
+        # Prepare settings for database update
+        settings_to_update = {}
+        if default_model:
+            settings_to_update['default_model'] = default_model
+        if prompt_template:
+            settings_to_update['chat_prompt_template'] = prompt_template
+        
+        if not settings_to_update:
+            return jsonify({'status': 'error', 'message': 'No valid settings provided'}), 400
+        
+        # Update settings in database
+        success = db_storage.update_chat_settings_batch(settings_to_update)
+        if success:
+            return jsonify({'status': 'success'})
+        else:
+            return jsonify({'status': 'error', 'message': 'Failed to update chat settings'}), 500
+        
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500

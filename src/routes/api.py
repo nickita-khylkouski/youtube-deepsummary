@@ -639,7 +639,13 @@ def chat_with_channel(channel_handle):
             }), 400
         
         user_message = data.get('message', '').strip()
-        selected_model = data.get('model', 'gpt-4.1-mini')
+        
+        # Get chat settings for default model and prompt template
+        chat_settings = database_storage.get_chat_settings()
+        default_model = chat_settings.get('default_model', 'claude-sonnet-4-20250514')
+        prompt_template = chat_settings.get('chat_prompt_template')
+        
+        selected_model = data.get('model', default_model)
         conversation_id = data.get('conversation_id')
         
         if not user_message:
@@ -690,33 +696,20 @@ Summary: {truncated_summary}
                 'error': 'No AI summaries found for this channel. Generate some summaries first.'
             }), 404
         
-        # Prepare context for AI
-        context = f"""You are an AI assistant with access to AI summaries from the YouTube channel "{channel_info['channel_name']}". 
-
-Here are all the AI summaries from this channel's videos:
-
-{chr(10).join(summaries_context)}
-
-Based on these summaries, please answer the user's question about this channel's content. You have comprehensive knowledge of all topics, themes, and insights covered in this channel's videos.
-
-User question: {user_message}"""
+        # Prepare context for AI using the stored prompt template
+        ai_summaries_text = chr(10).join(summaries_context)
+        context = prompt_template.format(
+            channel_name=channel_info['channel_name'],
+            ai_summaries=ai_summaries_text,
+            user_message=user_message
+        )
         
-        # Use the summarizer to chat (it handles multiple AI providers)
+        # Use the chat method specifically designed for conversations
         try:
-            response = video_processor.summarizer.summarize_with_model(
-                transcript_content=context,
-                model=selected_model,
-                chapters=None,
-                custom_prompt="""You are a helpful AI assistant answering questions about a YouTube channel based on AI summaries of its videos. 
-
-Format your responses with proper markdown for readability:
-- Use bullet points (-) for lists
-- Use **bold text** for emphasis
-- Use clear section headers when appropriate
-- Structure information logically with line breaks
-- Be conversational, helpful, and reference specific videos when relevant
-
-Always format your response with clear structure and markdown formatting."""
+            response = video_processor.summarizer.chat_with_context(
+                message=user_message,
+                context=context,
+                model=selected_model
             )
             
             # Handle conversation persistence
@@ -755,22 +748,25 @@ Always format your response with clear structure and markdown formatting."""
                 if len(summaries_context) > 2:
                     # Retry with only the most recent 2 summaries
                     reduced_context = summaries_context[:2]
-                    reduced_context_str = f"""You are an AI assistant with access to AI summaries from the YouTube channel "{channel_info['channel_name']}". 
-
-Here are some AI summaries from this channel's videos (showing {len(reduced_context)} most recent):
-
-{chr(10).join(reduced_context)}
-
-Based on these summaries, please answer the user's question about this channel's content. Note: This is a subset of the channel's content due to length limits.
-
-User question: {user_message}"""
+                    reduced_ai_summaries_text = chr(10).join(reduced_context)
+                    
+                    # Add note about reduced context to the template
+                    reduced_prompt_template = prompt_template.replace(
+                        '{ai_summaries}', 
+                        f'{reduced_ai_summaries_text}\n\n*Note: This is a subset of the channel\'s content (showing {len(reduced_context)} most recent videos) due to length limits.*'
+                    )
+                    
+                    reduced_context_str = reduced_prompt_template.format(
+                        channel_name=channel_info['channel_name'],
+                        ai_summaries=f'{reduced_ai_summaries_text}\n\n*Note: This is a subset of the channel\'s content (showing {len(reduced_context)} most recent videos) due to length limits.*',
+                        user_message=user_message
+                    )
                     
                     try:
-                        response = video_processor.summarizer.summarize_with_model(
-                            transcript_content=reduced_context_str,
-                            model=selected_model,
-                            chapters=None,
-                            custom_prompt="You are a helpful AI assistant answering questions about a YouTube channel based on AI summaries of its videos. Be conversational, helpful, and reference specific videos when relevant. Note that you only have access to a subset of the channel's content."
+                        response = video_processor.summarizer.chat_with_context(
+                            message=user_message,
+                            context=reduced_context_str,
+                            model=selected_model
                         )
                         
                         return jsonify({
