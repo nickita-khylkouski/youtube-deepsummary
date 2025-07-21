@@ -373,8 +373,7 @@ class YouTubeAPI:
                 playlist_request = self.service.playlistItems().list(
                     part='snippet',
                     playlistId=uploads_playlist_id,
-                    maxResults=max_results,
-                    order='date'
+                    maxResults=max_results
                 )
                 playlist_response = playlist_request.execute()
                 
@@ -460,7 +459,7 @@ class YouTubeAPI:
                 snippet = item['snippet']
                 
                 # Double-check that this video is actually from the right channel
-                if snippet.get('channelTitle', '').lower() == channel_name.lower():
+                if snippet.get('channelTitle', '').strip().lower() == channel_name.strip().lower():
                     videos.append({
                         'video_id': video_id,
                         'title': snippet.get('title', ''),
