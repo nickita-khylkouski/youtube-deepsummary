@@ -33,28 +33,24 @@
             <div style="background: white; border-radius: 12px; padding: 30px; margin-bottom: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e5e5;">
                 <!-- Post Header -->
                 <header style="margin-bottom: 25px;">
-                    <h2 style="margin: 0 0 12px 0; font-size: 26px; font-weight: 600; line-height: 1.3;">
-                        <a href="/{{ channel_info.handle[1:] if channel_info.handle.startswith('@') else channel_info.handle }}/{{ post.url_path }}" 
-                           style="color: #1a1a1a; text-decoration: none; transition: color 0.2s ease;"
-                           onmouseover="this.style.color='#667eea'"
-                           onmouseout="this.style.color='#1a1a1a'">
-                            {{ post.title }}
-                        </a>
-                    </h2>
-                    <div style="display: flex; align-items: center; gap: 15px; color: #666; font-size: 14px; margin-bottom: 15px;">
-                        {% if post.published_at %}
-                            <time datetime="{{ post.published_at }}" style="font-weight: 500;">📅 {{ post.published_at[:10] }}</time>
-                        {% endif %}
-                        <span>⏱️ {{ post.duration }}</span>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
                         <img src="{{ post.thumbnail_url }}" 
                              alt="{{ post.title }}" 
                              style="width: 120px; height: 90px; object-fit: cover; border-radius: 8px; flex-shrink: 0;">
                         <div style="flex: 1;">
-                            <p style="margin: 0; color: #555; font-size: 15px; line-height: 1.5;">
-                                Click to watch the full video and see detailed chapters and timestamps.
-                            </p>
+                            <h2 style="margin: 0 0 8px 0; font-size: 26px; font-weight: 600; line-height: 1.3;">
+                                <a href="/{{ channel_info.handle[1:] if channel_info.handle.startswith('@') else channel_info.handle }}/{{ post.url_path }}" 
+                                   style="color: #1a1a1a; text-decoration: none; transition: color 0.2s ease;"
+                                   onmouseover="this.style.color='#667eea'"
+                                   onmouseout="this.style.color='#1a1a1a'">
+                                    {{ post.title }}
+                                </a>
+                            </h2>
+                            {% if post.published_at %}
+                                <time datetime="{{ post.published_at }}" style="color: #666; font-size: 14px; font-weight: 500;">
+                                    {{ post.published_at[:10] }}
+                                </time>
+                            {% endif %}
                         </div>
                     </div>
                 </header>
@@ -66,25 +62,20 @@
                 
                 <!-- Post Footer -->
                 <footer style="margin-top: 25px; padding-top: 20px; border-top: 1px solid #e5e5e5;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
-                        <div style="display: flex; gap: 12px;">
-                            <a href="/{{ channel_info.handle }}/{{ post.url_path }}" 
-                               style="background: #667eea; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease;"
-                               onmouseover="this.style.background='#5a6fd8'"
-                               onmouseout="this.style.background='#667eea'">
-                                📺 Watch Video
-                            </a>
-                            <a href="https://youtube.com/watch?v={{ post.video_id }}" 
-                               target="_blank" 
-                               style="background: #ff0000; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease;"
-                               onmouseover="this.style.background='#e60000'"
-                               onmouseout="this.style.background='#ff0000'">
-                                🔗 YouTube
-                            </a>
-                        </div>
-                        <div style="color: #888; font-size: 13px;">
-                            AI Summary • {{ post.video_id }}
-                        </div>
+                    <div style="display: flex; gap: 12px;">
+                        <a href="/{{ channel_info.handle }}/{{ post.url_path }}" 
+                           style="background: #667eea; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease;"
+                           onmouseover="this.style.background='#5a6fd8'"
+                           onmouseout="this.style.background='#667eea'">
+                            📺 Watch Video
+                        </a>
+                        <a href="https://youtube.com/watch?v={{ post.video_id }}" 
+                           target="_blank" 
+                           style="background: #ff0000; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease;"
+                           onmouseover="this.style.background='#e60000'"
+                           onmouseout="this.style.background='#ff0000'">
+                            🔗 YouTube
+                        </a>
                     </div>
                 </footer>
             </div>
@@ -124,7 +115,7 @@
         <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e5e5;">
             <h3 style="margin: 0 0 15px 0; font-size: 18px; color: #333; font-weight: 600;">About This Blog</h3>
             <p style="margin: 0 0 15px 0; color: #666; font-size: 14px; line-height: 1.6;">
-                AI-generated summaries of {{ channel_info.channel_name }} videos, organized chronologically for easy reading.
+                Summaries of {{ channel_info.channel_name }} videos, organized chronologically for easy reading.
             </p>
             <a href="{{ channel_info.handle }}" 
                style="display: inline-flex; align-items: center; gap: 8px; background: #667eea; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease;"
@@ -253,26 +244,24 @@ function createBlogPostElement(post) {
         <div style="background: white; border-radius: 12px; padding: 30px; margin-bottom: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e5e5;">
             <!-- Post Header -->
             <header style="margin-bottom: 25px;">
-                <h2 style="margin: 0 0 12px 0; font-size: 26px; font-weight: 600; line-height: 1.3;">
-                    <a href="${post.url_path ? `/${channelHandle.replace('@', '')}/${post.url_path}` : `/watch?v=${post.video_id}`}" 
-                       style="color: #1a1a1a; text-decoration: none; transition: color 0.2s ease;"
-                       onmouseover="this.style.color='#667eea'"
-                       onmouseout="this.style.color='#1a1a1a'">
-                        ${escapeHtml(post.title)}
-                    </a>
-                </h2>
-                <div style="display: flex; align-items: center; gap: 15px; color: #666; font-size: 14px; margin-bottom: 15px;">
-                    <time datetime="${post.published_at}" style="font-weight: 500;">📅 ${publishDate}</time>
-                    <span>⏱️ ${post.duration}</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
                     <img src="${post.thumbnail_url}" 
                          alt="${escapeHtml(post.title)}" 
                          style="width: 120px; height: 90px; object-fit: cover; border-radius: 8px; flex-shrink: 0;">
                     <div style="flex: 1;">
-                        <p style="margin: 0; color: #555; font-size: 15px; line-height: 1.5;">
-                            Click to watch the full video and see detailed chapters and timestamps.
-                        </p>
+                        <h2 style="margin: 0 0 8px 0; font-size: 26px; font-weight: 600; line-height: 1.3;">
+                            <a href="${post.url_path ? `/${channelHandle.replace('@', '')}/${post.url_path}` : `/watch?v=${post.video_id}`}" 
+                               style="color: #1a1a1a; text-decoration: none; transition: color 0.2s ease;"
+                               onmouseover="this.style.color='#667eea'"
+                               onmouseout="this.style.color='#1a1a1a'">
+                                ${escapeHtml(post.title)}
+                            </a>
+                        </h2>
+                        ${post.published_at ? `
+                            <time datetime="${post.published_at}" style="color: #666; font-size: 14px; font-weight: 500;">
+                                ${post.published_at.slice(0, 10)}
+                            </time>
+                        ` : ''}
                     </div>
                 </div>
             </header>
@@ -284,25 +273,20 @@ function createBlogPostElement(post) {
             
             <!-- Post Footer -->
             <footer style="margin-top: 25px; padding-top: 20px; border-top: 1px solid #e5e5e5;">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
-                    <div style="display: flex; gap: 12px;">
-                        <a href="${post.url_path ? `/${channelHandle.replace('@', '')}/${post.url_path}` : `/watch?v=${post.video_id}`}" 
-                           style="background: #667eea; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease;"
-                           onmouseover="this.style.background='#5a6fd8'"
-                           onmouseout="this.style.background='#667eea'">
-                            📺 Watch Video
-                        </a>
-                        <a href="https://youtube.com/watch?v=${post.video_id}" 
-                           target="_blank" 
-                           style="background: #ff0000; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease;"
-                           onmouseover="this.style.background='#e60000'"
-                           onmouseout="this.style.background='#ff0000'">
-                            🔗 YouTube
-                        </a>
-                    </div>
-                    <div style="color: #888; font-size: 13px;">
-                        AI Summary • ${post.video_id}
-                    </div>
+                <div style="display: flex; gap: 12px;">
+                    <a href="${post.url_path ? `/${channelHandle.replace('@', '')}/${post.url_path}` : `/watch?v=${post.video_id}`}" 
+                       style="background: #667eea; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease;"
+                       onmouseover="this.style.background='#5a6fd8'"
+                       onmouseout="this.style.background='#667eea'">
+                        📺 Watch Video
+                    </a>
+                    <a href="https://youtube.com/watch?v=${post.video_id}" 
+                       target="_blank" 
+                       style="background: #ff0000; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease;"
+                       onmouseover="this.style.background='#e60000'"
+                       onmouseout="this.style.background='#ff0000'">
+                        🔗 YouTube
+                    </a>
                 </div>
             </footer>
         </div>
