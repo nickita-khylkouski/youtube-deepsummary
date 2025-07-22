@@ -26,8 +26,10 @@
         
         <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
             <div style="display: flex; align-items: center; gap: 10px;">
-                <img src="{{ post.channel_thumbnail or '/static/default-avatar.png' }}" alt="{{ post.channel_name }}" 
+                {% if post.channel_thumbnail %}
+                <img src="{{ post.channel_thumbnail }}" alt="{{ post.channel_name }}" 
                      style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
+                {% endif %}
                 <a href="/blog/{{ post.channel_handle }}" style="color: #667eea; text-decoration: none; font-size: 16px; font-weight: 600;">
                     {{ post.channel_name }}
                 </a>

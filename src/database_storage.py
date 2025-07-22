@@ -1524,6 +1524,122 @@ class DatabaseStorage:
             print(f"Error getting memory snippets stats: {e}")
             return {'total_snippets': 0, 'videos_with_snippets': 0}
 
+    def get_storage_stats(self) -> dict:
+        """Get comprehensive storage statistics including channels with summaries"""
+        if not self.supabase:
+            print("Database not initialized")
+            return {'success': False, 'error': 'Database not initialized'}
+
+        try:
+            # Get channels with summaries count and details
+            channels_query = """
+            SELECT DISTINCT 
+                c.channel_id,
+                c.channel_name,
+                c.handle,
+                c.thumbnail_url,
+                COUNT(s.video_id) as summary_count
+            FROM youtube_channels c
+            INNER JOIN youtube_videos v ON c.channel_id = v.channel_id
+            INNER JOIN summaries s ON v.video_id = s.video_id
+            WHERE s.is_current = true
+            GROUP BY c.channel_id, c.channel_name, c.handle, c.thumbnail_url
+            ORDER BY summary_count DESC
+            """
+            
+            # For now, use the existing method approach since raw SQL might not be available
+            summaries_response = self.supabase.table('summaries')\
+                .select('video_id, youtube_videos!inner(channel_id)')\
+                .eq('is_current', True)\
+                .execute()
+            
+            # Group by channel and count summaries
+            channel_summary_counts = {}
+            for item in summaries_response.data:
+                video = item.get('youtube_videos', {})
+                channel_id = video.get('channel_id')
+                if channel_id:
+                    channel_summary_counts[channel_id] = channel_summary_counts.get(channel_id, 0) + 1
+            
+            # Get channel details for channels with summaries (optimized with single query)
+            channels_with_summaries = []
+            if channel_summary_counts:
+                try:
+                    # Get all channels with summaries in a single query
+                    channel_ids = list(channel_summary_counts.keys())
+                    channels_response = self.supabase.table('youtube_channels')\
+                        .select('channel_id, channel_name, handle, thumbnail_url')\
+                        .in_('channel_id', channel_ids)\
+                        .execute()
+                    
+                    # Build the result with summary counts
+                    for channel in channels_response.data:
+                        channel_id = channel['channel_id']
+                        summary_count = channel_summary_counts.get(channel_id, 0)
+                        channels_with_summaries.append({
+                            'channel_id': channel_id,
+                            'channel_name': channel['channel_name'],
+                            'handle': channel['handle'],
+                            'thumbnail_url': channel.get('thumbnail_url'),
+                            'summary_count': summary_count
+                        })
+                except Exception as ce:
+                    print(f"Warning: Could not fetch channel details in batch: {ce}")
+                    # Fallback to individual queries if batch fails
+                    for channel_id, summary_count in channel_summary_counts.items():
+                        try:
+                            channel_response = self.supabase.table('youtube_channels')\
+                                .select('channel_id, channel_name, handle, thumbnail_url')\
+                                .eq('channel_id', channel_id)\
+                                .limit(1)\
+                                .execute()
+                            
+                            if channel_response.data:
+                                channel = channel_response.data[0]
+                                channels_with_summaries.append({
+                                    'channel_id': channel['channel_id'],
+                                    'channel_name': channel['channel_name'],
+                                    'handle': channel['handle'],
+                                    'thumbnail_url': channel.get('thumbnail_url'),
+                                    'summary_count': summary_count
+                                })
+                        except Exception as ce2:
+                            print(f"Warning: Could not fetch channel details for {channel_id}: {ce2}")
+                            continue
+            
+            # Sort by summary count descending
+            channels_with_summaries.sort(key=lambda x: x['summary_count'], reverse=True)
+            
+            # Get other basic stats
+            cache_info = self.get_cache_info()
+            
+            return {
+                'success': True,
+                'stats': {
+                    'channels_with_summaries': channels_with_summaries,
+                    'total_videos': cache_info.get('videos_count', 0),
+                    'total_transcripts': cache_info.get('transcripts_count', 0),
+                    'total_summaries': cache_info.get('summaries_count', 0),
+                    'total_channels': cache_info.get('channels_count', 0)
+                }
+            }
+
+        except Exception as e:
+            print(f"Error getting storage stats: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'success': False,
+                'error': str(e),
+                'stats': {
+                    'channels_with_summaries': [],
+                    'total_videos': 0,
+                    'total_transcripts': 0,
+                    'total_summaries': 0,
+                    'total_channels': 0
+                }
+            }
+
     def get_channel_by_name(self, channel_name: str) -> Optional[Dict]:
         """Get channel by name"""
         try:
@@ -2232,6 +2348,305 @@ class DatabaseStorage:
         except Exception as e:
             print(f"Error getting summaries count: {e}")
             return 0
+
+    # Blog methods
+    def get_blog_summaries_paginated(self, page: int = 1, per_page: int = 12) -> Dict:
+        """Get paginated blog summaries (videos with summaries formatted as blog posts)"""
+        try:
+            # Calculate offset
+            offset = (page - 1) * per_page
+            
+            # Get total count for pagination
+            count_response = self.supabase.table('summaries')\
+                .select('video_id', count='exact')\
+                .eq('is_current', True)\
+                .execute()
+            total_summaries = count_response.count if count_response.count is not None else 0
+            
+            # Get paginated summaries with video information (sorted by video publication date)
+            response = self.supabase.table('summaries')\
+                .select('summary_text, model_used, created_at, youtube_videos!inner(video_id, title, thumbnail_url, published_at, url_path, channel_id)')\
+                .eq('is_current', True)\
+                .order('youtube_videos(published_at)', desc=True)\
+                .range(offset, offset + per_page - 1)\
+                .execute()
+            
+            posts = []
+            for item in response.data:
+                video = item.get('youtube_videos', {})
+                
+                # Extract video data
+                video_id = video.get('video_id', '')
+                title = video.get('title', 'Untitled Video')
+                thumbnail_url = video.get('thumbnail_url', f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg")
+                published_at = video.get('published_at', '')
+                url_path = video.get('url_path', '')
+                channel_id = video.get('channel_id', '')
+                
+                # Generate URL path if missing
+                if not url_path and title:
+                    url_path = self._generate_url_slug(title)
+                
+                # Get channel information separately if channel_id exists
+                channel_name = 'Unknown Channel'
+                channel_handle = ''
+                channel_thumbnail = ''
+                if channel_id:
+                    try:
+                        channel_response = self.supabase.table('youtube_channels')\
+                            .select('channel_name, handle, thumbnail_url')\
+                            .eq('channel_id', channel_id)\
+                            .limit(1)\
+                            .execute()
+                        if channel_response.data:
+                            channel_data = channel_response.data[0]
+                            channel_name = channel_data.get('channel_name', 'Unknown Channel')
+                            channel_handle = channel_data.get('handle', '')
+                            channel_thumbnail = channel_data.get('thumbnail_url', '')
+                    except Exception as ce:
+                        print(f"Warning: Could not fetch channel info for {channel_id}: {ce}")
+                
+                # Generate summary preview (strip markdown formatting)
+                summary_text = item.get('summary_text', '')
+                # Remove markdown headers, bullet points, and other formatting
+                import re
+                clean_text = re.sub(r'#{1,6}\s*', '', summary_text)  # Remove headers
+                clean_text = re.sub(r'[•\-\*]\s*', '', clean_text)  # Remove bullet points
+                clean_text = re.sub(r'\*\*(.*?)\*\*', r'\1', clean_text)  # Remove bold
+                clean_text = re.sub(r'\*(.*?)\*', r'\1', clean_text)  # Remove italic
+                clean_text = re.sub(r'\n+', ' ', clean_text)  # Replace newlines with spaces
+                clean_text = re.sub(r'\s+', ' ', clean_text)  # Normalize spaces
+                clean_text = clean_text.strip()
+                summary_preview = clean_text[:200] + '...' if len(clean_text) > 200 else clean_text
+                
+                posts.append({
+                    'video_id': video_id,
+                    'title': title,
+                    'summary_text': summary_text,
+                    'summary_preview': summary_preview,
+                    'model_used': item.get('model_used', 'gpt-4.1'),
+                    'thumbnail_url': thumbnail_url,
+                    'published_at': published_at,
+                    'created_at': item.get('created_at', ''),
+                    'url_path': url_path,
+                    'channel_name': channel_name,
+                    'channel_handle': channel_handle,
+                    'channel_thumbnail': channel_thumbnail,
+                    'duration': 'N/A'  # Duration not available from summaries table
+                })
+            
+            # Calculate pagination metadata
+            total_pages = (total_summaries + per_page - 1) // per_page
+            has_prev = page > 1
+            has_next = page < total_pages
+            
+            return {
+                'posts': posts,
+                'pagination': {
+                    'page': page,
+                    'per_page': per_page,
+                    'total': total_summaries,
+                    'total_pages': total_pages,
+                    'has_prev': has_prev,
+                    'has_next': has_next,
+                    'prev_page': page - 1 if has_prev else None,
+                    'next_page': page + 1 if has_next else None
+                }
+            }
+            
+        except Exception as e:
+            print(f"Error getting blog summaries paginated: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'posts': [],
+                'pagination': {
+                    'page': page,
+                    'per_page': per_page,
+                    'total': 0,
+                    'total_pages': 0,
+                    'has_prev': False,
+                    'has_next': False,
+                    'prev_page': None,
+                    'next_page': None
+                }
+            }
+
+    def get_blog_summaries_by_channel_paginated(self, channel_handle: str, page: int = 1, per_page: int = 12) -> Dict:
+        """Get paginated blog summaries for a specific channel"""
+        try:
+            # Get channel info first
+            channel_info = self.get_channel_by_handle(channel_handle)
+            if not channel_info:
+                return {
+                    'posts': [],
+                    'pagination': {
+                        'page': page,
+                        'per_page': per_page,
+                        'total': 0,
+                        'total_pages': 0,
+                        'has_prev': False,
+                        'has_next': False,
+                        'prev_page': None,
+                        'next_page': None
+                    }
+                }
+            
+            channel_id = channel_info['channel_id']
+            
+            # Calculate offset
+            offset = (page - 1) * per_page
+            
+            # Get total count for pagination - simplified approach
+            try:
+                count_response = self.supabase.table('summaries')\
+                    .select('video_id', count='exact')\
+                    .eq('is_current', True)\
+                    .eq('youtube_videos.channel_id', channel_id)\
+                    .execute()
+                total_summaries = count_response.count if count_response.count is not None else 0
+            except Exception as ce:
+                # Fallback: count from the actual query results
+                print(f"Warning: Could not get exact count, using result length: {ce}")
+                # Run the main query first to get count
+                temp_response = self.supabase.table('summaries')\
+                    .select('video_id, youtube_videos!inner(channel_id)')\
+                    .eq('is_current', True)\
+                    .eq('youtube_videos.channel_id', channel_id)\
+                    .execute()
+                total_summaries = len(temp_response.data)
+            
+            # Get paginated summaries for this channel (sorted by video publication date)
+            response = self.supabase.table('summaries')\
+                .select('summary_text, model_used, created_at, youtube_videos!inner(video_id, title, thumbnail_url, published_at, url_path)')\
+                .eq('is_current', True)\
+                .eq('youtube_videos.channel_id', channel_id)\
+                .order('youtube_videos(published_at)', desc=True)\
+                .range(offset, offset + per_page - 1)\
+                .execute()
+            
+            posts = []
+            for item in response.data:
+                video = item.get('youtube_videos', {})
+                
+                # Extract data from nested structure
+                video_id = video.get('video_id', '')
+                title = video.get('title', 'Untitled Video')
+                thumbnail_url = video.get('thumbnail_url', f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg")
+                published_at = video.get('published_at', '')
+                url_path = video.get('url_path', '')
+                
+                # Generate URL path if missing
+                if not url_path and title:
+                    url_path = self._generate_url_slug(title)
+                
+                posts.append({
+                    'video_id': video_id,
+                    'title': title,
+                    'summary_text': item.get('summary_text', ''),
+                    'model_used': item.get('model_used', 'gpt-4.1'),
+                    'thumbnail_url': thumbnail_url,
+                    'published_at': published_at,
+                    'created_at': item.get('created_at', ''),
+                    'url_path': url_path,
+                    'channel_name': channel_info['channel_name'],
+                    'channel_handle': channel_info['handle'],
+                    'channel_thumbnail': channel_info.get('thumbnail_url', '')
+                })
+            
+            # Calculate pagination metadata
+            total_pages = (total_summaries + per_page - 1) // per_page
+            has_prev = page > 1
+            has_next = page < total_pages
+            
+            return {
+                'posts': posts,
+                'pagination': {
+                    'page': page,
+                    'per_page': per_page,
+                    'total': total_summaries,
+                    'total_pages': total_pages,
+                    'has_prev': has_prev,
+                    'has_next': has_next,
+                    'prev_page': page - 1 if has_prev else None,
+                    'next_page': page + 1 if has_next else None
+                }
+            }
+            
+        except Exception as e:
+            print(f"Error getting blog summaries by channel paginated: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'posts': [],
+                'pagination': {
+                    'page': page,
+                    'per_page': per_page,
+                    'total': 0,
+                    'total_pages': 0,
+                    'has_prev': False,
+                    'has_next': False,
+                    'prev_page': None,
+                    'next_page': None
+                }
+            }
+
+    def get_blog_summary_by_slug(self, channel_handle: str, url_path: str) -> Optional[Dict]:
+        """Get a specific blog summary by channel handle and URL path"""
+        try:
+            # Get channel info first
+            channel_info = self.get_channel_by_handle(channel_handle)
+            if not channel_info:
+                return None
+            
+            channel_id = channel_info['channel_id']
+            
+            # Get the video by URL path and channel
+            video_response = self.supabase.table('youtube_videos')\
+                .select('*')\
+                .eq('url_path', url_path)\
+                .eq('channel_id', channel_id)\
+                .execute()
+            
+            if not video_response.data:
+                return None
+            
+            video = video_response.data[0]
+            video_id = video['video_id']
+            
+            # Get the current summary for this video
+            summary_response = self.supabase.table('summaries')\
+                .select('*')\
+                .eq('video_id', video_id)\
+                .eq('is_current', True)\
+                .execute()
+            
+            if not summary_response.data:
+                return None
+            
+            summary = summary_response.data[0]
+            
+            return {
+                'video_id': video_id,
+                'title': video.get('title', 'Untitled Video'),
+                'summary_text': summary.get('summary_text', ''),
+                'model_used': summary.get('model_used', 'gpt-4.1'),
+                'thumbnail_url': video.get('thumbnail_url', f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"),
+                'published_at': video.get('published_at', ''),
+                'created_at': summary.get('created_at', ''),
+                'url_path': video.get('url_path', ''),
+                'channel_name': channel_info['channel_name'],
+                'channel_handle': channel_info['handle'],
+                'channel_thumbnail': channel_info.get('thumbnail_url', ''),
+                'channel_id': channel_info['channel_id'],
+                'duration': video.get('duration')
+            }
+            
+        except Exception as e:
+            print(f"Error getting blog summary by slug: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
 
 # Global database storage instance
 database_storage = DatabaseStorage()

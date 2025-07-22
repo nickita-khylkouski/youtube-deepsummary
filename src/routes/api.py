@@ -262,6 +262,26 @@ def cache_cleanup():
         }), 500
 
 
+@api_bp.route('/storage/stats')
+def storage_stats():
+    """API endpoint to get comprehensive storage statistics including channels with summaries"""
+    try:
+        stats = database_storage.get_storage_stats()
+        return jsonify(stats)
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'stats': {
+                'channels_with_summaries': [],
+                'total_videos': 0,
+                'total_transcripts': 0,
+                'total_summaries': 0,
+                'total_channels': 0
+            }
+        }), 500
+
+
 @api_bp.route('/delete/<video_id>', methods=['DELETE'])
 def delete_video(video_id):
     """API endpoint to delete a video from storage"""

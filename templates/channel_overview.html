@@ -15,7 +15,7 @@
                 {{ channel_info.channel_name[0]|upper if channel_info.channel_name else '📺' }}
             </div>
         {% endif %}
-        <div style="flex: 1; min-width: 0; padding-right: 200px;">
+        <div style="flex: 1; min-width: 0; padding-right: 320px;">
             <h1 style="margin: 0 0 10px 0; font-size: 32px; font-weight: bold;">{{ channel_info.channel_name }}</h1>
             <p style="margin: 0 0 15px 0; font-size: 18px; opacity: 0.9;">{{ channel_info.handle }}</p>
             {% if channel_info.channel_description %}
@@ -26,9 +26,16 @@
         </div>
     </div>
     
-    <!-- Chat Button in Bottom Right of Header -->
+    <!-- Action Buttons in Bottom Right of Header -->
     {% if summary_count > 0 %}
-    <div style="position: absolute; bottom: 20px; right: 20px;">
+    <div style="position: absolute; bottom: 20px; right: 20px; display: flex; gap: 12px;">
+        <a href="/blog/{{ channel_info.handle[1:] if channel_info.handle.startswith('@') else channel_info.handle }}" 
+           style="background: rgba(255,255,255,0.15); color: white; border: 2px solid rgba(255,255,255,0.3); padding: 12px 20px; border-radius: 25px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 8px; text-decoration: none; backdrop-filter: blur(10px);"
+           onmouseover="this.style.background='rgba(255,255,255,0.25)'; this.style.borderColor='rgba(255,255,255,0.5)'; this.style.transform='translateY(-1px)';"
+           onmouseout="this.style.background='rgba(255,255,255,0.15)'; this.style.borderColor='rgba(255,255,255,0.3)'; this.style.transform='translateY(0)';">
+            <span style="font-size: 18px;">📝</span>
+            <span>View Blog</span>
+        </a>
         <a href="/{{ channel_info.handle }}/chat" 
            style="background: rgba(255,255,255,0.15); color: white; border: 2px solid rgba(255,255,255,0.3); padding: 12px 20px; border-radius: 25px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 8px; text-decoration: none; backdrop-filter: blur(10px);"
            onmouseover="this.style.background='rgba(255,255,255,0.25)'; this.style.borderColor='rgba(255,255,255,0.5)'; this.style.transform='translateY(-1px)';"
@@ -309,11 +316,13 @@
             padding-right: 0 !important;
         }
         
-        /* Chat button in header mobile adjustments */
+        /* Action buttons in header mobile adjustments */
         .channel-header div[style*="position: absolute"] {
             position: static !important;
             margin-top: 20px;
             text-align: center;
+            flex-wrap: wrap;
+            justify-content: center;
         }
         
         .channel-header h1 {

@@ -1,0 +1,35 @@
+<article class="reading-post">
+    <header class="post-header">
+        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+            {% if post.channel_thumbnail %}
+            <img src="{{ post.channel_thumbnail }}" alt="{{ post.channel_name }}" 
+                 style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+            {% endif %}
+            <div>
+                <h4 style="margin: 0; font-size: 16px; font-weight: 600; color: #667eea;">{{ post.channel_name }}</h4>
+                <p style="margin: 2px 0 0 0; font-size: 14px; color: #6c757d;">{{ post.published_at[:10] if post.published_at else 'Unknown date' }}</p>
+            </div>
+        </div>
+        <h2 style="margin: 0 0 15px 0; font-size: 28px; font-weight: 700; color: #1a1a1a; line-height: 1.3;">
+            {{ post.title }}
+        </h2>
+        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+            <a href="https://youtube.com/watch?v={{ post.video_id }}" target="_blank" 
+               style="color: #ff0000; text-decoration: none; font-weight: 500; font-size: 14px; display: flex; align-items: center; gap: 6px;">
+                🎥 Watch on YouTube
+            </a>
+            <span style="color: #6c757d; font-size: 14px;">•</span>
+            <span style="color: #6c757d; font-size: 14px;">AI Summary by {{ post.model_used or 'GPT-4' }}</span>
+        </div>
+    </header>
+    
+    <div class="post-content">
+        {% if post.summary_html %}
+            {{ post.summary_html|safe }}
+        {% elif post.summary_text %}
+            {{ post.summary_text|replace('\n\n', '<br><br>')|replace('\n', '<br>')|safe }}
+        {% else %}
+            <p style="color: #6c757d; font-style: italic;">No summary available for this video.</p>
+        {% endif %}
+    </div>
+</article>

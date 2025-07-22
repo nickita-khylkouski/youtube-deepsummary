@@ -20,11 +20,38 @@
 </div>
 
 <div class="blog-container" style="max-width: 1200px; margin: 0 auto; padding: 0 20px;">
-    <div class="blog-grid" id="blog-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 30px; margin-bottom: 40px;">
-        <!-- Initial posts loaded from server -->
-        {% for post in initial_posts %}
-            {% include 'blog/blog_card.html' %}
-        {% endfor %}
+    <!-- Channel Navigation Section -->
+    <div class="channel-navigation" style="background: #f8f9fa; border-radius: 12px; padding: 30px; margin-bottom: 40px; border: 1px solid #e9ecef;">
+        <h2 style="margin: 0 0 20px 0; font-size: 24px; font-weight: 700; color: #333; text-align: center;">📺 Browse by Channel</h2>
+        <p style="text-align: center; color: #6c757d; margin-bottom: 25px; font-size: 16px;">Explore AI video summaries organized by your favorite YouTube channels</p>
+        
+        <div id="channel-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+            <!-- Channel cards will be loaded here -->
+        </div>
+        
+        <div style="text-align: center; margin-top: 25px;">
+            <a href="/channels" style="color: #667eea; text-decoration: none; font-weight: 600; font-size: 16px;">
+                View All Channels →
+            </a>
+        </div>
+    </div>
+
+    <!-- Featured Channels Section -->
+    <div class="featured-channels-section">
+        <h2 style="margin: 0 0 20px 0; font-size: 28px; font-weight: 700; color: #333; text-align: center;">🌟 Featured Channels</h2>
+        <p style="text-align: center; color: #6c757d; margin-bottom: 40px; font-size: 18px; max-width: 800px; margin-left: auto; margin-right: auto;">
+            Choose a channel to explore their AI-powered video summaries. Perfect for researching specific topics or following your favorite content creators.
+        </p>
+        
+        <div id="featured-channels-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; margin-bottom: 40px;">
+            <!-- Featured channel cards will be loaded here -->
+        </div>
+        
+        <div style="text-align: center; margin-top: 40px;">
+            <a href="/channels" style="display: inline-block; background: #667eea; color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
+                View All Channels
+            </a>
+        </div>
     </div>
     
     <!-- Loading indicator -->
@@ -49,14 +76,24 @@
         background: white;
         border-radius: 12px;
         overflow: hidden;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
         border: 1px solid #e9ecef;
+        position: relative;
     }
     
     .blog-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        transform: translateY(-8px);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+    }
+    
+    .blog-card:hover .blog-cta-button {
+        background: #555 !important;
+        transform: translateY(-2px);
+    }
+    
+    .blog-card .blog-title-link:hover {
+        color: #667eea !important;
     }
     
     @media (max-width: 768px) {
@@ -84,9 +121,7 @@
 </style>
 
 <script>
-let currentOffset = {{ initial_posts|length }};
-let isLoading = false;
-let hasMorePosts = {{ 'true' if initial_posts|length >= 12 else 'false' }};
+// Remove infinite scroll variables since we're showing channel selection
 
 // Load blog stats
 async function loadBlogStats() {
@@ -102,44 +137,141 @@ async function loadBlogStats() {
     }
 }
 
-// Load more posts
-async function loadMorePosts() {
-    if (isLoading || !hasMorePosts) return;
-    
-    isLoading = true;
-    document.getElementById('loading-indicator').style.display = 'block';
-    
+// Load featured channels for main display
+async function loadFeaturedChannels() {
     try {
-        const response = await fetch(`/blog/api/posts?offset=${currentOffset}&limit=12`);
+        // Get channels with blog posts
+        const response = await fetch('/api/storage/stats');
         const data = await response.json();
         
-        if (data.success && data.posts.length > 0) {
-            const blogGrid = document.getElementById('blog-grid');
+        if (data.success && data.stats.channels_with_summaries) {
+            // Load both grids
+            const channelGrid = document.getElementById('channel-grid');
+            const featuredGrid = document.getElementById('featured-channels-grid');
             
-            data.posts.forEach(post => {
-                const card = createBlogCard(post);
-                blogGrid.appendChild(card);
+            const channels = data.stats.channels_with_summaries;
+            
+            // Top 8 for navigation
+            channels.slice(0, 8).forEach(channel => {
+                if (channel.handle) {
+                    const cleanHandle = channel.handle.startsWith('@') ? channel.handle.substring(1) : channel.handle;
+                    const channelCard = createChannelCard(channel, cleanHandle);
+                    channelGrid.appendChild(channelCard);
+                }
             });
             
-            currentOffset += data.posts.length;
-            hasMorePosts = data.has_more;
-            
-            // Update total count
-            document.getElementById('total-posts').textContent = currentOffset;
-        } else {
-            hasMorePosts = false;
-        }
-        
-        if (!hasMorePosts) {
-            document.getElementById('end-indicator').style.display = 'block';
+            // All channels for featured section (larger cards)
+            channels.forEach(channel => {
+                if (channel.handle) {
+                    const cleanHandle = channel.handle.startsWith('@') ? channel.handle.substring(1) : channel.handle;
+                    const featuredCard = createFeaturedChannelCard(channel, cleanHandle);
+                    featuredGrid.appendChild(featuredCard);
+                }
+            });
         }
     } catch (error) {
-        console.error('Error loading more posts:', error);
-        hasMorePosts = false;
-    } finally {
-        isLoading = false;
-        document.getElementById('loading-indicator').style.display = 'none';
+        console.error('Error loading featured channels:', error);
     }
+}
+
+// Create channel card for navigation
+function createChannelCard(channel, cleanHandle) {
+    const card = document.createElement('div');
+    card.style.cssText = `
+        background: white; 
+        border-radius: 8px; 
+        padding: 20px; 
+        text-align: center; 
+        border: 1px solid #e9ecef; 
+        transition: all 0.2s ease; 
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    `;
+    
+    card.innerHTML = `
+        <div style="margin-bottom: 15px;">
+            <img src="${channel.thumbnail_url || '/static/default-avatar.svg'}" 
+                 alt="${channel.channel_name}" 
+                 style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid #f8f9fa;">
+        </div>
+        <h4 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: #333; line-height: 1.2;">
+            ${channel.channel_name}
+        </h4>
+        <p style="margin: 0 0 8px 0; color: #6c757d; font-size: 14px;">
+            ${channel.summary_count} AI summaries
+        </p>
+        <div style="color: #667eea; font-size: 12px; font-weight: 600;">
+            View Blog →
+        </div>
+    `;
+    
+    // Add hover effects
+    card.addEventListener('mouseenter', () => {
+        card.style.transform = 'translateY(-4px)';
+        card.style.boxShadow = '0 8px 25px rgba(0,0,0,0.1)';
+    });
+    
+    card.addEventListener('mouseleave', () => {
+        card.style.transform = 'translateY(0)';
+        card.style.boxShadow = '0 2px 8px rgba(0,0,0,0.05)';
+    });
+    
+    // Add click handler
+    card.addEventListener('click', () => {
+        window.location.href = `/blog/${cleanHandle}`;
+    });
+    
+    return card;
+}
+
+// Create featured channel card (larger version)
+function createFeaturedChannelCard(channel, cleanHandle) {
+    const card = document.createElement('div');
+    card.style.cssText = `
+        background: white; 
+        border-radius: 12px; 
+        padding: 30px; 
+        text-align: center; 
+        border: 1px solid #e9ecef; 
+        transition: all 0.3s ease; 
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    `;
+    
+    card.innerHTML = `
+        <div style="margin-bottom: 20px;">
+            <img src="${channel.thumbnail_url || '/static/default-avatar.svg'}" 
+                 alt="${channel.channel_name}" 
+                 style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 4px solid #f8f9fa;">
+        </div>
+        <h3 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 700; color: #333; line-height: 1.2;">
+            ${channel.channel_name}
+        </h3>
+        <p style="margin: 0 0 15px 0; color: #6c757d; font-size: 16px;">
+            ${channel.summary_count} AI video summaries
+        </p>
+        <div style="background: #667eea; color: white; padding: 12px 24px; border-radius: 6px; font-size: 14px; font-weight: 600; display: inline-block;">
+            Explore Channel Blog →
+        </div>
+    `;
+    
+    // Add hover effects
+    card.addEventListener('mouseenter', () => {
+        card.style.transform = 'translateY(-8px)';
+        card.style.boxShadow = '0 12px 30px rgba(0,0,0,0.15)';
+    });
+    
+    card.addEventListener('mouseleave', () => {
+        card.style.transform = 'translateY(0)';
+        card.style.boxShadow = '0 4px 15px rgba(0,0,0,0.08)';
+    });
+    
+    // Click handler
+    card.addEventListener('click', () => {
+        window.location.href = `/blog/${cleanHandle}`;
+    });
+    
+    return card;
 }
 
 // Create blog card HTML
@@ -147,7 +279,9 @@ function createBlogCard(post) {
     const card = document.createElement('div');
     card.className = 'blog-card';
     
-    const blogUrl = `/blog/${post.channel_handle}/${post.url_path}`;
+    // Remove @ symbol from channel handle for URLs
+    const cleanHandle = post.channel_handle.startsWith('@') ? post.channel_handle.substring(1) : post.channel_handle;
+    const blogUrl = `/blog/${cleanHandle}/${post.url_path}`;
     const publishDate = new Date(post.published_at).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
@@ -155,32 +289,65 @@ function createBlogCard(post) {
     });
     
     card.innerHTML = `
-        <div style="position: relative;">
+        <!-- Top Section: Large Thumbnail -->
+        <div style="position: relative; width: 100%; height: 220px; overflow: hidden;">
             <img src="${post.thumbnail_url}" alt="${post.title}" 
-                 style="width: 100%; height: 200px; object-fit: cover;">
+                 style="width: 100%; height: 100%; object-fit: cover;">
+            
+            <!-- Channel author image overlay on left (only show if thumbnail exists) -->
+            ${post.channel_thumbnail ? `
+            <div style="position: absolute; top: 15px; left: 15px;">
+                <img src="${post.channel_thumbnail}" alt="${post.channel_name}" 
+                     style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+            </div>
+            ` : ''}
+            
+            
+            <!-- Duration badge -->
             <div style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.8); color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">
-                ${post.duration}
+                ${post.duration && post.duration !== 'N/A' ? post.duration : 'Video'}
             </div>
         </div>
-        <div style="padding: 20px;">
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
-                <img src="${post.channel_thumbnail || '/static/default-avatar.png'}" alt="${post.channel_name}" 
-                     style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;">
-                <a href="/blog/${post.channel_handle}" style="color: #667eea; text-decoration: none; font-size: 14px; font-weight: 500;">
-                    ${post.channel_name}
+        
+        <!-- Content Section -->
+        <div style="padding: 25px 20px;">
+            <!-- Title Section -->
+            <h3 style="margin: 0 0 15px 0; font-size: 20px; font-weight: 700; line-height: 1.3; color: #333;">
+                <a href="${blogUrl}" class="blog-title-link" style="color: #333; text-decoration: none; display: block;">
+                    ${post.title}
                 </a>
-                <span style="color: #6c757d; font-size: 12px;">•</span>
-                <span style="color: #6c757d; font-size: 12px;">${publishDate}</span>
-            </div>
-            <h3 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; line-height: 1.4;">
-                <a href="${blogUrl}" style="color: #333; text-decoration: none;">${post.title}</a>
             </h3>
-            <p style="margin: 0 0 15px 0; color: #6c757d; font-size: 14px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
-                ${post.summary_preview || 'AI-generated summary available...'}
+            
+            <!-- Body Preview Text -->
+            <p style="margin: 0 0 20px 0; color: #6c757d; font-size: 15px; line-height: 1.6; 
+                      display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+                      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                ${post.summary_preview || 'Discover insights from this video through our AI-powered analysis. Get key takeaways, main topics, and actionable strategies in an easy-to-read format.'}
             </p>
-            <a href="${blogUrl}" style="color: #667eea; text-decoration: none; font-size: 14px; font-weight: 500;">
-                Read full summary →
-            </a>
+            
+            <!-- CTA Button -->
+            <div style="margin-bottom: 20px;">
+                <a href="${blogUrl}" class="blog-cta-button"
+                   style="display: inline-block; background: #333; color: white; padding: 12px 24px; 
+                          border-radius: 6px; text-decoration: none; font-weight: 700; font-size: 14px; 
+                          text-transform: uppercase; letter-spacing: 0.5px; 
+                          box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: all 0.2s ease;">
+                    READ MORE »
+                </a>
+            </div>
+            
+            <!-- Author & Date Bar -->
+            <div style="display: flex; justify-content: space-between; align-items: center; 
+                        padding-top: 15px; border-top: 1px solid #e9ecef;">
+                <div style="font-weight: 700; font-size: 12px; color: #333; text-transform: uppercase; letter-spacing: 1px;">
+                    <a href="/blog/${cleanHandle}" style="color: #333; text-decoration: none;">
+                        ${post.channel_name}
+                    </a>
+                </div>
+                <div style="font-weight: 700; font-size: 12px; color: #333; text-transform: uppercase; letter-spacing: 1px;">
+                    ${publishDate.toUpperCase()}
+                </div>
+            </div>
         </div>
     `;
     
@@ -197,7 +364,7 @@ function handleScroll() {
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
     loadBlogStats();
-    window.addEventListener('scroll', handleScroll);
+    loadFeaturedChannels();
 });
 </script>
 {% endblock %}

@@ -12,39 +12,46 @@ blog_bp = Blueprint('blog', __name__, url_prefix='/blog')
 
 @blog_bp.route('/')
 def blog_home():
-    """Main blog listing page with infinite scroll"""
+    """Main blog page with channel selection"""
     try:
-        # Get initial batch of blog posts (first 12)
-        result = database_storage.get_blog_summaries_paginated(page=1, per_page=12)
-        posts = result.get('posts', [])
-        
-        # Get total count from pagination info
+        # Get total count for stats display
+        result = database_storage.get_blog_summaries_paginated(page=1, per_page=1)
         total_count = result.get('pagination', {}).get('total', 0)
         
         return render_template('blog/blog_home.html', 
-                             initial_posts=posts,
                              total_count=total_count,
-                             page_title="AI Video Blog")
+                             page_title="AI Video Blog - Choose a Channel")
     except Exception as e:
         print(f"Error loading blog home: {e}")
         return render_template('error.html', 
-                             error="Failed to load blog posts"), 500
+                             error="Failed to load blog home"), 500
 
 
 @blog_bp.route('/<channel_handle>')
 def channel_blog(channel_handle):
     """Channel-specific blog listing page"""
     try:
+        # Ensure handle has @ prefix for database lookup
+        handle_with_at = f"@{channel_handle}" if not channel_handle.startswith('@') else channel_handle
+        
         # Get channel info
-        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        channel_info = database_storage.get_channel_by_handle(handle_with_at)
         if not channel_info:
             abort(404)
         
         # Get initial batch of channel blog posts (first 12)
         result = database_storage.get_blog_summaries_by_channel_paginated(
-            channel_handle, page=1, per_page=12
+            handle_with_at, page=1, per_page=12
         )
         posts = result.get('posts', [])
+        
+        # Convert markdown to HTML for each post
+        for post in posts:
+            if post.get('summary_text'):
+                post['summary_html'] = markdown.markdown(
+                    post['summary_text'],
+                    extensions=['nl2br', 'fenced_code', 'tables']
+                )
         
         # Get total count from pagination info
         total_count = result.get('pagination', {}).get('total', 0)
@@ -64,8 +71,11 @@ def channel_blog(channel_handle):
 def blog_post(channel_handle, url_path):
     """Individual blog post page"""
     try:
+        # Ensure handle has @ prefix for database lookup
+        handle_with_at = f"@{channel_handle}" if not channel_handle.startswith('@') else channel_handle
+        
         # Get the blog post data
-        post = database_storage.get_blog_summary_by_slug(channel_handle, url_path)
+        post = database_storage.get_blog_summary_by_slug(handle_with_at, url_path)
         if not post:
             abort(404)
         
@@ -81,7 +91,7 @@ def blog_post(channel_handle, url_path):
         
         # Get related posts from same channel (excluding current post)
         related_result = database_storage.get_blog_summaries_by_channel_paginated(
-            channel_handle, page=1, per_page=6
+            handle_with_at, page=1, per_page=6
         )
         related_posts = related_result.get('posts', [])
         # Filter out current post
@@ -132,6 +142,9 @@ def api_blog_posts():
 def api_channel_blog_posts(channel_handle):
     """API endpoint for infinite scroll - channel-specific posts"""
     try:
+        # Ensure handle has @ prefix for database lookup
+        handle_with_at = f"@{channel_handle}" if not channel_handle.startswith('@') else channel_handle
+        
         offset = request.args.get('offset', 0, type=int)
         limit = request.args.get('limit', 12, type=int)
         
@@ -142,9 +155,17 @@ def api_channel_blog_posts(channel_handle):
         page = (offset // limit) + 1
         
         result = database_storage.get_blog_summaries_by_channel_paginated(
-            channel_handle, page=page, per_page=limit
+            handle_with_at, page=page, per_page=limit
         )
         posts = result.get('posts', [])
+        
+        # Convert markdown to HTML for each post
+        for post in posts:
+            if post.get('summary_text'):
+                post['summary_html'] = markdown.markdown(
+                    post['summary_text'],
+                    extensions=['nl2br', 'fenced_code', 'tables']
+                )
         
         return jsonify({
             'success': True,
