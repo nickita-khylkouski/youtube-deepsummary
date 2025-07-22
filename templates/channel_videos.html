@@ -8,11 +8,12 @@
     </div>
 
     <div style="margin-bottom: 20px;">
-        <div style="display: flex; align-items: center; gap: 15px;">
+        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
             <a href="/channels" style="color: #666; text-decoration: none; font-size: 14px;">← All Channels</a>
             <span style="color: #ccc;">•</span>
             <a href="/{{ channel_info.handle if channel_info else channel_name }}" style="color: #666; text-decoration: none; font-size: 14px;">Channel Overview</a>
         </div>
+        
     </div>
 
     {% if videos %}

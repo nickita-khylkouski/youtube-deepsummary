@@ -39,12 +39,18 @@ The application follows a modular architecture with all source code organized in
 - **`src/transcript_summarizer.py`** - Legacy compatibility wrapper (delegates to `src/summarizer.py`)
 - **`src/youtube_api.py`** - YouTube Data API integration for channel and video information
 
+#### Chat Components (Modular Architecture)
+- **`src/chat_manager.py`** - Core chat business logic (session management, message processing, AI coordination)
+- **`src/conversation_context.py`** - Context building from channel summaries with length management
+- **`src/chat_formatter.py`** - Message formatting, prompt creation, and response processing
+
 #### Web Interface (`/src/routes`)
 - **`src/routes/main.py`** - Main routes: home page, `/watch` redirects, favicon
 - **`src/routes/api.py`** - API endpoints for transcript data, summaries, and video operations
 - **`src/routes/channels.py`** - Channel management: overview, videos, summaries
 - **`src/routes/videos.py`** - Video display and transcript viewing
 - **`src/routes/snippets.py`** - Memory snippets management and display
+- **`src/routes/chat.py`** - Channel chat interface and API endpoints (uses modular chat components)
 
 #### Utilities
 - **`src/utils/helpers.py`** - Utility functions: video ID extraction, markdown conversion, URL parsing
