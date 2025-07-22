@@ -68,6 +68,21 @@
     
     <!-- Sidebar -->
     <aside class="blog-sidebar" style="position: sticky; top: 20px; height: fit-content;">
+        <!-- View Controls -->
+        <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e5e5; margin-bottom: 20px;">
+            <h3 style="margin: 0 0 20px 0; font-size: 18px; color: #333; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                ⚙️ View Options
+            </h3>
+            <button id="toggle-all-content" 
+                    style="width: 100%; background: #667eea; color: white; padding: 12px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 8px;"
+                    onmouseover="this.style.background='#5a6fd8'"
+                    onmouseout="this.style.background='#667eea'"
+                    onclick="toggleAllContent()">
+                <span id="toggle-icon">📖</span>
+                <span id="toggle-text">Collapse All</span>
+            </button>
+        </div>
+
         <!-- Recent Posts -->
         <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e5e5; margin-bottom: 20px;">
             <h3 style="margin: 0 0 20px 0; font-size: 18px; color: #333; font-weight: 600; display: flex; align-items: center; gap: 8px;">
@@ -137,6 +152,7 @@ let loading = false;
 let hasMorePosts = {{ 'true' if has_more_posts else 'false' }};
 const postsPerPage = 10;
 const channelHandle = '{{ channel_info.handle }}';
+let allContentCollapsed = false;
 
 // Initialize blog when page loads
 document.addEventListener('DOMContentLoaded', function() {
@@ -249,7 +265,7 @@ function createBlogPostElement(post) {
             </header>
             
             <!-- Post Content (AI Summary) -->
-            <div class="blog-post-content" style="color: #333; line-height: 1.7; font-size: 16px;">
+            <div class="blog-post-content" style="color: #333; line-height: 1.7; font-size: 16px; ${allContentCollapsed ? 'display: none;' : ''}">
                 ${post.summary}
             </div>
         </div>
@@ -289,6 +305,32 @@ function showError(message) {
 }
 
 // Recent posts sidebar is now server-side rendered for SEO
+
+// Toggle all content functionality
+function toggleAllContent() {
+    const allContentDivs = document.querySelectorAll('.blog-post-content');
+    const toggleIcon = document.getElementById('toggle-icon');
+    const toggleText = document.getElementById('toggle-text');
+    
+    allContentCollapsed = !allContentCollapsed;
+    
+    allContentDivs.forEach(contentDiv => {
+        if (allContentCollapsed) {
+            contentDiv.style.display = 'none';
+        } else {
+            contentDiv.style.display = 'block';
+        }
+    });
+    
+    // Update button appearance
+    if (allContentCollapsed) {
+        toggleIcon.textContent = '📄';
+        toggleText.textContent = 'Expand All';
+    } else {
+        toggleIcon.textContent = '📖';
+        toggleText.textContent = 'Collapse All';
+    }
+}
 </script>
 
 <style>
