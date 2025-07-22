@@ -103,6 +103,9 @@ def generate_chapter_summary():
         video_id = data.get('video_id')
         chapter_time = data.get('chapter_time')
         chapter_title = data.get('chapter_title')
+        force_regenerate = data.get('force_regenerate', False)
+        model = data.get('model')
+        prompt_id = data.get('prompt_id')
 
         if not video_id or chapter_time is None:
             return jsonify({'success': False, 'error': 'video_id and chapter_time are required'}), 400
@@ -127,9 +130,9 @@ def generate_chapter_summary():
         if not chapter_transcript:
             return jsonify({'success': False, 'error': 'Could not extract transcript for this chapter'}), 400
 
-        # Check if chapter summary already exists
+        # Check if chapter summary already exists and if we should use it
         existing_summary = database_storage.get_chapter_summary(video_id, chapter_time)
-        if existing_summary:
+        if existing_summary and not force_regenerate:
             # Return existing summary
             formatted_summary = format_summary_html(existing_summary['summary_text'])
             return jsonify({
@@ -138,28 +141,72 @@ def generate_chapter_summary():
                 'chapter_title': chapter_title,
                 'video_id': video_id,
                 'model_used': existing_summary['model_used'],
+                'prompt_id': existing_summary.get('prompt_id'),
+                'prompt_name': existing_summary.get('prompt_name'),
                 'cached': True
             })
 
-        # Get the main AI model from settings (same as used for video summaries)
-        summarizer_settings = database_storage.get_summarizer_settings()
-        main_model = summarizer_settings.get('model', 'gpt-4.1-mini')  # Use main model setting
+        # Determine model to use
+        if model:
+            # Use custom model for regeneration
+            model_to_use = model
+        else:
+            # Get the main AI model from settings (same as used for video summaries)
+            summarizer_settings = database_storage.get_summarizer_settings()
+            model_to_use = summarizer_settings.get('model', 'gpt-4.1-mini')  # Use main model setting
         
         # Generate summary for the chapter
-        summary = video_processor.summarizer.summarize_chapter(
-            chapter_transcript, 
-            chapter_title,
-            video_id,
-            video_data.get('video_info', {})
-        )
+        if force_regenerate and model and prompt_id:
+            # Get the custom prompt text
+            prompt_data = database_storage.get_ai_prompt_by_id(prompt_id)
+            custom_prompt = prompt_data['prompt_text'] if prompt_data else None
+            
+            if custom_prompt:
+                # Replace placeholder in custom prompt with chapter-specific content
+                chapter_context = f"Chapter: {chapter_title}\n\nChapter Content: {chapter_transcript}"
+                custom_prompt_filled = custom_prompt.replace('{transcript}', chapter_context)
+                
+                # Use custom model and prompt for regeneration
+                summary = video_processor.summarizer.summarize_with_model(
+                    chapter_transcript, 
+                    model_to_use,
+                    chapters=None,
+                    video_id=video_id,
+                    video_info=video_data.get('video_info', {}),
+                    custom_prompt=custom_prompt_filled
+                )
+            else:
+                # Fall back to standard chapter summarization if prompt not found
+                summary = video_processor.summarizer.summarize_chapter(
+                    chapter_transcript, 
+                    chapter_title,
+                    video_id,
+                    video_data.get('video_info', {})
+                )
+        else:
+            # Use standard chapter summarization
+            summary = video_processor.summarizer.summarize_chapter(
+                chapter_transcript, 
+                chapter_title,
+                video_id,
+                video_data.get('video_info', {})
+            )
 
+        # Get prompt name if prompt_id was used for regeneration
+        prompt_name = None
+        if prompt_id:
+            prompt_data = database_storage.get_ai_prompt_by_id(prompt_id)
+            prompt_name = prompt_data['name'] if prompt_data else None
+        
         # Save the summary to database
         summary_id = database_storage.save_chapter_summary(
             video_id, 
             chapter_time, 
             chapter_title, 
             summary,
-            main_model
+            model_to_use,
+            prompt_id,
+            prompt_name
         )
 
         if not summary_id:
@@ -176,7 +223,9 @@ def generate_chapter_summary():
             'summary': formatted_summary,
             'chapter_title': chapter_title,
             'video_id': video_id,
-            'model_used': main_model,
+            'model_used': model_to_use,
+            'prompt_id': prompt_id,
+            'prompt_name': prompt_name,
             'cached': False
         })
 
