@@ -60,24 +60,6 @@
                     {{ post.summary | safe }}
                 </div>
                 
-                <!-- Post Footer -->
-                <footer style="margin-top: 25px; padding-top: 20px; border-top: 1px solid #e5e5e5;">
-                    <div style="display: flex; gap: 12px;">
-                        <a href="/{{ channel_info.handle }}/{{ post.url_path }}" 
-                           style="background: #667eea; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease;"
-                           onmouseover="this.style.background='#5a6fd8'"
-                           onmouseout="this.style.background='#667eea'">
-                            📺 Watch Video
-                        </a>
-                        <a href="https://youtube.com/watch?v={{ post.video_id }}" 
-                           target="_blank" 
-                           style="background: #ff0000; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease;"
-                           onmouseover="this.style.background='#e60000'"
-                           onmouseout="this.style.background='#ff0000'">
-                            🔗 YouTube
-                        </a>
-                    </div>
-                </footer>
             </div>
         </article>
         {% endfor %}
@@ -270,25 +252,6 @@ function createBlogPostElement(post) {
             <div class="blog-post-content" style="color: #333; line-height: 1.7; font-size: 16px;">
                 ${post.summary}
             </div>
-            
-            <!-- Post Footer -->
-            <footer style="margin-top: 25px; padding-top: 20px; border-top: 1px solid #e5e5e5;">
-                <div style="display: flex; gap: 12px;">
-                    <a href="${post.url_path ? `/${channelHandle.replace('@', '')}/${post.url_path}` : `/watch?v=${post.video_id}`}" 
-                       style="background: #667eea; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease;"
-                       onmouseover="this.style.background='#5a6fd8'"
-                       onmouseout="this.style.background='#667eea'">
-                        📺 Watch Video
-                    </a>
-                    <a href="https://youtube.com/watch?v=${post.video_id}" 
-                       target="_blank" 
-                       style="background: #ff0000; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease;"
-                       onmouseover="this.style.background='#e60000'"
-                       onmouseout="this.style.background='#ff0000'">
-                        🔗 YouTube
-                    </a>
-                </div>
-            </footer>
         </div>
     `;
     
