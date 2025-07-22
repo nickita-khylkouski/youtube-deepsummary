@@ -204,6 +204,145 @@ def export_summaries(channel_handle):
         return jsonify({'error': f'Export failed: {str(e)}'}), 500
 
 
+@channels_bp.route('/<channel_handle>')
+def channel_blog(channel_handle):
+    """Display blog-style listing of AI summaries with infinite scrolling"""
+    try:
+        # Get channel info by handle
+        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return render_template('error.html', 
+                                 error_message=f"Channel not found: {channel_handle}"), 404
+        
+        # Get all videos for this channel
+        channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
+        
+        # Filter videos that have summaries and sort by published_at (most recent first)
+        videos_with_summaries = []
+        for video in channel_videos:
+            summary = database_storage.get_summary(video['video_id'])
+            if summary:
+                videos_with_summaries.append({
+                    'video_id': video['video_id'],
+                    'title': video['title'],
+                    'channel_name': video.get('channel_name'),
+                    'channel_id': video.get('channel_id'),
+                    'duration': video['duration'],
+                    'thumbnail_url': f"https://img.youtube.com/vi/{video['video_id']}/maxresdefault.jpg",
+                    'summary': summary,
+                    'published_at': video.get('published_at'),
+                    'url_path': video.get('url_path'),
+                    'uploader': video.get('uploader')
+                })
+        
+        # Only show blog if there are summaries available
+        if not videos_with_summaries:
+            return render_template('error.html', 
+                                 error_message=f"No blog posts available for {channel_info['channel_name']}. Blog requires at least one AI summary."), 404
+        
+        # Sort by published_at descending (most recent first)
+        videos_with_summaries.sort(
+            key=lambda x: x.get('published_at') or '1970-01-01', 
+            reverse=True
+        )
+        
+        # Get initial posts (first 10) for server-side rendering
+        posts_per_page = 10
+        initial_posts = videos_with_summaries[:posts_per_page]
+        
+        # Format summaries as HTML for initial posts
+        for post in initial_posts:
+            post['summary'] = format_summary_html(post['summary'])
+        
+        # Get recent posts for sidebar (first 8)
+        recent_posts = videos_with_summaries[:8]
+        
+        # Calculate if there are more posts for infinite scrolling
+        has_more_posts = len(videos_with_summaries) > posts_per_page
+        
+        return render_template('blog.html', 
+                             channel_info=channel_info,
+                             channel_handle=channel_handle,
+                             summary_count=len(videos_with_summaries),
+                             initial_posts=initial_posts,
+                             recent_posts=recent_posts,
+                             has_more_posts=has_more_posts,
+                             total_posts=len(videos_with_summaries))
+        
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading blog page: {str(e)}"), 500
+
+
+@channels_bp.route('/<channel_handle>/<post_slug>')
+def individual_blog_post(channel_handle, post_slug):
+    """Display individual blog post for a specific video"""
+    try:
+        # Get channel info by handle
+        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return render_template('error.html', 
+                                 error_message=f"Channel not found: {channel_handle}"), 404
+        
+        # Get all videos for this channel to find the matching post
+        channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
+        
+        # Find the video matching the post slug
+        target_video = None
+        for video in channel_videos:
+            # Check if this video has a summary and matches the slug
+            if video.get('url_path') and video['url_path'] == post_slug:
+                summary = database_storage.get_summary(video['video_id'])
+                if summary:
+                    target_video = video
+                    target_video['summary'] = summary
+                    break
+        
+        if not target_video:
+            return render_template('error.html', 
+                                 error_message=f"Blog post not found: {post_slug}"), 404
+        
+        # Get all videos with summaries for navigation (sorted by publish date)
+        videos_with_summaries = []
+        for video in channel_videos:
+            summary = database_storage.get_summary(video['video_id'])
+            if summary:
+                videos_with_summaries.append({
+                    'video_id': video['video_id'],
+                    'title': video['title'],
+                    'url_path': video.get('url_path'),
+                    'published_at': video.get('published_at')
+                })
+        
+        # Sort by published_at descending (most recent first)
+        videos_with_summaries.sort(
+            key=lambda x: x.get('published_at') or '1970-01-01', 
+            reverse=True
+        )
+        
+        # Find previous and next posts
+        current_index = next((i for i, v in enumerate(videos_with_summaries) 
+                            if v['video_id'] == target_video['video_id']), None)
+        
+        prev_post = videos_with_summaries[current_index - 1] if current_index and current_index > 0 else None
+        next_post = videos_with_summaries[current_index + 1] if current_index is not None and current_index < len(videos_with_summaries) - 1 else None
+        
+        # Format summary as HTML
+        target_video['summary'] = format_summary_html(target_video['summary'])
+        
+        return render_template('blog_post.html',
+                             channel_info=channel_info,
+                             channel_handle=channel_handle,
+                             post=target_video,
+                             prev_post=prev_post,
+                             next_post=next_post,
+                             total_posts=len(videos_with_summaries))
+        
+    except Exception as e:
+        return render_template('error.html', 
+                             error_message=f"Error loading blog post: {str(e)}"), 500
+
+
 @channels_bp.route('/@<channel_handle>/chat', strict_slashes=False)
 def channel_chat(channel_handle):
     """Display dedicated chat page for a specific channel"""

@@ -72,6 +72,26 @@
     </div>
     {% endif %}
     
+    {% if summary_count > 0 %}
+    <a href="/{{ channel_info.handle[1:] if channel_info.handle.startswith('@') else channel_info.handle }}" style="text-decoration: none; color: inherit;">
+        <div class="stat-card clickable" style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; border-left: 4px solid #9c27b0; transition: all 0.3s ease; cursor: pointer;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <span style="font-size: 18px;">📝</span>
+                <span style="font-size: 24px; font-weight: bold; color: #9c27b0;">{{ summary_count }}</span>
+                <span style="color: #666; font-weight: 500; font-size: 14px;">Blog Post{{ 's' if summary_count != 1 else '' }}</span>
+            </div>
+        </div>
+    </a>
+    {% else %}
+    <div class="stat-card disabled" style="background: #f5f5f5; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; border-left: 4px solid #ccc; opacity: 0.6;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <span style="font-size: 18px;">📝</span>
+            <span style="font-size: 24px; font-weight: bold; color: #999;">{{ summary_count }}</span>
+            <span style="color: #999; font-weight: 500; font-size: 14px;">Blog Post{{ 's' if summary_count != 1 else '' }}</span>
+        </div>
+    </div>
+    {% endif %}
+    
     {% if snippet_count > 0 %}
     <a href="/{{ channel_info.handle }}/snippets" style="text-decoration: none; color: inherit;">
         <div class="stat-card clickable" style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; border-left: 4px solid #ff9800; transition: all 0.3s ease; cursor: pointer;">

@@ -1,0 +1,499 @@
+{% extends "blog_base.html" %}
+
+{% block title %}{{ channel_info.channel_name }} - Blog{% endblock %}
+
+{% block content %}
+<!-- Channel Header -->
+<div class="blog-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 20px; border-radius: 12px; margin-bottom: 30px; position: relative;">
+    <div style="display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap;">
+        {% if channel_info.thumbnail_url %}
+            <img src="{{ channel_info.thumbnail_url }}" 
+                 alt="{{ channel_info.channel_name }} thumbnail" 
+                 style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid rgba(255,255,255,0.2); flex-shrink: 0;">
+        {% else %}
+            <div style="width: 120px; height: 120px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 48px; flex-shrink: 0;">
+                {{ channel_info.channel_name[0]|upper if channel_info.channel_name else '📝' }}
+            </div>
+        {% endif %}
+        <div style="flex: 1; min-width: 0;">
+            <h1 style="margin: 0; font-size: 32px; font-weight: bold;">
+                📝 <a href="{{ channel_info.handle }}" style="color: white; text-decoration: none; transition: opacity 0.2s ease;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">{{ channel_info.channel_name }}</a> Blog
+            </h1>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content with Sidebar -->
+<div style="display: grid; grid-template-columns: 1fr 300px; gap: 40px; margin: 0 auto; max-width: 1200px;">
+    <!-- Blog Posts Container -->
+    <div id="blog-posts-container">
+        <!-- Initial Posts (Server-Side Rendered for SEO) -->
+        {% for post in initial_posts %}
+        <article class="blog-post">
+            <div style="background: white; border-radius: 12px; padding: 30px; margin-bottom: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e5e5;">
+                <!-- Post Header -->
+                <header style="margin-bottom: 25px;">
+                    <h2 style="margin: 0 0 12px 0; font-size: 26px; font-weight: 600; line-height: 1.3;">
+                        <a href="/{{ channel_info.handle[1:] if channel_info.handle.startswith('@') else channel_info.handle }}/{{ post.url_path }}" 
+                           style="color: #1a1a1a; text-decoration: none; transition: color 0.2s ease;"
+                           onmouseover="this.style.color='#667eea'"
+                           onmouseout="this.style.color='#1a1a1a'">
+                            {{ post.title }}
+                        </a>
+                    </h2>
+                    <div style="display: flex; align-items: center; gap: 15px; color: #666; font-size: 14px; margin-bottom: 15px;">
+                        {% if post.published_at %}
+                            <time datetime="{{ post.published_at }}" style="font-weight: 500;">📅 {{ post.published_at[:10] }}</time>
+                        {% endif %}
+                        <span>⏱️ {{ post.duration }}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <img src="{{ post.thumbnail_url }}" 
+                             alt="{{ post.title }}" 
+                             style="width: 120px; height: 90px; object-fit: cover; border-radius: 8px; flex-shrink: 0;">
+                        <div style="flex: 1;">
+                            <p style="margin: 0; color: #555; font-size: 15px; line-height: 1.5;">
+                                Click to watch the full video and see detailed chapters and timestamps.
+                            </p>
+                        </div>
+                    </div>
+                </header>
+                
+                <!-- Post Content (AI Summary) -->
+                <div class="blog-post-content" style="color: #333; line-height: 1.7; font-size: 16px;">
+                    {{ post.summary | safe }}
+                </div>
+                
+                <!-- Post Footer -->
+                <footer style="margin-top: 25px; padding-top: 20px; border-top: 1px solid #e5e5e5;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                        <div style="display: flex; gap: 12px;">
+                            <a href="/{{ channel_info.handle }}/{{ post.url_path }}" 
+                               style="background: #667eea; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease;"
+                               onmouseover="this.style.background='#5a6fd8'"
+                               onmouseout="this.style.background='#667eea'">
+                                📺 Watch Video
+                            </a>
+                            <a href="https://youtube.com/watch?v={{ post.video_id }}" 
+                               target="_blank" 
+                               style="background: #ff0000; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease;"
+                               onmouseover="this.style.background='#e60000'"
+                               onmouseout="this.style.background='#ff0000'">
+                                🔗 YouTube
+                            </a>
+                        </div>
+                        <div style="color: #888; font-size: 13px;">
+                            AI Summary • {{ post.video_id }}
+                        </div>
+                    </div>
+                </footer>
+            </div>
+        </article>
+        {% endfor %}
+        <!-- Additional posts will be loaded here via JavaScript if has_more_posts -->
+    </div>
+    
+    <!-- Sidebar -->
+    <aside class="blog-sidebar" style="position: sticky; top: 20px; height: fit-content;">
+        <!-- Recent Posts -->
+        <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e5e5; margin-bottom: 20px;">
+            <h3 style="margin: 0 0 20px 0; font-size: 18px; color: #333; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                📝 Recent Posts
+            </h3>
+            <div id="recent-posts-sidebar">
+                <!-- Server-Side Rendered Recent Posts for SEO -->
+                {% for post in recent_posts %}
+                <div style="padding: 12px 0; border-bottom: 1px solid #f0f0f0; transition: all 0.2s ease;" 
+                     onmouseover="this.style.backgroundColor='#f8f9fa'" 
+                     onmouseout="this.style.backgroundColor='transparent'">
+                    <a href="/{{ channel_info.handle[1:] if channel_info.handle.startswith('@') else channel_info.handle }}/{{ post.url_path }}" 
+                       style="text-decoration: none; color: inherit; display: block;">
+                        <h4 style="margin: 0 0 6px 0; font-size: 14px; font-weight: 500; line-height: 1.3; color: #333;">
+                            {{ post.title[:60] }}{% if post.title|length > 60 %}...{% endif %}
+                        </h4>
+                        {% if post.published_at %}
+                            <p style="margin: 0; font-size: 12px; color: #888;">{{ post.published_at[:10] }}</p>
+                        {% endif %}
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Channel Info -->
+        <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e5e5;">
+            <h3 style="margin: 0 0 15px 0; font-size: 18px; color: #333; font-weight: 600;">About This Blog</h3>
+            <p style="margin: 0 0 15px 0; color: #666; font-size: 14px; line-height: 1.6;">
+                AI-generated summaries of {{ channel_info.channel_name }} videos, organized chronologically for easy reading.
+            </p>
+            <a href="{{ channel_info.handle }}" 
+               style="display: inline-flex; align-items: center; gap: 8px; background: #667eea; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease;"
+               onmouseover="this.style.background='#5a6fd8'"
+               onmouseout="this.style.background='#667eea'">
+                📺 Channel Overview
+            </a>
+        </div>
+    </aside>
+</div>
+
+<!-- Loading indicator -->
+<div id="loading-indicator" style="text-align: center; padding: 40px; display: none;">
+    <div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+    <p style="margin-top: 16px; color: #666; font-size: 16px;">Loading blog posts...</p>
+</div>
+
+<!-- End of posts indicator -->
+<div id="end-of-posts" style="text-align: center; padding: 40px; display: none;">
+    <div style="color: #888; font-size: 16px; border-top: 1px solid #e0e0e0; padding-top: 20px;">
+        📝 You've reached the end of the blog
+    </div>
+</div>
+
+<!-- No posts message -->
+<div id="no-posts" style="text-align: center; padding: 40px; display: none;">
+    <div style="color: #888; font-size: 18px;">
+        <p style="margin: 0 0 10px 0; font-size: 24px;">📝</p>
+        <p style="margin: 0; font-weight: 500;">No blog posts available</p>
+        <p style="margin: 8px 0 0 0; font-size: 16px; opacity: 0.8;">This channel needs AI summaries to display blog posts.</p>
+    </div>
+</div>
+
+<script>
+let currentPage = 2; // Start from page 2 since page 1 is server-rendered
+let loading = false;
+let hasMorePosts = {{ 'true' if has_more_posts else 'false' }};
+const postsPerPage = 10;
+const channelHandle = '{{ channel_info.handle }}';
+
+// Initialize blog when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Only setup infinite scrolling if there are more posts to load
+    if (hasMorePosts) {
+        setupInfiniteScroll();
+    }
+});
+
+function setupInfiniteScroll() {
+    window.addEventListener('scroll', function() {
+        if (loading || !hasMorePosts) return;
+        
+        // Check if user has scrolled near bottom of page
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const windowHeight = window.innerHeight;
+        const documentHeight = document.documentElement.scrollHeight;
+        
+        if (scrollTop + windowHeight >= documentHeight - 1000) {
+            loadBlogPosts();
+        }
+    });
+}
+
+async function loadBlogPosts() {
+    if (loading || !hasMorePosts) return;
+    
+    loading = true;
+    showLoading();
+    
+    try {
+        const response = await fetch(`/api/${channelHandle}/blog-posts?page=${currentPage}&per_page=${postsPerPage}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            if (data.posts.length === 0) {
+                if (currentPage === 1) {
+                    showNoPosts();
+                } else {
+                    showEndOfPosts();
+                }
+                hasMorePosts = false;
+            } else {
+                renderBlogPosts(data.posts);
+                hasMorePosts = data.pagination.has_next;
+                currentPage++;
+                
+                if (!hasMorePosts) {
+                    showEndOfPosts();
+                }
+            }
+        } else {
+            console.error('Error loading blog posts:', data.error);
+            showError('Failed to load blog posts: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showError('Failed to load blog posts. Please try again.');
+    } finally {
+        loading = false;
+        hideLoading();
+    }
+}
+
+function renderBlogPosts(posts) {
+    const container = document.getElementById('blog-posts-container');
+    
+    posts.forEach(post => {
+        const postElement = createBlogPostElement(post);
+        container.appendChild(postElement);
+    });
+}
+
+function createBlogPostElement(post) {
+    const article = document.createElement('article');
+    article.className = 'blog-post';
+    
+    // Format publish date
+    const publishDate = post.published_at ? new Date(post.published_at).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    }) : 'Date unknown';
+    
+    // Create blog post HTML
+    article.innerHTML = `
+        <div style="background: white; border-radius: 12px; padding: 30px; margin-bottom: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e5e5;">
+            <!-- Post Header -->
+            <header style="margin-bottom: 25px;">
+                <h2 style="margin: 0 0 12px 0; font-size: 26px; font-weight: 600; line-height: 1.3;">
+                    <a href="${post.url_path ? `/${channelHandle.replace('@', '')}/${post.url_path}` : `/watch?v=${post.video_id}`}" 
+                       style="color: #1a1a1a; text-decoration: none; transition: color 0.2s ease;"
+                       onmouseover="this.style.color='#667eea'"
+                       onmouseout="this.style.color='#1a1a1a'">
+                        ${escapeHtml(post.title)}
+                    </a>
+                </h2>
+                <div style="display: flex; align-items: center; gap: 15px; color: #666; font-size: 14px; margin-bottom: 15px;">
+                    <time datetime="${post.published_at}" style="font-weight: 500;">📅 ${publishDate}</time>
+                    <span>⏱️ ${post.duration}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <img src="${post.thumbnail_url}" 
+                         alt="${escapeHtml(post.title)}" 
+                         style="width: 120px; height: 90px; object-fit: cover; border-radius: 8px; flex-shrink: 0;">
+                    <div style="flex: 1;">
+                        <p style="margin: 0; color: #555; font-size: 15px; line-height: 1.5;">
+                            Click to watch the full video and see detailed chapters and timestamps.
+                        </p>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Post Content (AI Summary) -->
+            <div class="blog-post-content" style="color: #333; line-height: 1.7; font-size: 16px;">
+                ${post.summary}
+            </div>
+            
+            <!-- Post Footer -->
+            <footer style="margin-top: 25px; padding-top: 20px; border-top: 1px solid #e5e5e5;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                    <div style="display: flex; gap: 12px;">
+                        <a href="${post.url_path ? `/${channelHandle.replace('@', '')}/${post.url_path}` : `/watch?v=${post.video_id}`}" 
+                           style="background: #667eea; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease;"
+                           onmouseover="this.style.background='#5a6fd8'"
+                           onmouseout="this.style.background='#667eea'">
+                            📺 Watch Video
+                        </a>
+                        <a href="https://youtube.com/watch?v=${post.video_id}" 
+                           target="_blank" 
+                           style="background: #ff0000; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease;"
+                           onmouseover="this.style.background='#e60000'"
+                           onmouseout="this.style.background='#ff0000'">
+                            🔗 YouTube
+                        </a>
+                    </div>
+                    <div style="color: #888; font-size: 13px;">
+                        AI Summary • ${post.video_id}
+                    </div>
+                </div>
+            </footer>
+        </div>
+    `;
+    
+    return article;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showLoading() {
+    document.getElementById('loading-indicator').style.display = 'block';
+}
+
+function hideLoading() {
+    document.getElementById('loading-indicator').style.display = 'none';
+}
+
+function showEndOfPosts() {
+    document.getElementById('end-of-posts').style.display = 'block';
+}
+
+function showNoPosts() {
+    document.getElementById('no-posts').style.display = 'block';
+}
+
+function showError(message) {
+    const container = document.getElementById('blog-posts-container');
+    const errorDiv = document.createElement('div');
+    errorDiv.style.cssText = 'background: #ffebee; color: #c62828; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #c62828;';
+    errorDiv.innerHTML = `<p style="margin: 0; font-weight: 500;">❌ ${message}</p>`;
+    container.appendChild(errorDiv);
+}
+
+// Recent posts sidebar is now server-side rendered for SEO
+</script>
+
+<style>
+/* Breadcrumb navigation styles */
+.breadcrumb-nav a:hover {
+    background: #e3f2fd !important;
+    color: #1565c0 !important;
+    transform: translateY(-1px);
+}
+
+/* Loading animation */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Blog post styles */
+.blog-post-content h1,
+.blog-post-content h2,
+.blog-post-content h3,
+.blog-post-content h4,
+.blog-post-content h5,
+.blog-post-content h6 {
+    color: #1a1a1a;
+    margin-top: 24px;
+    margin-bottom: 12px;
+    font-weight: 600;
+}
+
+.blog-post-content h1 { font-size: 24px; }
+.blog-post-content h2 { font-size: 22px; }
+.blog-post-content h3 { font-size: 20px; }
+.blog-post-content h4 { font-size: 18px; }
+
+.blog-post-content ul,
+.blog-post-content ol {
+    margin: 16px 0;
+    padding-left: 24px;
+}
+
+.blog-post-content li {
+    margin-bottom: 8px;
+    line-height: 1.6;
+}
+
+.blog-post-content p {
+    margin: 16px 0;
+}
+
+.blog-post-content strong {
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+.blog-post-content em {
+    font-style: italic;
+    color: #555;
+}
+
+.blog-post-content code {
+    background: #f5f5f5;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 14px;
+}
+
+.blog-post-content blockquote {
+    border-left: 4px solid #667eea;
+    padding-left: 16px;
+    margin: 20px 0;
+    color: #555;
+    font-style: italic;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 1024px) {
+    /* Switch to single column layout on tablets and mobile */
+    .blog-container > div[style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+        gap: 30px !important;
+    }
+    
+    .blog-sidebar {
+        order: 1;
+        position: static !important;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    #blog-posts-container {
+        order: 2;
+    }
+}
+
+@media (max-width: 768px) {
+    .blog-header {
+        padding: 25px 15px !important;
+    }
+    
+    .blog-header h1 {
+        font-size: 24px !important;
+    }
+    
+    .blog-header > div {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .blog-header img,
+    .blog-header > div > div:first-child {
+        width: 80px !important;
+        height: 80px !important;
+        font-size: 32px !important;
+    }
+    
+    .blog-sidebar {
+        margin: 0 15px !important;
+    }
+    
+    .blog-sidebar > div {
+        padding: 20px !important;
+    }
+    
+    #blog-posts-container {
+        padding: 0 15px;
+    }
+    
+    .blog-post > div {
+        padding: 20px !important;
+        margin-bottom: 25px !important;
+    }
+    
+    .blog-post header h2 {
+        font-size: 22px !important;
+    }
+    
+    .blog-post header > div:nth-child(3) {
+        flex-direction: column !important;
+        gap: 12px !important;
+    }
+    
+    .blog-post header img {
+        width: 100% !important;
+        height: 200px !important;
+        max-width: 300px;
+    }
+    
+    .blog-post footer > div {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+    }
+}
+</style>
+{% endblock %}
