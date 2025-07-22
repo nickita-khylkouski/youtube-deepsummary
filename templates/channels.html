@@ -51,8 +51,8 @@
                                         {{ channel.video_count }} video{{ 's' if channel.video_count != 1 else '' }}
                                     </a>
                                     {% if channel.summary_count > 0 %}
-                                        <a href="/{{ channel.handle }}/summaries" style="background: #e8f5e8; color: #2e7d32; padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; white-space: nowrap; text-decoration: none; transition: all 0.2s;">
-                                            {{ channel.summary_count }} summarized
+                                        <a href="/{{ channel.handle[1:] if channel.handle.startswith('@') else channel.handle }}" style="background: #e8f5e8; color: #2e7d32; padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; white-space: nowrap; text-decoration: none; transition: all 0.2s;">
+                                            📝 blog
                                         </a>
                                     {% endif %}
                                 </div>
