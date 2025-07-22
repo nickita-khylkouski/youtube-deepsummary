@@ -7,63 +7,46 @@
 <article class="blog-post-single" style="max-width: 800px; margin: 0 auto;">
     <!-- Post Header -->
     <header style="margin-bottom: 30px;">
-        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-            {% if channel_info.thumbnail_url %}
-                <img src="{{ channel_info.thumbnail_url }}" 
-                     alt="{{ channel_info.channel_name }} thumbnail" 
-                     style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid #667eea;">
-            {% else %}
-                <div style="width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 24px;">
-                    {{ channel_info.channel_name[0]|upper if channel_info.channel_name else '📝' }}
+        <a href="/{{ channel_info.handle[1:] if channel_info.handle.startswith('@') else channel_info.handle }}" style="text-decoration: none; color: inherit; display: block;">
+            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; transition: all 0.2s ease; cursor: pointer;" 
+                 onmouseover="this.style.transform='translateY(-1px)'; this.style.opacity='0.8'"
+                 onmouseout="this.style.transform='translateY(0)'; this.style.opacity='1'">
+                {% if channel_info.thumbnail_url %}
+                    <img src="{{ channel_info.thumbnail_url }}" 
+                         alt="{{ channel_info.channel_name }} thumbnail" 
+                         style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid #667eea;">
+                {% else %}
+                    <div style="width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 24px;">
+                        {{ channel_info.channel_name[0]|upper if channel_info.channel_name else '📝' }}
+                    </div>
+                {% endif %}
+                <div>
+                    <h3 style="margin: 0; font-size: 18px; color: #667eea; font-weight: 600;">
+                        {{ channel_info.channel_name }}
+                    </h3>
+                    {% if post.published_at %}
+                        <time datetime="{{ post.published_at }}" style="font-weight: 500; color: #666; font-size: 14px;">
+                            {{ post.published_at[:10] }}
+                        </time>
+                    {% endif %}
                 </div>
-            {% endif %}
-            <div>
-                <h3 style="margin: 0; font-size: 18px; color: #667eea; font-weight: 600;">
-                    <a href="/{{ channel_info.handle }}" style="color: #667eea; text-decoration: none;">{{ channel_info.channel_name }}</a>
-                </h3>
             </div>
-        </div>
+        </a>
         
-        <h1 style="margin: 0 0 15px 0; font-size: 32px; font-weight: 700; line-height: 1.2; color: #1a1a1a;">
+        <h1 style="margin: 0 0 20px 0; font-size: 32px; font-weight: 700; line-height: 1.2; color: #1a1a1a;">
             {{ post.title }}
         </h1>
         
-        <div style="display: flex; align-items: center; gap: 20px; color: #666; font-size: 15px; margin-bottom: 20px;">
-            {% if post.published_at %}
-                <time datetime="{{ post.published_at }}" style="font-weight: 500;">
-                    📅 {{ post.published_at[:10] }}
-                </time>
-            {% endif %}
-            {% if post.duration %}
-                <span>⏱️ {{ post.duration }}</span>
-            {% endif %}
-            <span>📝 AI Summary</span>
-        </div>
-        
-        <!-- Video Thumbnail and Actions -->
-        <div style="display: flex; align-items: center; gap: 20px; padding: 20px; background: #f8f9fa; border-radius: 12px; margin-bottom: 30px;">
-            <img src="https://img.youtube.com/vi/{{ post.video_id }}/maxresdefault.jpg" 
-                 alt="{{ post.title }}" 
-                 style="width: 200px; height: 150px; object-fit: cover; border-radius: 8px; flex-shrink: 0;">
-            <div style="flex: 1;">
-                <p style="margin: 0 0 15px 0; color: #555; font-size: 16px; line-height: 1.5;">
-                    Watch the full video with detailed chapters and timestamps, or continue reading the AI-generated summary below.
-                </p>
-                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                    <a href="/{{ channel_info.handle }}/{{ post.url_path }}" 
-                       style="background: #667eea; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 8px;"
-                       onmouseover="this.style.background='#5a6fd8'"
-                       onmouseout="this.style.background='#667eea'">
-                        📺 Watch Video
-                    </a>
-                    <a href="https://youtube.com/watch?v={{ post.video_id }}" 
-                       target="_blank" 
-                       style="background: #ff0000; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 8px;"
-                       onmouseover="this.style.background='#e60000'"
-                       onmouseout="this.style.background='#ff0000'">
-                        🔗 YouTube
-                    </a>
-                </div>
+        <!-- Embedded YouTube Video -->
+        <div style="margin-bottom: 30px;">
+            <div style="position: relative; width: 100%; height: 0; padding-bottom: 56.25%; /* 16:9 aspect ratio */ overflow: hidden; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+                <iframe 
+                    src="https://www.youtube.com/embed/{{ post.video_id }}?rel=0&modestbranding=1&showinfo=0" 
+                    title="{{ post.title }}"
+                    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; border-radius: 12px;"
+                    allowfullscreen
+                    loading="lazy">
+                </iframe>
             </div>
         </div>
     </header>
@@ -213,10 +196,8 @@
         gap: 15px !important;
     }
     
-    .blog-post-single header img {
-        width: 100% !important;
-        height: 200px !important;
-        max-width: 300px;
+    .blog-post-single header iframe {
+        border-radius: 8px !important;
     }
     
     .blog-post-content {
