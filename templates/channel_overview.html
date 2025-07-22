@@ -145,7 +145,12 @@
                         <h4 style="margin: 0 0 8px 0; font-size: 16px; line-height: 1.3; color: #333;">
                             {{ video.title[:80] }}{% if video.title|length > 80 %}...{% endif %}
                         </h4>
-                        <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
+                            {% if video.published_at %}
+                                <span style="background: #e3f2fd; color: #1976d2; padding: 2px 8px; border-radius: 12px; font-size: 12px;">
+                                    {{ video.published_at[:10] }}
+                                </span>
+                            {% endif %}
                             {% if video.duration %}
                                 <span style="background: #f0f0f0; color: #666; padding: 2px 8px; border-radius: 12px; font-size: 12px;">
                                     {{ "%.0f"|format(video.duration // 60) }}:{{ "%02.0f"|format(video.duration % 60) }}
