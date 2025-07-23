@@ -305,36 +305,44 @@ class YouTubeAPI:
             print(f"Fetching videos for channel ID: {actual_channel_id}")
             
             # Get import strategy from settings
-            primary_strategy = import_settings.get('import_strategy', 'uploads_playlist') if import_settings else 'uploads_playlist'
-            fallback_strategies = import_settings.get('fallback_strategies', 'activities_api,search_api') if import_settings else 'activities_api,search_api'
-            
-            # Convert fallback strategies string to list
-            if isinstance(fallback_strategies, str):
-                fallback_strategies = [s.strip() for s in fallback_strategies.split(',')]
-            
-            # Create ordered list of strategies to try
-            strategies_to_try = [primary_strategy] + [s for s in fallback_strategies if s != primary_strategy]
+            strategy = import_settings.get('import_strategy', 'uploads_playlist') if import_settings else 'uploads_playlist'
             
             if import_settings.get('log_import_operations', True):
-                print(f"Using import strategies: {strategies_to_try}")
+                print(f"Using import strategy: {strategy}")
             
-            # Try each strategy in order with smart fetching for new videos
-            for strategy in strategies_to_try:
-                # Fetch more videos initially to account for existing ones we'll filter out
-                fetch_size = self._calculate_fetch_size(max_results, import_settings)
-                videos = self._try_import_strategy(strategy, actual_channel_id, channel_name, fetch_size, days_back)
+            # Use only the selected primary strategy (no fallbacks)
+            fetch_size = self._calculate_fetch_size(max_results, import_settings)
+            videos = self._try_import_strategy(strategy, actual_channel_id, channel_name, fetch_size, days_back)
+            
+            if videos:
+                # Apply duration filtering based on import_shorts setting
+                duration_filtered = self._filter_videos_by_duration(videos, import_settings)
                 
-                if videos:
-                    # Apply duration filtering based on import_shorts setting
-                    duration_filtered = self._filter_videos_by_duration(videos, import_settings)
-                    
-                    # Filter out existing videos and limit to target amount
-                    final_videos = self._filter_existing_videos(duration_filtered, import_settings, max_results)
-                    return final_videos
+                # Filter out existing videos and limit to target amount
+                filter_result = self._filter_existing_videos(duration_filtered, import_settings, max_results)
+                
+                # Return both videos and metadata
+                return {
+                    'videos': filter_result['videos'],
+                    'metadata': {
+                        'total_found': filter_result['total_found'],
+                        'existing_count': filter_result['existing_count'],
+                        'new_count': filter_result['new_count'],
+                        'strategy_used': strategy
+                    }
+                }
             
-            # If all strategies failed, return empty list
-            print("All import strategies failed")
-            return []
+            # If the strategy failed, return empty result with metadata
+            print(f"Import strategy '{strategy}' found no videos")
+            return {
+                'videos': [],
+                'metadata': {
+                    'total_found': 0,
+                    'existing_count': 0,
+                    'new_count': 0,
+                    'strategy_used': strategy
+                }
+            }
             
         except Exception as e:
             print(f"Error fetching channel videos: {e}")
@@ -344,7 +352,7 @@ class YouTubeAPI:
         """Try a specific import strategy and return videos if successful"""
         try:
             if strategy == 'uploads_playlist':
-                return self._try_uploads_playlist_strategy(channel_id, channel_name, max_results)
+                return self._try_uploads_playlist_strategy(channel_id, channel_name, max_results, days_back)
             elif strategy == 'activities_api':
                 return self._try_activities_api_strategy(channel_id, channel_name, max_results, days_back)
             elif strategy == 'search_api':
@@ -356,8 +364,8 @@ class YouTubeAPI:
             print(f"Strategy {strategy} failed: {e}")
             return []
 
-    def _try_uploads_playlist_strategy(self, channel_id, channel_name, max_results):
-        """Try to get videos using uploads playlist strategy"""
+    def _try_uploads_playlist_strategy(self, channel_id, channel_name, max_results, days_back):
+        """Try to get videos using uploads playlist strategy with date filtering"""
         try:
             channel_request = self.service.channels().list(
                 part='contentDetails',
@@ -369,11 +377,18 @@ class YouTubeAPI:
                 uploads_playlist_id = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
                 print(f"Found uploads playlist: {uploads_playlist_id}")
                 
-                # Get videos from the uploads playlist
+                # Calculate cutoff date for filtering
+                cutoff_date = datetime.utcnow() - timedelta(days=days_back)
+                print(f"Filtering videos published after: {cutoff_date.isoformat()}")
+                
+                # Get videos from the uploads playlist (fetch more to account for date filtering)
+                # We'll fetch up to 3x the requested amount to ensure we get enough recent videos
+                fetch_amount = min(max_results * 3, 100)  # Cap at 100 to avoid excessive API usage
+                
                 playlist_request = self.service.playlistItems().list(
                     part='snippet',
                     playlistId=uploads_playlist_id,
-                    maxResults=max_results
+                    maxResults=fetch_amount
                 )
                 playlist_response = playlist_request.execute()
                 
@@ -382,19 +397,45 @@ class YouTubeAPI:
                     video_id = item['snippet']['resourceId']['videoId']
                     snippet = item['snippet']
                     
+                    # Parse published date and check if it's within the time range
+                    published_at = snippet.get('publishedAt', '')
+                    if published_at:
+                        try:
+                            # Parse ISO format: "2024-01-15T10:30:00Z"
+                            published_date = datetime.fromisoformat(published_at.replace('Z', '+00:00'))
+                            # Convert to UTC for comparison (remove timezone info)
+                            published_date_utc = published_date.replace(tzinfo=None)
+                            
+                            # Skip videos older than the cutoff date
+                            if published_date_utc < cutoff_date:
+                                print(f"Skipping old video {video_id}: published {published_at} (before cutoff {cutoff_date.isoformat()})")
+                                continue
+                            else:
+                                print(f"Including video {video_id}: published {published_at} (after cutoff {cutoff_date.isoformat()})")
+                                
+                        except Exception as e:
+                            print(f"Could not parse date {published_at} for video {video_id}: {e}")
+                            # If we can't parse the date, include the video to be safe
+                    
                     videos.append({
                         'video_id': video_id,
                         'title': snippet.get('title', ''),
                         'description': snippet.get('description', ''),
-                        'published_at': snippet.get('publishedAt', ''),
+                        'published_at': published_at,
                         'thumbnail_url': snippet.get('thumbnails', {}).get('medium', {}).get('url', ''),
                         'channel_name': snippet.get('channelTitle', channel_name),
                         'channel_id': channel_id
                     })
+                    
+                    # Stop when we have enough videos within the date range
+                    if len(videos) >= max_results:
+                        break
                 
                 if videos:
-                    print(f"Found {len(videos)} videos from uploads playlist")
+                    print(f"Found {len(videos)} videos from uploads playlist within {days_back} days")
                     return videos
+                else:
+                    print(f"No videos found in uploads playlist within {days_back} days")
                     
         except Exception as e:
             print(f"Uploads playlist method failed: {e}")
@@ -504,14 +545,19 @@ class YouTubeAPI:
 
 
     def _filter_existing_videos(self, videos, import_settings, target_new_videos):
-        """Filter out existing videos and return up to target_new_videos new videos"""
+        """Filter out existing videos and return up to target_new_videos new videos with metadata"""
         try:
             # Check if skip_existing_videos is enabled
             skip_existing_videos = import_settings.get('skipExistingVideos', import_settings.get('skip_existing_videos', True))
             
             if not skip_existing_videos:
                 # If not skipping existing videos, return videos up to the target limit
-                return videos[:target_new_videos]
+                return {
+                    'videos': videos[:target_new_videos],
+                    'total_found': len(videos),
+                    'existing_count': 0,
+                    'new_count': len(videos[:target_new_videos])
+                }
             
             from .database_storage import database_storage
             
@@ -540,12 +586,22 @@ class YouTubeAPI:
                 print(f"🎯 Filtering results: {len(new_videos)} new videos selected (target: {target_new_videos})")
                 print(f"📊 Stats: {existing_count} existing videos skipped, {len(videos)} total videos processed")
             
-            return new_videos
+            return {
+                'videos': new_videos,
+                'total_found': len(videos),
+                'existing_count': existing_count,
+                'new_count': len(new_videos)
+            }
                 
         except Exception as e:
             print(f"Error filtering existing videos: {e}")
             # If filtering fails, return original videos (be conservative)
-            return videos[:target_new_videos]
+            return {
+                'videos': videos[:target_new_videos],
+                'total_found': len(videos),
+                'existing_count': 0,
+                'new_count': len(videos[:target_new_videos])
+            }
 
     def _filter_videos_by_duration(self, videos, import_settings):
         """Filter videos based on duration (Shorts vs full videos) according to import_shorts setting"""
