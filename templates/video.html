@@ -47,6 +47,9 @@
                     {% if not has_chapters %}
                         <button id="extractChaptersBtn" onclick="extractChapters('{{ video_id }}')" style="background: transparent; color: #374151; border: 2px solid #e5e7eb; padding: 10px 20px; border-radius: 12px; cursor: pointer; display: inline-block; margin-right: 12px; font-weight: 500; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onmouseover="this.style.borderColor='#9ca3af'; this.style.boxShadow='0 4px 6px rgba(0,0,0,0.1)'" onmouseout="this.style.borderColor='#e5e7eb'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)'">📚 Extract Chapters</button>
                     {% endif %}
+                    {% if has_transcript and summarize_enabled and not has_summary %}
+                        <button id="generateSummaryBtn" onclick="generateSummary('{{ video_id }}')" style="background: #5BA7F7; color: white; border: none; padding: 10px 20px; border-radius: 12px; cursor: pointer; display: inline-block; margin-right: 12px; font-weight: 500; transition: all 0.2s ease; box-shadow: 0 4px 6px rgba(91, 167, 247, 0.3);" onmouseover="this.style.background='#4A90E2'; this.style.boxShadow='0 6px 12px rgba(91, 167, 247, 0.4)'" onmouseout="this.style.background='#5BA7F7'; this.style.boxShadow='0 4px 6px rgba(91, 167, 247, 0.3)'">🤖 Generate AI Summary</button>
+                    {% endif %}
                 </p>
             </div>
         </div>

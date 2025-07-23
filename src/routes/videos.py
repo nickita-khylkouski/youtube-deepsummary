@@ -150,6 +150,7 @@ def video_by_url_path(channel_handle, url_path):
                              chapters=chapters,
                              video_duration=video_duration,
                              summary=summary,
+                             has_summary=bool(summary and summary.strip()),
                              snippets=snippets,
                              chapter_summaries_lookup=chapter_summaries_lookup,
                              thumbnail_url=thumbnail_url,
