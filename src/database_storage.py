@@ -569,7 +569,7 @@ class DatabaseStorage:
 
     def save_chapter_summary(self, video_id: str, chapter_time: int, chapter_title: str, summary_text: str, model_used: str = 'claude-sonnet-4-20250514', prompt_id: int = None, prompt_name: str = None) -> Optional[str]:
         """
-        Save AI summary for a specific chapter
+        Save AI summary for a specific chapter with versioning support
 
         Args:
             video_id: YouTube video ID
@@ -584,12 +584,36 @@ class DatabaseStorage:
             Chapter summary ID or None if failed
         """
         try:
+            # Get existing chapter summaries to determine version number
+            existing_summaries = self.supabase.table('chapter_summaries')\
+                .select('version_number')\
+                .eq('video_id', video_id)\
+                .eq('chapter_time', chapter_time)\
+                .order('version_number', desc=True)\
+                .limit(1)\
+                .execute()
+            
+            # Determine next version number
+            next_version = 1
+            if existing_summaries.data:
+                next_version = existing_summaries.data[0].get('version_number', 0) + 1
+            
+            # Mark all existing summaries as not current
+            if existing_summaries.data:
+                self.supabase.table('chapter_summaries')\
+                    .update({'is_current': False})\
+                    .eq('video_id', video_id)\
+                    .eq('chapter_time', chapter_time)\
+                    .execute()
+
             chapter_summary_data = {
                 'video_id': video_id,
                 'chapter_time': chapter_time,
                 'chapter_title': chapter_title,
                 'summary_text': summary_text,
                 'model_used': model_used,
+                'is_current': True,
+                'version_number': next_version,
                 'created_at': datetime.now(timezone.utc).isoformat(),
                 'updated_at': datetime.now(timezone.utc).isoformat()
             }
@@ -600,14 +624,13 @@ class DatabaseStorage:
             if prompt_name is not None:
                 chapter_summary_data['prompt_name'] = prompt_name
 
-            # Insert new chapter summary (upsert to avoid duplicates)
-            result = self.supabase.table('chapter_summaries').upsert(
-                chapter_summary_data,
-                on_conflict='video_id,chapter_time'
+            # Insert new chapter summary
+            result = self.supabase.table('chapter_summaries').insert(
+                chapter_summary_data
             ).execute()
 
             if result.data:
-                print(f"Chapter summary saved for video {video_id}, chapter {chapter_title}")
+                print(f"Chapter summary v{next_version} saved for video {video_id}, chapter {chapter_title}")
                 return result.data[0].get('id')
             else:
                 print(f"Failed to save chapter summary for video {video_id}, chapter {chapter_title}")
@@ -619,7 +642,7 @@ class DatabaseStorage:
 
     def get_chapter_summary(self, video_id: str, chapter_time: int) -> Optional[Dict]:
         """
-        Get saved summary for a specific chapter
+        Get saved summary for a specific chapter (current version only)
 
         Args:
             video_id: YouTube video ID
@@ -633,6 +656,7 @@ class DatabaseStorage:
                 .select('*')\
                 .eq('video_id', video_id)\
                 .eq('chapter_time', chapter_time)\
+                .eq('is_current', True)\
                 .execute()
 
             if response.data and len(response.data) > 0:
@@ -688,6 +712,87 @@ class DatabaseStorage:
 
         except Exception as e:
             print(f"Error deleting chapter summary for {video_id}, chapter time {chapter_time}: {e}")
+            return False
+
+    def get_chapter_summary_history(self, video_id: str, chapter_time: int) -> List[Dict]:
+        """
+        Get version history for a specific chapter summary
+
+        Args:
+            video_id: YouTube video ID
+            chapter_time: Start time of the chapter in seconds
+
+        Returns:
+            List of chapter summary versions
+        """
+        try:
+            response = self.supabase.table('chapter_summaries')\
+                .select('*')\
+                .eq('video_id', video_id)\
+                .eq('chapter_time', chapter_time)\
+                .order('version_number', desc=True)\
+                .execute()
+
+            return response.data if response.data else []
+
+        except Exception as e:
+            print(f"Error getting chapter summary history for {video_id}, chapter time {chapter_time}: {e}")
+            return []
+
+    def get_chapter_summary_by_id(self, chapter_summary_id: int) -> Optional[Dict]:
+        """
+        Get a specific chapter summary by its ID
+
+        Args:
+            chapter_summary_id: Chapter summary ID
+
+        Returns:
+            Chapter summary data or None if not found
+        """
+        try:
+            response = self.supabase.table('chapter_summaries')\
+                .select('*')\
+                .eq('chapter_summary_id', chapter_summary_id)\
+                .execute()
+
+            if response.data and len(response.data) > 0:
+                return response.data[0]
+            return None
+
+        except Exception as e:
+            print(f"Error getting chapter summary by ID {chapter_summary_id}: {e}")
+            return None
+
+    def set_current_chapter_summary(self, video_id: str, chapter_time: int, chapter_summary_id: int) -> bool:
+        """
+        Set a specific chapter summary version as current
+
+        Args:
+            video_id: YouTube video ID
+            chapter_time: Start time of the chapter in seconds
+            chapter_summary_id: Chapter summary ID to set as current
+
+        Returns:
+            Success status
+        """
+        try:
+            # First, mark all summaries for this chapter as not current
+            self.supabase.table('chapter_summaries')\
+                .update({'is_current': False})\
+                .eq('video_id', video_id)\
+                .eq('chapter_time', chapter_time)\
+                .execute()
+
+            # Then mark the specified summary as current
+            result = self.supabase.table('chapter_summaries')\
+                .update({'is_current': True})\
+                .eq('chapter_summary_id', chapter_summary_id)\
+                .execute()
+
+            return bool(result.data)
+
+        except Exception as e:
+            print(f"Error setting current chapter summary {chapter_summary_id}: {e}")
             return False
 
     def clear_expired(self):
