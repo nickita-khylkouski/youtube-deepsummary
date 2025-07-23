@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{% if video_title %}{{ video_title }}{% else %}{{ video_id }}{% endif %}{% endblock %}
+{% block title %}{% if video_title %}{{ video_title }} - YouTube Transcript & Summary{% else %}YouTube Video {{ video_id }} - Transcript & Summary{% endif %}{% endblock %}
 
 {% block content %}
     <!-- Include Lucide Icons -->
