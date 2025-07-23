@@ -11,7 +11,9 @@
             </div>
         </div>
         <h2 style="margin: 0 0 15px 0; font-size: 28px; font-weight: 700; color: #1a1a1a; line-height: 1.3;">
-            {{ post.title }}
+            <a href="/blog/{{ post.channel_handle }}/{{ post.url_path }}" style="color: inherit; text-decoration: none; transition: color 0.2s;" onmouseover="this.style.color='#667eea'" onmouseout="this.style.color='#1a1a1a'">
+                {{ post.title }}
+            </a>
         </h2>
         <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
             <a href="https://youtube.com/watch?v={{ post.video_id }}" target="_blank" 

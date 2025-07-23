@@ -10,21 +10,7 @@ import markdown
 blog_bp = Blueprint('blog', __name__, url_prefix='/blog')
 
 
-@blog_bp.route('/')
-def blog_home():
-    """Main blog page with channel selection"""
-    try:
-        # Get total count for stats display
-        result = database_storage.get_blog_summaries_paginated(page=1, per_page=1)
-        total_count = result.get('pagination', {}).get('total', 0)
-        
-        return render_template('blog/blog_home.html', 
-                             total_count=total_count,
-                             page_title="AI Video Blog - Choose a Channel")
-    except Exception as e:
-        print(f"Error loading blog home: {e}")
-        return render_template('error.html', 
-                             error="Failed to load blog home"), 500
+# Removed standalone blog home route - blog is now only accessible through channels
 
 
 @blog_bp.route('/<channel_handle>')
@@ -109,33 +95,7 @@ def blog_post(channel_handle, url_path):
 
 # API Endpoints for infinite scroll pagination
 
-@blog_bp.route('/api/posts')
-def api_blog_posts():
-    """API endpoint for infinite scroll - all posts"""
-    try:
-        offset = request.args.get('offset', 0, type=int)
-        limit = request.args.get('limit', 12, type=int)
-        
-        # Limit the maximum items per request
-        limit = min(limit, 24)
-        
-        # Convert offset/limit to page/per_page
-        page = (offset // limit) + 1
-        
-        result = database_storage.get_blog_summaries_paginated(page=page, per_page=limit)
-        posts = result.get('posts', [])
-        
-        return jsonify({
-            'success': True,
-            'posts': posts,
-            'has_more': result.get('pagination', {}).get('has_next', False)
-        })
-    except Exception as e:
-        print(f"Error loading blog posts API: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+# Removed general blog posts API - only channel-specific blog is now available
 
 
 @blog_bp.route('/api/posts/<channel_handle>')
@@ -180,30 +140,4 @@ def api_channel_blog_posts(channel_handle):
         }), 500
 
 
-@blog_bp.route('/api/stats')
-def api_blog_stats():
-    """API endpoint for blog statistics"""
-    try:
-        # Get basic statistics
-        result = database_storage.get_blog_summaries_paginated(page=1, per_page=1000)
-        all_posts = result.get('posts', [])
-        
-        # Count unique channels
-        unique_channels = set(post['channel_handle'] for post in all_posts if post.get('channel_handle'))
-        
-        stats = {
-            'total_posts': len(all_posts),
-            'total_channels': len(unique_channels),
-            'latest_post_date': all_posts[0]['published_at'][:10] if all_posts else None
-        }
-        
-        return jsonify({
-            'success': True,
-            'stats': stats
-        })
-    except Exception as e:
-        print(f"Error loading blog stats: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+# Removed blog stats API - no longer needed without standalone blog page
