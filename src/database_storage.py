@@ -567,7 +567,7 @@ class DatabaseStorage:
             print(f"Error deleting summary {summary_id}: {e}")
             return False
 
-    def save_chapter_summary(self, video_id: str, chapter_time: int, chapter_title: str, summary_text: str, model_used: str = 'claude-sonnet-4-20250514') -> Optional[str]:
+    def save_chapter_summary(self, video_id: str, chapter_time: int, chapter_title: str, summary_text: str, model_used: str = 'claude-sonnet-4-20250514', prompt_id: int = None, prompt_name: str = None) -> Optional[str]:
         """
         Save AI summary for a specific chapter
 
@@ -577,6 +577,8 @@ class DatabaseStorage:
             chapter_title: Title of the chapter
             summary_text: Generated summary text
             model_used: AI model used for summary
+            prompt_id: ID of the prompt used (optional)
+            prompt_name: Name of the prompt used (optional)
 
         Returns:
             Chapter summary ID or None if failed
@@ -591,6 +593,12 @@ class DatabaseStorage:
                 'created_at': datetime.now(timezone.utc).isoformat(),
                 'updated_at': datetime.now(timezone.utc).isoformat()
             }
+            
+            # Add prompt information if provided
+            if prompt_id is not None:
+                chapter_summary_data['prompt_id'] = prompt_id
+            if prompt_name is not None:
+                chapter_summary_data['prompt_name'] = prompt_name
 
             # Insert new chapter summary (upsert to avoid duplicates)
             result = self.supabase.table('chapter_summaries').upsert(

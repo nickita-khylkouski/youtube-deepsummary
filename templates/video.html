@@ -80,6 +80,7 @@
                                       data-chapter-title="{{ chapter.title|e }}"
                                       data-summary-text="{{ chapter_summary.summary_text|e }}"
                                       data-model-used="{{ chapter_summary.model_used|e }}"
+                                      data-prompt-name="{{ chapter_summary.prompt_name|e }}"
                                       style="cursor: pointer; margin-left: 8px; color: #4CAF50;" 
                                       title="View AI summary for this chapter">
                                     <i data-lucide="check-circle" style="width: 16px; height: 16px;"></i>
@@ -544,7 +545,7 @@
                 .then(data => {
                     if (data.success) {
                         // Show chapter summary in a modal or section
-                        showChapterSummaryModal(chapterTitle, data.summary, data.model_used);
+                        showChapterSummaryModal(chapterTitle, data.summary, data.model_used, data.prompt_name);
                         
                         // Update icon to success state
                         iconSpan.innerHTML = '<i data-lucide="check-circle" style="width: 16px; height: 16px;"></i>';
@@ -552,9 +553,10 @@
                         iconSpan.style.cursor = 'pointer';
                         iconSpan.title = 'View AI summary for this chapter';
                         
-                        // Update span data attributes with the new summary and model
+                        // Update span data attributes with the new summary, model, and prompt
                         iconSpan.setAttribute('data-summary-text', data.summary);
                         iconSpan.setAttribute('data-model-used', data.model_used);
+                        iconSpan.setAttribute('data-prompt-name', data.prompt_name || 'Unknown Prompt');
                         iconSpan.setAttribute('data-chapter-time', chapterTime);
                         iconSpan.setAttribute('data-chapter-title', chapterTitle);
                         
@@ -598,8 +600,28 @@
                 });
         }
         
-        function showChapterSummaryModal(chapterTitle, summary, modelUsed = null) {
-            console.log('showChapterSummaryModal called with:', { chapterTitle, summary, summaryType: typeof summary, modelUsed });
+        // Global variables for chapter summary regeneration
+        let currentChapterTitle = null;
+        let currentChapterTime = null;
+        let currentVideoId = '{{ video_id }}';
+        
+        function showChapterSummaryModal(chapterTitle, summary, modelUsed = null, promptName = null) {
+            console.log('showChapterSummaryModal called with:', { chapterTitle, summary, summaryType: typeof summary, modelUsed, promptName });
+            
+            // Store current chapter info for regeneration
+            currentChapterTitle = chapterTitle;
+            // Extract chapter time and prompt name from the clicked element (we'll need this)
+            const chapterElements = document.querySelectorAll('[data-chapter-title]');
+            for (let elem of chapterElements) {
+                if (elem.getAttribute('data-chapter-title') === chapterTitle) {
+                    currentChapterTime = elem.getAttribute('data-chapter-time');
+                    // Get prompt name from data attribute if not provided
+                    if (!promptName) {
+                        promptName = elem.getAttribute('data-prompt-name');
+                    }
+                    break;
+                }
+            }
             
             // Remove any existing modal
             const existingModal = document.getElementById('chapterSummaryModal');
@@ -644,12 +666,28 @@
             
             modal.innerHTML = `
                 <div style="background: white; border-radius: 8px; width: 90%; max-width: 800px; max-height: 80vh; overflow-y: auto; position: relative;">
-                    <div style="padding: 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="padding: 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: flex-start;">
                         <div>
                             <h3 style="margin: 0; color: #9C27B0;">🤖 Chapter Summary:</h3>
                             <h4 style="margin: 5px 0 0 0; color: #666;">${chapterTitle}</h4>
+                            <div style="font-size: 13px; color: #666; margin-top: 8px;">
+                                <strong>Model:</strong> <span id="chapterModelUsed">${modelUsed || 'Unknown Model'}</span> | 
+                                <strong>Prompt:</strong> <span id="chapterPromptUsed">${promptName || 'Unknown Prompt'}</span>
+                            </div>
                         </div>
-                        <button onclick="closeChapterSummaryModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">✕</button>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <!-- Regenerate Controls -->
+                            <div style="display: flex; align-items: center; gap: 8px; margin-right: 15px;">
+                                <select id="chapterPromptSelect" style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; background: white; min-width: 120px;">
+                                    <option value="">Loading prompts...</option>
+                                </select>
+                                <select id="chapterModelSelect" style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; background: white; min-width: 120px;">
+                                    <option value="">Loading models...</option>
+                                </select>
+                                <button id="regenerateChapterBtn" onclick="regenerateChapterSummary()" style="background: #5BA7F7; color: white; padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; transition: all 0.2s ease;" onmouseover="this.style.background='#4A90E2'" onmouseout="this.style.background='#5BA7F7'">🔄 Regenerate</button>
+                            </div>
+                            <button onclick="closeChapterSummaryModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">✕</button>
+                        </div>
                     </div>
                     <div style="padding: 20px;">
                         <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
@@ -657,10 +695,10 @@
                                 🤖 AI-Generated Summary
                             </span>
                             <span style="background: #f0f0f0; padding: 3px 8px; border-radius: 12px; font-size: 12px;">
-                                Chapter | <span id="chapterModelUsed">${modelUsed || 'Unknown Model'}</span>
+                                Chapter Summary
                             </span>
                         </div>
-                        <div class="markdown-content chapter-summary-content">${formattedSummary}</div>
+                        <div class="markdown-content chapter-summary-content" id="chapterSummaryContent">${formattedSummary}</div>
                     </div>
                 </div>
             `;
@@ -674,8 +712,9 @@
                 }
             };
             
-            // Add snippet functionality to chapter summary
+            // Load model and prompt options for chapter summary regeneration
             setTimeout(() => {
+                loadChapterRegenerateOptions();
                 addH2SnippetIcons();
             }, 100);
         }
@@ -685,6 +724,210 @@
             if (modal) {
                 modal.remove();
             }
+        }
+        
+        function loadChapterRegenerateOptions() {
+            // Load prompts for chapter regeneration
+            fetch('/settings/prompts')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success' && data.prompts) {
+                        const promptSelect = document.getElementById('chapterPromptSelect');
+                        if (promptSelect) {
+                            promptSelect.innerHTML = '<option value="">Select prompt...</option>';
+                            
+                            data.prompts.forEach(prompt => {
+                                const option = document.createElement('option');
+                                option.value = prompt.id;
+                                option.textContent = prompt.name;
+                                promptSelect.appendChild(option);
+                            });
+                            
+                            // Set default to the first prompt if available
+                            if (data.prompts.length > 0) {
+                                promptSelect.value = data.prompts[0].id;
+                            }
+                        }
+                    } else {
+                        const promptSelect = document.getElementById('chapterPromptSelect');
+                        if (promptSelect) {
+                            promptSelect.innerHTML = '<option value="">No prompts available</option>';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading prompts:', error);
+                    const promptSelect = document.getElementById('chapterPromptSelect');
+                    if (promptSelect) {
+                        promptSelect.innerHTML = '<option value="">Error loading prompts</option>';
+                    }
+                });
+            
+            // Load models and get current configured model for chapter regeneration
+            Promise.all([
+                fetch('/api/models'),
+                fetch('/settings/summarizer-settings')
+            ]).then(async ([modelsResponse, settingsResponse]) => {
+                const modelsData = await modelsResponse.json();
+                const settingsData = await settingsResponse.json();
+                
+                if (modelsData.success && modelsData.models) {
+                    const modelSelect = document.getElementById('chapterModelSelect');
+                    if (modelSelect) {
+                        modelSelect.innerHTML = '<option value="">Select model...</option>';
+                        
+                        // Get configured model from settings
+                        let configuredModel = null;
+                        if (settingsData.status === 'success' && settingsData.settings) {
+                            configuredModel = settingsData.settings.model;
+                        }
+                        
+                        // Group models by provider
+                        for (const [provider, models] of Object.entries(modelsData.models)) {
+                            const optgroup = document.createElement('optgroup');
+                            // Capitalize provider name for display
+                            optgroup.label = provider.charAt(0).toUpperCase() + provider.slice(1);
+                            
+                            models.forEach(modelId => {
+                                const option = document.createElement('option');
+                                option.value = modelId;
+                                
+                                // Create user-friendly display name
+                                let displayName = modelId;
+                                if (modelId === 'gpt-4.1') {
+                                    displayName = 'GPT-4.1';
+                                } else if (modelId === 'gpt-4.1-mini') {
+                                    displayName = 'GPT-4.1 Mini';
+                                } else if (modelId === 'gpt-3.5-turbo') {
+                                    displayName = 'GPT-3.5 Turbo';
+                                } else if (modelId === 'claude-sonnet-4-20250514') {
+                                    displayName = 'Claude Sonnet 4';
+                                } else if (modelId === 'claude-3-5-sonnet-20241022') {
+                                    displayName = 'Claude 3.5 Sonnet';
+                                }
+                                
+                                option.textContent = displayName;
+                                optgroup.appendChild(option);
+                            });
+                            
+                            modelSelect.appendChild(optgroup);
+                        }
+                        
+                        // Set default to the configured model if available, otherwise first model
+                        const allModels = Object.values(modelsData.models).flat();
+                        if (configuredModel && allModels.includes(configuredModel)) {
+                            modelSelect.value = configuredModel;
+                        } else if (allModels.length > 0) {
+                            modelSelect.value = allModels[0];
+                        }
+                    }
+                } else {
+                    const modelSelect = document.getElementById('chapterModelSelect');
+                    if (modelSelect) {
+                        modelSelect.innerHTML = '<option value="">No models available</option>';
+                    }
+                }
+            }).catch(error => {
+                console.error('Error loading models or settings:', error);
+                const modelSelect = document.getElementById('chapterModelSelect');
+                if (modelSelect) {
+                    modelSelect.innerHTML = '<option value="">Error loading models</option>';
+                }
+            });
+        }
+        
+        function regenerateChapterSummary() {
+            const btn = document.getElementById('regenerateChapterBtn');
+            const promptSelect = document.getElementById('chapterPromptSelect');
+            const modelSelect = document.getElementById('chapterModelSelect');
+            const summaryContent = document.getElementById('chapterSummaryContent');
+            const modelUsedSpan = document.getElementById('chapterModelUsed');
+            const promptUsedSpan = document.getElementById('chapterPromptUsed');
+            
+            if (!currentChapterTitle || !currentChapterTime || !currentVideoId) {
+                alert('Missing chapter information for regeneration');
+                return;
+            }
+            
+            const selectedPrompt = promptSelect.value;
+            const selectedModel = modelSelect.value;
+            
+            if (!selectedPrompt) {
+                alert('Please select a prompt');
+                return;
+            }
+            
+            if (!selectedModel) {
+                alert('Please select a model');
+                return;
+            }
+            
+            // Get the selected prompt name for display
+            const selectedPromptName = promptSelect.options[promptSelect.selectedIndex].textContent;
+            
+            // Update button to show loading state
+            btn.textContent = '⏳ Regenerating...';
+            btn.disabled = true;
+            btn.style.background = '#666';
+            
+            // Make request to regenerate chapter summary
+            fetch('/api/chapter-summary', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    video_id: currentVideoId,
+                    chapter_time: parseFloat(currentChapterTime),
+                    chapter_title: currentChapterTitle,
+                    force_regenerate: true,
+                    model: selectedModel,
+                    prompt_id: selectedPrompt
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update the summary content
+                    summaryContent.innerHTML = data.summary;
+                    
+                    // Update the model used info
+                    if (modelUsedSpan) {
+                        modelUsedSpan.textContent = data.model_used || selectedModel;
+                    }
+                    
+                    // Update the prompt used info
+                    if (promptUsedSpan) {
+                        promptUsedSpan.textContent = data.prompt_name || selectedPromptName;
+                    }
+                    
+                    // Add snippet functionality to the updated content
+                    setTimeout(() => {
+                        addH2SnippetIcons();
+                    }, 100);
+                    
+                    // Reset button state
+                    btn.textContent = '🔄 Regenerate';
+                    btn.disabled = false;
+                    btn.style.background = '#5BA7F7';
+                } else {
+                    alert('Error regenerating chapter summary: ' + data.error);
+                    
+                    // Reset button state
+                    btn.textContent = '🔄 Regenerate';
+                    btn.disabled = false;
+                    btn.style.background = '#5BA7F7';
+                }
+            })
+            .catch(error => {
+                console.error('Error regenerating chapter summary:', error);
+                alert('Failed to regenerate chapter summary: ' + error.message);
+                
+                // Reset button state
+                btn.textContent = '🔄 Regenerate';
+                btn.disabled = false;
+                btn.style.background = '#5BA7F7';
+            });
         }
         
         // Debug function to log chapter summaries data (disabled to prevent display issues)
@@ -730,11 +973,12 @@
             const chapterTitle = element.getAttribute('data-chapter-title');
             const summaryText = element.getAttribute('data-summary-text');
             const modelUsed = element.getAttribute('data-model-used');
+            const promptName = element.getAttribute('data-prompt-name');
             
-            console.log('Found element data:', { chapterTitle, summaryTextPreview: summaryText ? summaryText.substring(0, 50) + '...' : 'No text', modelUsed });
+            console.log('Found element data:', { chapterTitle, summaryTextPreview: summaryText ? summaryText.substring(0, 50) + '...' : 'No text', modelUsed, promptName });
             
-            // Call the modal function with model info
-            showChapterSummaryModal(chapterTitle, summaryText, modelUsed);
+            // Call the modal function with model and prompt info
+            showChapterSummaryModal(chapterTitle, summaryText, modelUsed, promptName);
         }
         
 
@@ -744,7 +988,7 @@
             const summarySection = document.getElementById('summary-section');
             
             // Get formatted transcript text (readable version, not detailed timestamps)
-            const formattedTranscript = {{ formatted_transcript|tojson }};
+            const formattedTranscript = {{ formatted_transcript|tojson|safe }};
             
             // Update button to show loading state
             btn.textContent = '⏳ Regenerating...';

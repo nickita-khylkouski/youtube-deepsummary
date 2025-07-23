@@ -31,7 +31,10 @@
       "Bash(git fsck:*)",
       "mcp__supabase-deepsearch__execute_sql",
       "Bash(git stash:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "mcp__supabase-deepsearch__list_tables",
+      "mcp__supabase-deepsearch__apply_migration",
+      "Bash(git push:*)"
     ],
     "deny": []
   }
