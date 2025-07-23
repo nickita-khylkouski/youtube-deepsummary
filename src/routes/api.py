@@ -277,6 +277,86 @@ def extract_chapter_transcript(transcript, chapters, chapter_time):
         return None
 
 
+@api_bp.route('/chapter-summary/history/<video_id>/<int:chapter_time>', methods=['GET'])
+def get_chapter_summary_history(video_id, chapter_time):
+    """API endpoint to get chapter summary version history"""
+    try:
+        history = database_storage.get_chapter_summary_history(video_id, chapter_time)
+        
+        if history:
+            # Sort by version number descending (newest first)
+            history.sort(key=lambda x: x.get('version_number', 1), reverse=True)
+            
+            return jsonify({
+                'success': True,
+                'history': history
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'history': []
+            })
+            
+    except Exception as e:
+        print(f"Error getting chapter summary history: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route('/chapter-summary/set-current', methods=['POST'])
+def set_current_chapter_summary():
+    """API endpoint to set a specific chapter summary version as current"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+        video_id = data.get('video_id')
+        chapter_time = data.get('chapter_time')
+        chapter_summary_id = data.get('chapter_summary_id')
+
+        if not all([video_id, chapter_time is not None, chapter_summary_id]):
+            return jsonify({
+                'success': False, 
+                'error': 'Missing required fields: video_id, chapter_time, chapter_summary_id'
+            }), 400
+
+        # Set the specified chapter summary as current
+        success = database_storage.set_current_chapter_summary(video_id, chapter_time, chapter_summary_id)
+        
+        if success:
+            # Get the updated summary for display
+            chapter_summary = database_storage.get_chapter_summary_by_id(chapter_summary_id)
+            if chapter_summary:
+                formatted_summary = format_summary_html(chapter_summary['summary_text'])
+                return jsonify({
+                    'success': True,
+                    'summary': formatted_summary,
+                    'model_used': chapter_summary['model_used'],
+                    'prompt_name': chapter_summary.get('prompt_name'),
+                    'version_number': chapter_summary.get('version_number', 1)
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Chapter summary not found after setting as current'
+                }), 404
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to set chapter summary as current'
+            }), 500
+
+    except Exception as e:
+        print(f"Error setting current chapter summary: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @api_bp.route('/cache/info')
 def cache_info():
     """API endpoint to get database statistics"""

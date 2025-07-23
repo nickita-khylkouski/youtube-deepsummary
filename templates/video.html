@@ -608,6 +608,10 @@
         function showChapterSummaryModal(chapterTitle, summary, modelUsed = null, promptName = null) {
             console.log('showChapterSummaryModal called with:', { chapterTitle, summary, summaryType: typeof summary, modelUsed, promptName });
             
+            // Reset version control state for new chapter
+            chapterVersionHistory = [];
+            currentChapterSummaryId = null;
+            
             // Store current chapter info for regeneration
             currentChapterTitle = chapterTitle;
             // Extract chapter time and prompt name from the clicked element (we'll need this)
@@ -622,6 +626,13 @@
                     break;
                 }
             }
+            
+            console.log('Chapter info extracted:', {
+                title: currentChapterTitle,
+                time: currentChapterTime,
+                prompt: promptName,
+                model: modelUsed
+            });
             
             // Remove any existing modal
             const existingModal = document.getElementById('chapterSummaryModal');
@@ -666,44 +677,59 @@
             
             modal.innerHTML = `
                 <div style="background: white; border-radius: 8px; width: 90%; max-width: 800px; max-height: 80vh; overflow-y: auto; position: relative;">
-                    <div style="padding: 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: flex-start;">
-                        <div>
-                            <h3 style="margin: 0; color: #9C27B0;">🤖 Chapter Summary:</h3>
+                    <div style="padding: 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
+                        <div style="flex: 1; min-width: 250px;">
+                            <h3 style="margin: 0; color: #9C27B0;">AI-Generated Summary</h3>
                             <h4 style="margin: 5px 0 0 0; color: #666;">${chapterTitle}</h4>
-                            <div style="font-size: 13px; color: #666; margin-top: 8px;">
-                                <strong>Model:</strong> <span id="chapterModelUsed">${modelUsed || 'Unknown Model'}</span> | 
-                                <strong>Prompt:</strong> <span id="chapterPromptUsed">${promptName || 'Unknown Prompt'}</span>
-                            </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 10px;">
-                            <!-- Regenerate Controls -->
-                            <div style="display: flex; align-items: center; gap: 8px; margin-right: 15px;">
-                                <select id="chapterPromptSelect" style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; background: white; min-width: 120px;">
-                                    <option value="">Loading prompts...</option>
-                                </select>
-                                <select id="chapterModelSelect" style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; background: white; min-width: 120px;">
-                                    <option value="">Loading models...</option>
-                                </select>
-                                <button id="regenerateChapterBtn" onclick="regenerateChapterSummary()" style="background: #5BA7F7; color: white; padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; transition: all 0.2s ease;" onmouseover="this.style.background='#4A90E2'" onmouseout="this.style.background='#5BA7F7'">🔄 Regenerate</button>
+                            <!-- Version Navigation Buttons (hidden by default, shown only for chapters with multiple versions) -->
+                            <div id="chapterVersionNav" style="display: none; gap: 8px; align-items: center;">
+                                <button id="prevChapterVersionBtn" onclick="navigateChapterVersion('prev')" style="background: #f8f9fa; border: 1px solid #ddd; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; outline: none; -webkit-tap-highlight-color: transparent;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">
+                                    ← Previous
+                                </button>
+                                <button id="nextChapterVersionBtn" onclick="navigateChapterVersion('next')" style="background: #f8f9fa; border: 1px solid #ddd; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; outline: none; -webkit-tap-highlight-color: transparent;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">
+                                    Next →
+                                </button>
                             </div>
-                            <button onclick="closeChapterSummaryModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">✕</button>
+                            <button onclick="closeChapterSummaryModal()" style="background: none; border: none; cursor: pointer; color: #666; padding: 4px; border-radius: 4px; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; outline: none; -webkit-tap-highlight-color: transparent;" onmouseover="this.style.background='#f0f0f0'; this.style.color='#333'" onmouseout="this.style.background='none'; this.style.color='#666'">
+                                ✕
+                            </button>
                         </div>
                     </div>
                     <div style="padding: 20px;">
-                        <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
-                            <span style="background: #f0f0f0; padding: 3px 8px; border-radius: 12px; font-size: 12px;">
-                                🤖 AI-Generated Summary
-                            </span>
-                            <span style="background: #f0f0f0; padding: 3px 8px; border-radius: 12px; font-size: 12px;">
-                                Chapter Summary
+                        
+                        <!-- Regenerate Controls under main heading -->
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;">
+                            <select id="chapterPromptSelect" style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; background: white; min-width: 100px;">
+                                <option value="">Loading prompts...</option>
+                            </select>
+                            <select id="chapterModelSelect" style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; background: white; min-width: 100px;">
+                                <option value="">Loading models...</option>
+                            </select>
+                            <button id="regenerateChapterBtn" onclick="regenerateChapterSummary()" style="background: #5BA7F7; color: white; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; transition: all 0.2s ease; outline: none; -webkit-tap-highlight-color: transparent;" onmouseover="this.style.background='#4A90E2'" onmouseout="this.style.background='#5BA7F7'">
+                                Regenerate
+                            </button>
+                        </div>
+                        
+                        <div class="markdown-content chapter-summary-content" id="chapterSummaryContent">${formattedSummary}</div>
+                        
+                        <!-- Model and Prompt info moved below summary content -->
+                        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; font-size: 13px; color: #666;">
+                            <span id="chapterVersionInfo" style="background: #f0f0f0; padding: 3px 8px; border-radius: 12px; font-size: 12px;">
+                                Loading version info...
                             </span>
                         </div>
-                        <div class="markdown-content chapter-summary-content" id="chapterSummaryContent">${formattedSummary}</div>
                     </div>
                 </div>
             `;
             
             document.body.appendChild(modal);
+            
+            // Initialize Lucide icons for the modal
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
             
             // Close modal when clicking outside
             modal.onclick = function(e) {
@@ -716,6 +742,7 @@
             setTimeout(() => {
                 loadChapterRegenerateOptions();
                 addH2SnippetIcons();
+                loadChapterVersionHistory();
             }, 100);
         }
         
@@ -724,6 +751,188 @@
             if (modal) {
                 modal.remove();
             }
+        }
+
+        // Chapter Version Management Functions
+        let chapterVersionHistory = [];
+        let currentChapterSummaryId = null;
+
+        function loadChapterVersionHistory() {
+            if (!currentChapterTitle || !currentChapterTime) {
+                console.log('Missing chapter info for version history', {
+                    title: currentChapterTitle,
+                    time: currentChapterTime
+                });
+                // Hide navigation buttons if no chapter info
+                const navDiv = document.getElementById('chapterVersionNav');
+                if (navDiv) {
+                    navDiv.style.display = 'none';
+                }
+                return;
+            }
+
+            console.log('=== LOADING VERSION HISTORY FOR NEW CHAPTER ===');
+            console.log('Chapter:', {
+                videoId: currentVideoId,
+                chapterTime: currentChapterTime,
+                chapterTitle: currentChapterTitle
+            });
+
+            // Reset version state to ensure clean slate for this chapter
+            chapterVersionHistory = [];
+            currentChapterSummaryId = null;
+            
+            // Hide navigation buttons while loading
+            const navDiv = document.getElementById('chapterVersionNav');
+            if (navDiv) {
+                navDiv.style.display = 'none';
+            }
+
+            fetch(`/api/chapter-summary/history/${currentVideoId}/${currentChapterTime}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Version history API response:', data);
+                    
+                    if (data.success && data.history && data.history.length > 0) {
+                        chapterVersionHistory = data.history;
+                        
+                        console.log('Version history loaded for this chapter:', {
+                            chapterTitle: currentChapterTitle,
+                            chapterTime: currentChapterTime,
+                            totalVersions: chapterVersionHistory.length,
+                            versions: chapterVersionHistory.map(v => ({
+                                version: v.version_number,
+                                isCurrent: v.is_current,
+                                id: v.chapter_summary_id,
+                                title: v.chapter_title
+                            }))
+                        });
+                        
+                        updateChapterVersionDisplay();
+                        
+                        // Show navigation buttons ONLY if this specific chapter has multiple versions
+                        if (navDiv) {
+                            if (chapterVersionHistory.length > 1) {
+                                navDiv.style.display = 'flex';
+                                console.log(`✅ Showing navigation buttons - ${chapterVersionHistory.length} versions found for "${currentChapterTitle}"`);
+                            } else {
+                                navDiv.style.display = 'none';
+                                console.log(`❌ Hiding navigation buttons - only ${chapterVersionHistory.length} version for "${currentChapterTitle}"`);
+                            }
+                        }
+                        
+                        // Set current chapter summary ID
+                        const currentVersion = chapterVersionHistory.find(v => v.is_current);
+                        if (currentVersion) {
+                            currentChapterSummaryId = currentVersion.chapter_summary_id;
+                        }
+                    } else {
+                        console.log(`No version history found for chapter "${currentChapterTitle}"`);
+                        chapterVersionHistory = [];
+                        if (navDiv) {
+                            navDiv.style.display = 'none';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading chapter version history:', error);
+                    chapterVersionHistory = [];
+                    if (navDiv) {
+                        navDiv.style.display = 'none';
+                    }
+                });
+        }
+
+        function updateChapterVersionDisplay() {
+            const currentVersion = chapterVersionHistory.find(v => v.is_current);
+            const versionInfo = document.getElementById('chapterVersionInfo');
+            
+            if (currentVersion && versionInfo) {
+                const promptName = currentVersion.prompt_name || 'None';
+                const modelUsed = currentVersion.model_used || 'Unknown Model';
+                versionInfo.textContent = `v${currentVersion.version_number} | ${currentVersion.chapter_title} | ${modelUsed}`;
+                
+                console.log('Updated version display:', {
+                    version: currentVersion.version_number,
+                    title: currentVersion.chapter_title,
+                    model: currentVersion.model_used
+                });
+            } else if (versionInfo && chapterVersionHistory.length === 0) {
+                // Fallback for when no version history is loaded yet
+                // Use the original modal parameters if available
+                const modalTitle = document.querySelector('#chapterSummaryModal h4');
+                const titleText = modalTitle ? modalTitle.textContent : 'Chapter';
+                versionInfo.textContent = `v1 | ${titleText} | Loading...`;
+            }
+        }
+
+        function navigateChapterVersion(direction) {
+            if (chapterVersionHistory.length === 0) return;
+            
+            const currentIndex = chapterVersionHistory.findIndex(v => v.is_current);
+            if (currentIndex === -1) return;
+            
+            let newIndex;
+            if (direction === 'prev') {
+                // Go to previous version (higher version number)
+                newIndex = currentIndex - 1;
+                if (newIndex < 0) newIndex = chapterVersionHistory.length - 1; // Wrap to last
+            } else if (direction === 'next') {
+                // Go to next version (lower version number)  
+                newIndex = currentIndex + 1;
+                if (newIndex >= chapterVersionHistory.length) newIndex = 0; // Wrap to first
+            } else {
+                return;
+            }
+            
+            const targetVersion = chapterVersionHistory[newIndex];
+            if (targetVersion && targetVersion.chapter_summary_id !== currentChapterSummaryId) {
+                switchToChapterVersion(targetVersion.chapter_summary_id);
+            }
+        }
+
+        function switchToChapterVersion(chapterSummaryId) {
+            const version = chapterVersionHistory.find(v => v.chapter_summary_id === chapterSummaryId);
+            if (!version) return;
+            
+            // Set as current chapter summary via API
+            fetch('/api/chapter-summary/set-current', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    video_id: currentVideoId,
+                    chapter_time: currentChapterTime,
+                    chapter_summary_id: chapterSummaryId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update the modal content with new summary
+                    const contentDiv = document.getElementById('chapterSummaryContent');
+                    if (contentDiv) {
+                        contentDiv.innerHTML = data.summary;
+                    }
+                    
+                    // Update version history
+                    chapterVersionHistory.forEach(v => v.is_current = v.chapter_summary_id === chapterSummaryId);
+                    updateChapterVersionDisplay();
+                    
+                    // Update current chapter summary ID
+                    currentChapterSummaryId = chapterSummaryId;
+                    
+                    // Re-add snippet icons
+                    setTimeout(addH2SnippetIcons, 100);
+                } else {
+                    alert('Error switching chapter version: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error switching chapter version:', error);
+                alert('Error switching chapter version');
+            });
         }
         
         function loadChapterRegenerateOptions() {
@@ -906,8 +1115,13 @@
                         addH2SnippetIcons();
                     }, 100);
                     
+                    // Reload version history to show new version and navigation buttons
+                    setTimeout(() => {
+                        loadChapterVersionHistory();
+                    }, 200);
+                    
                     // Reset button state
-                    btn.textContent = '🔄 Regenerate';
+                    btn.textContent = 'Regenerate';
                     btn.disabled = false;
                     btn.style.background = '#5BA7F7';
                 } else {
