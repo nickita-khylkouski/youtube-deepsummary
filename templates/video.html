@@ -877,13 +877,13 @@
             
             let newIndex;
             if (direction === 'prev') {
-                // Go to previous version (higher version number)
-                newIndex = currentIndex - 1;
-                if (newIndex < 0) newIndex = chapterVersionHistory.length - 1; // Wrap to last
-            } else if (direction === 'next') {
-                // Go to next version (lower version number)  
+                // Go to previous version (older version - higher index since newest first)
                 newIndex = currentIndex + 1;
                 if (newIndex >= chapterVersionHistory.length) newIndex = 0; // Wrap to first
+            } else if (direction === 'next') {
+                // Go to next version (newer version - lower index since newest first)  
+                newIndex = currentIndex - 1;
+                if (newIndex < 0) newIndex = chapterVersionHistory.length - 1; // Wrap to last
             } else {
                 return;
             }
