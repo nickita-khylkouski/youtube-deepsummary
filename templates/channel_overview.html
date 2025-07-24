@@ -235,6 +235,57 @@
         </div>
         {% endif %}
         
+        {% if summary_count > 0 %}
+        <div class="regenerate-dropdown" style="position: relative; display: inline-block;">
+            <button onclick="toggleRegenerateDropdown()" 
+                    style="background: #ff9800; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 8px;">
+                🔄 Regenerate Summaries <span style="font-size: 12px;">▼</span>
+            </button>
+            <div id="regenerateDropdown" class="regenerate-dropdown-content" style="display: none; position: absolute; background: white; min-width: 350px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 8px; z-index: 1; top: 100%; left: 0; margin-top: 5px;">
+                <div style="padding: 16px; border-bottom: 1px solid #eee;">
+                    <div style="font-size: 14px; font-weight: 500; color: #333; margin-bottom: 12px;">Regenerate Options:</div>
+                    
+                    <!-- Count Selection -->
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 13px; color: #666; margin-bottom: 6px;">Number of Summaries:</label>
+                        <select id="regenerateCountSelect" 
+                                style="background: white; border: 1px solid #e0e0e0; padding: 8px 12px; border-radius: 6px; font-size: 14px; cursor: pointer; width: 100%;"
+                                onmousedown="event.stopPropagation();">
+                            <option value="5">🔢 Last 5 summaries</option>
+                            <option value="10">🔢 Last 10 summaries</option>
+                            <option value="20">🔢 Last 20 summaries</option>
+                            <option value="all">🔢 All summaries ({{ summary_count }})</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Model Selection -->
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 13px; color: #666; margin-bottom: 6px;">AI Model:</label>
+                        <select id="regenerateModelSelect" 
+                                style="background: white; border: 1px solid #e0e0e0; padding: 8px 12px; border-radius: 6px; font-size: 14px; cursor: pointer; width: 100%;"
+                                onmousedown="event.stopPropagation();">
+                            <option value="">Loading models...</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Prompt Selection -->
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 13px; color: #666; margin-bottom: 6px;">Summary Prompt:</label>
+                        <select id="regeneratePromptSelect" 
+                                style="background: white; border: 1px solid #e0e0e0; padding: 8px 12px; border-radius: 6px; font-size: 14px; cursor: pointer; width: 100%;"
+                                onmousedown="event.stopPropagation();">
+                            <option value="">Loading prompts...</option>
+                        </select>
+                    </div>
+                </div>
+                <button onclick="regenerateSummaries('{{ channel_info.handle }}')" 
+                        style="background: #ff9800; color: white; border: none; padding: 12px 16px; border-radius: 0 0 8px 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s; width: 100%; text-align: left;"
+                        onmousedown="event.stopPropagation();">
+                    🔄 Start Regeneration
+                </button>
+            </div>
+        </div>
+        {% endif %}
         
         {% if videos_without_summaries_count > 0 %}
             <button onclick="generateMissingSummaries('{{ channel_info.handle }}')" 
@@ -280,6 +331,14 @@
     }
     
     .import-dropdown-content {
+        border: 1px solid #ddd;
+    }
+    
+    .regenerate-dropdown-content button:hover {
+        background: #f57c00 !important;
+    }
+    
+    .regenerate-dropdown-content {
         border: 1px solid #ddd;
     }
     
@@ -389,9 +448,11 @@ document.addEventListener('click', function(event) {
     const importDropdown = document.getElementById('importDropdown');
     const exportDropdown = document.getElementById('exportDropdown');
     const chatDropdown = document.getElementById('chatDropdown');
+    const regenerateDropdown = document.getElementById('regenerateDropdown');
     const importButton = event.target.closest('.import-dropdown');
     const exportButton = event.target.closest('.export-dropdown');
     const chatButton = event.target.closest('.chat-dropdown');
+    const regenerateButton = event.target.closest('.regenerate-dropdown');
     
     if (!importButton && importDropdown && importDropdown.style.display === 'block') {
         importDropdown.style.display = 'none';
@@ -403,6 +464,10 @@ document.addEventListener('click', function(event) {
     
     if (!chatButton && chatDropdown && chatDropdown.style.display === 'block') {
         chatDropdown.style.display = 'none';
+    }
+    
+    if (!regenerateButton && regenerateDropdown && regenerateDropdown.style.display === 'block') {
+        regenerateDropdown.style.display = 'none';
     }
 });
 
@@ -693,6 +758,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Only load chat models if the dropdown exists (when there are summaries for chat)
     if (document.getElementById('chatModelSelect')) {
         loadChatModels();
+    }
+    // Load regenerate models and prompts if dropdown exists
+    if (document.getElementById('regenerateModelSelect')) {
+        loadRegenerateModels();
+        loadRegeneratePrompts();
     }
 });
 
@@ -1689,6 +1759,208 @@ function handleChatTabInput() {
         if (!placeholderActive) {
             startPlaceholderAnimation();
         }
+    }
+}
+
+// Regenerate dropdown functionality
+function toggleRegenerateDropdown() {
+    const dropdown = document.getElementById('regenerateDropdown');
+    if (dropdown.style.display === 'none') {
+        dropdown.style.display = 'block';
+    } else {
+        dropdown.style.display = 'none';
+    }
+}
+
+// Load available models for regeneration
+function loadRegenerateModels() {
+    const modelSelect = document.getElementById('regenerateModelSelect');
+    if (!modelSelect) {
+        console.log('Regenerate model select not found - skipping model loading');
+        return;
+    }
+    
+    console.log('Loading available models for regeneration...');
+    fetch('/api/models')
+        .then(response => {
+            console.log('Regenerate models response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Regenerate models data received:', data);
+            if (data.success && data.models) {
+                // Clear loading option
+                modelSelect.innerHTML = '';
+                
+                // Add providers and models
+                for (const [provider, models] of Object.entries(data.models)) {
+                    const optgroup = document.createElement('optgroup');
+                    optgroup.label = provider.charAt(0).toUpperCase() + provider.slice(1);
+                    
+                    models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model;
+                        option.textContent = model;
+                        
+                        // Default to Claude Sonnet 4 if available
+                        if (model === 'claude-sonnet-4-20250514') {
+                            option.selected = true;
+                        }
+                        
+                        optgroup.appendChild(option);
+                    });
+                    
+                    modelSelect.appendChild(optgroup);
+                }
+                
+                // If no Claude model available, select first available model
+                if (modelSelect.selectedIndex === -1 && modelSelect.options.length > 0) {
+                    modelSelect.selectedIndex = 0;
+                }
+                
+                console.log('Regenerate models loaded successfully, total options:', modelSelect.options.length);
+            } else {
+                console.error('Invalid regenerate models response format:', data);
+                modelSelect.innerHTML = '<option value="">Invalid response format</option>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading regenerate models:', error);
+            modelSelect.innerHTML = '<option value="">Error loading models</option>';
+        });
+}
+
+// Load available prompts for regeneration
+function loadRegeneratePrompts() {
+    const promptSelect = document.getElementById('regeneratePromptSelect');
+    if (!promptSelect) {
+        console.log('Regenerate prompt select not found - skipping prompt loading');
+        return;
+    }
+    
+    console.log('Loading available prompts for regeneration...');
+    fetch('/api/prompts')
+        .then(response => {
+            console.log('Regenerate prompts response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Regenerate prompts data received:', data);
+            if (data.success && data.prompts) {
+                // Clear loading option
+                promptSelect.innerHTML = '';
+                
+                // Add prompts
+                data.prompts.forEach(prompt => {
+                    const option = document.createElement('option');
+                    option.value = prompt.id;
+                    option.textContent = `${prompt.name}${prompt.is_default ? ' (Default)' : ''}`;
+                    
+                    // Select default prompt
+                    if (prompt.is_default) {
+                        option.selected = true;
+                    }
+                    
+                    promptSelect.appendChild(option);
+                });
+                
+                // If no default prompt available, select first available prompt
+                if (promptSelect.selectedIndex === -1 && promptSelect.options.length > 0) {
+                    promptSelect.selectedIndex = 0;
+                }
+                
+                console.log('Regenerate prompts loaded successfully, total options:', promptSelect.options.length);
+            } else {
+                console.error('Invalid regenerate prompts response format:', data);
+                promptSelect.innerHTML = '<option value="">Invalid response format</option>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading regenerate prompts:', error);
+            promptSelect.innerHTML = '<option value="">Error loading prompts</option>';
+        });
+}
+
+// Regenerate summaries with selected options
+async function regenerateSummaries(channelHandle) {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    
+    // Get selected options
+    const countSelect = document.getElementById('regenerateCountSelect');
+    const modelSelect = document.getElementById('regenerateModelSelect');
+    const promptSelect = document.getElementById('regeneratePromptSelect');
+    
+    if (!countSelect || !modelSelect || !promptSelect) {
+        showNotification('Error: Missing required form elements', 'error');
+        return;
+    }
+    
+    const selectedCount = countSelect.value;
+    const selectedModel = modelSelect.value;
+    const selectedPromptId = promptSelect.value;
+    
+    if (!selectedModel || !selectedPromptId) {
+        showNotification('Please select both a model and a prompt', 'error');
+        return;
+    }
+    
+    // Disable button and show loading state
+    button.disabled = true;
+    button.innerHTML = '⏳ Regenerating Summaries...';
+    button.style.background = '#9e9e9e';
+    
+    try {
+        console.log(`Starting summary regeneration for channel: ${channelHandle} with count: ${selectedCount}, model: ${selectedModel}, prompt: ${selectedPromptId}`);
+        
+        const response = await fetch(`/api/${channelHandle}/regenerate-summaries`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                count: selectedCount,
+                model: selectedModel,
+                prompt_id: selectedPromptId
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Show success message
+            const countText = selectedCount === 'all' ? 'all' : `${selectedCount}`;
+            const message = `Successfully regenerated ${result.processed} summaries (${countText} requested) using ${result.model_used} with selected prompt (${result.errors} errors)`;
+            
+            // Create and show success notification
+            showNotification(message, 'success');
+            
+            // Close the dropdown
+            document.getElementById('regenerateDropdown').style.display = 'none';
+            
+            // Refresh the page after a short delay to show updated counts
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+            
+        } else {
+            showNotification(`Error: ${result.error}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('Summary regeneration error:', error);
+        showNotification(`Failed to regenerate summaries: ${error.message}`, 'error');
+    } finally {
+        // Reset button state
+        button.disabled = false;
+        button.innerHTML = originalText;
+        button.style.background = '#ff9800';
     }
 }
 </script>

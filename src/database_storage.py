@@ -2346,5 +2346,48 @@ class DatabaseStorage:
             print(f"Error getting summaries count: {e}")
             return 0
 
+    def get_summaries_by_channel(self, channel_id: str) -> List[Dict]:
+        """Get all summaries for a specific channel"""
+        try:
+            response = self.supabase.table('summaries')\
+                .select('*, youtube_videos!inner(channel_id)')\
+                .eq('youtube_videos.channel_id', channel_id)\
+                .eq('is_current', True)\
+                .order('created_at', desc=True)\
+                .execute()
+            
+            return response.data or []
+            
+        except Exception as e:
+            print(f"Error getting summaries for channel {channel_id}: {e}")
+            return []
+
+    def get_recent_summaries_by_channel(self, channel_id: str, limit: int) -> List[Dict]:
+        """Get recent summaries for a specific channel with limit"""
+        try:
+            response = self.supabase.table('summaries')\
+                .select('*, youtube_videos!inner(channel_id)')\
+                .eq('youtube_videos.channel_id', channel_id)\
+                .eq('is_current', True)\
+                .order('created_at', desc=True)\
+                .limit(limit)\
+                .execute()
+            
+            return response.data or []
+            
+        except Exception as e:
+            print(f"Error getting recent summaries for channel {channel_id}: {e}")
+            return []
+
+    def save_summary_with_versioning(self, video_id: str, summary_text: str, model_used: str, prompt_id: int = None, prompt_name: str = None):
+        """Save summary with versioning - wrapper around existing save_summary method"""
+        return self.save_summary(
+            video_id=video_id, 
+            summary=summary_text, 
+            model_used=model_used, 
+            prompt_id=prompt_id, 
+            prompt_name=prompt_name
+        )
+
 # Global database storage instance
 database_storage = DatabaseStorage()

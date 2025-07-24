@@ -74,6 +74,190 @@ def get_available_models():
         }), 500
 
 
+@api_bp.route('/prompts')
+def get_available_prompts():
+    """API endpoint to get available AI prompts"""
+    try:
+        prompts = database_storage.get_ai_prompts()
+        return jsonify({
+            'success': True,
+            'prompts': prompts
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route('/<channel_handle>/regenerate-summaries', methods=['POST'])
+def regenerate_channel_summaries(channel_handle):
+    """API endpoint to regenerate summaries for a channel"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+        count = data.get('count', '5')
+        model = data.get('model')
+        prompt_id = data.get('prompt_id')
+
+        if not model or not prompt_id:
+            return jsonify({'success': False, 'error': 'Model and prompt_id are required'}), 400
+
+        # Get channel ID from handle
+        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return jsonify({'success': False, 'error': 'Channel not found'}), 404
+
+        channel_id = channel_info['channel_id']
+
+        # Get summaries to regenerate based on count
+        if count == 'all':
+            summaries = database_storage.get_summaries_by_channel(channel_id)
+        else:
+            try:
+                limit = int(count)
+                summaries = database_storage.get_recent_summaries_by_channel(channel_id, limit)
+            except ValueError:
+                return jsonify({'success': False, 'error': 'Invalid count value'}), 400
+
+        if not summaries:
+            return jsonify({'success': False, 'error': 'No summaries found to regenerate'}), 404
+
+        # Get prompt details
+        prompt = database_storage.get_ai_prompt_by_id(prompt_id)
+        if not prompt:
+            return jsonify({'success': False, 'error': 'Prompt not found'}), 404
+
+        processed_count = 0
+        error_count = 0
+
+        # Regenerate each summary
+        for summary in summaries:
+            try:
+                video_id = summary['video_id']
+                
+                # Get video and transcript data
+                video_data = database_storage.get(video_id)
+                if not video_data:
+                    print(f"Skipping video {video_id}: No video data available")
+                    error_count += 1
+                    continue
+
+                # Get formatted transcript - handle both old and new data structures
+                transcript_content = None
+                if video_data.get('formatted_transcript'):
+                    transcript_content = video_data['formatted_transcript']
+                elif video_data.get('transcript') and isinstance(video_data['transcript'], dict):
+                    transcript_content = video_data['transcript'].get('formatted')
+                elif video_data.get('transcript') and isinstance(video_data['transcript'], list):
+                    # If transcript is still a list, try to get formatted content
+                    transcript_content = video_data.get('formatted_transcript')
+                
+                if not transcript_content:
+                    print(f"Skipping video {video_id}: No transcript content available")
+                    error_count += 1
+                    continue
+                
+                # Skip videos with failed transcript extraction
+                if not transcript_content or 'Transcript extraction failed' in transcript_content or len(transcript_content.strip()) < 50:
+                    print(f"Skipping video {video_id}: Invalid or failed transcript - consider re-importing this video")
+                    error_count += 1
+                    continue
+
+                # Get chapters data if available for better summarization
+                chapters = None
+                if video_data.get('chapters'):
+                    chapters = video_data['chapters']
+
+                # Generate new summary using the specified model and prompt
+                new_summary = video_processor.summarizer.summarize_with_model(
+                    transcript_content=transcript_content,
+                    model=model,
+                    chapters=chapters,
+                    video_id=video_id,
+                    custom_prompt=prompt['prompt_text']
+                )
+
+                if new_summary and len(new_summary.strip()) > 100:  # Ensure meaningful summary
+                    # Save the new summary with versioning
+                    database_storage.save_summary_with_versioning(
+                        video_id=video_id,
+                        summary_text=new_summary,
+                        model_used=model,
+                        prompt_id=prompt_id,
+                        prompt_name=prompt['name']
+                    )
+                    processed_count += 1
+                    print(f"Successfully regenerated summary for video {video_id}")
+                else:
+                    print(f"Failed to generate valid summary for video {video_id}")
+                    error_count += 1
+
+            except Exception as e:
+                print(f"Error regenerating summary for video {summary['video_id']}: {str(e)}")
+                error_count += 1
+
+        return jsonify({
+            'success': True,
+            'processed': processed_count,
+            'errors': error_count,
+            'model_used': model,
+            'prompt_used': prompt['name']
+        })
+
+    except Exception as e:
+        print(f"Error in regenerate_channel_summaries: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route('/<channel_handle>/failed-transcripts')
+def get_failed_transcripts(channel_handle):
+    """API endpoint to get videos with failed transcript extraction"""
+    try:
+        # Get channel ID from handle
+        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return jsonify({'success': False, 'error': 'Channel not found'}), 404
+
+        channel_id = channel_info['channel_id']
+
+        # Find summaries that indicate failed transcript extraction
+        failed_summaries = database_storage.supabase.table('summaries')\
+            .select('*, youtube_videos!inner(channel_id, title)')\
+            .eq('youtube_videos.channel_id', channel_id)\
+            .eq('is_current', True)\
+            .execute()
+
+        failed_videos = []
+        for summary in failed_summaries.data:
+            summary_text = summary.get('summary_text', '')
+            if ('Transcript extraction failed' in summary_text or 
+                'transcript you\'ve shared appears to be empty' in summary_text or
+                'cannot provide a comprehensive summary' in summary_text):
+                failed_videos.append({
+                    'video_id': summary['video_id'],
+                    'title': summary.get('youtube_videos', {}).get('title', 'Unknown'),
+                    'summary_id': summary['summary_id']
+                })
+
+        return jsonify({
+            'success': True,
+            'failed_videos': failed_videos,
+            'count': len(failed_videos)
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @api_bp.route('/summary/history/<video_id>')
 def get_summary_history_route(video_id):
     """Route wrapper for summary history functionality"""
