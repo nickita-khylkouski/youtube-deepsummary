@@ -34,8 +34,7 @@
       "Bash(git checkout:*)",
       "mcp__supabase-deepsearch__list_tables",
       "mcp__supabase-deepsearch__apply_migration",
-      "Bash(git push:*)",
-      "Bash(python3 -c \"\nfrom src.youtube_api import youtube_api\n\n# Test that import still works with only primary strategy\nprint(''Testing single strategy import...'')\ntry:\n    result = youtube_api.get_channel_videos(''Sabine Hossenfelder'', 3, 7)\n    print(''Videos found:'', len(result[''videos'']))\n    print(''Metadata:'', result[''metadata''])\n    print(''Strategy used:'', result[''metadata''][''strategy_used''])\nexcept Exception as e:\n    print(f''Error: {e}'')\n\")"
+      "Bash(git push:*)"
     ],
     "deny": []
   }
