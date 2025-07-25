@@ -436,7 +436,6 @@ async function importChannelVideos(channelHandle) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                max_results: 20,  // Will be overridden by server-side defaults if not specified
                 days_back: daysBack
             })
         });
