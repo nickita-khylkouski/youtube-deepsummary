@@ -586,8 +586,10 @@ def import_channel_videos(channel_handle):
         default_days_back = import_settings.get('defaultDaysBack', import_settings.get('default_days_back', 30))
         max_results_limit = import_settings.get('maxResultsLimit', import_settings.get('max_results_limit', 50))
         
+        # Ensure all values are converted to integers to prevent type comparison errors
         max_results = int(data.get('max_results', default_max_results))
         days_back = int(data.get('days_back', default_days_back))
+        max_results_limit = int(max_results_limit)
         
         # 🚀 SMART AUTO-ADJUSTMENT: Automatically increase limits based on time period
         original_max_results = max_results

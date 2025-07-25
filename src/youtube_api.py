@@ -211,7 +211,9 @@ class YouTubeAPI:
             
             # Apply settings if available
             if import_settings:
-                max_results = min(max_results, import_settings.get('max_results_limit', 50))
+                # Ensure proper type conversion to prevent comparison errors
+                max_results_limit = int(import_settings.get('max_results_limit', 50))
+                max_results = min(max_results, max_results_limit)
                 if import_settings.get('log_import_operations', True):
                     print(f"Using import settings: max_results={max_results}, days_back={days_back}")
             
