@@ -589,6 +589,33 @@ def import_channel_videos(channel_handle):
         max_results = int(data.get('max_results', default_max_results))
         days_back = int(data.get('days_back', default_days_back))
         
+        # 🚀 SMART AUTO-ADJUSTMENT: Automatically increase limits based on time period
+        original_max_results = max_results
+        original_max_limit = max_results_limit
+        
+        if days_back <= 7:
+            # 1 week or less: Use default settings
+            pass
+        elif days_back <= 30:
+            # 1 month: Slightly increase limits
+            max_results = max(max_results, 25)
+            max_results_limit = max(max_results_limit, 60)
+        elif days_back <= 90:
+            # 3 months: Moderately increase limits
+            max_results = max(max_results, 35)
+            max_results_limit = max(max_results_limit, 80)
+        elif days_back <= 180:
+            # 6 months: Significantly increase limits
+            max_results = max(max_results, 50)
+            max_results_limit = max(max_results_limit, 100)
+        else:
+            # 6+ months: Maximum limits
+            max_results = max(max_results, 60)
+            max_results_limit = max(max_results_limit, 150)
+        
+        if max_results != original_max_results or max_results_limit != original_max_limit:
+            print(f"🎯 Smart adjustment for {days_back} days: max_results {original_max_results}→{max_results}, limit {original_max_limit}→{max_results_limit}")
+        
         # Support per-request override of import_shorts setting
         request_import_shorts = data.get('import_shorts')
         if request_import_shorts is not None:
@@ -597,7 +624,7 @@ def import_channel_videos(channel_handle):
             import_settings['import_shorts'] = bool(request_import_shorts)
             print(f"Overriding import_shorts setting for this request: {bool(request_import_shorts)}")
         
-        # Validate parameters using settings
+        # Validate parameters using (possibly adjusted) settings
         if max_results > max_results_limit:
             max_results = max_results_limit
         if days_back < 1 or days_back > 365:  # Reasonable range: 1 day to 1 year

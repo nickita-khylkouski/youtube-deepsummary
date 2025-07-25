@@ -367,6 +367,11 @@ class YouTubeAPI:
     def _try_uploads_playlist_strategy(self, channel_id, channel_name, max_results, days_back):
         """Try to get videos using uploads playlist strategy with date filtering"""
         try:
+            # Get import settings for logging
+            from .database_storage import database_storage
+            import_settings = database_storage.get_import_settings()
+            if not import_settings:
+                import_settings = {}
             channel_request = self.service.channels().list(
                 part='contentDetails',
                 id=channel_id
@@ -381,55 +386,105 @@ class YouTubeAPI:
                 cutoff_date = datetime.utcnow() - timedelta(days=days_back)
                 print(f"Filtering videos published after: {cutoff_date.isoformat()}")
                 
-                # Get videos from the uploads playlist (fetch more to account for date filtering)
-                # We'll fetch up to 3x the requested amount to ensure we get enough recent videos
-                fetch_amount = min(max_results * 3, 100)  # Cap at 100 to avoid excessive API usage
-                
-                playlist_request = self.service.playlistItems().list(
-                    part='snippet',
-                    playlistId=uploads_playlist_id,
-                    maxResults=fetch_amount
-                )
-                playlist_response = playlist_request.execute()
-                
+                # 🚀 PROPER PAGINATION: Fetch videos using nextPageToken with smart stopping
                 videos = []
-                for item in playlist_response.get('items', []):
-                    video_id = item['snippet']['resourceId']['videoId']
-                    snippet = item['snippet']
+                next_page_token = None
+                pages_fetched = 0
+                max_pages = 20  # Safety limit to prevent infinite loops
+                consecutive_existing_videos = 0  # Track consecutive existing videos for early stopping
+                
+                print(f"📄 Starting pagination to find videos within {days_back} days...")
+                
+                while pages_fetched < max_pages:
+                    # Fetch 50 videos per page (max allowed)
+                    playlist_request = self.service.playlistItems().list(
+                        part='snippet',
+                        playlistId=uploads_playlist_id,
+                        maxResults=50,  # Always use max to minimize API calls
+                        pageToken=next_page_token
+                    )
+                    playlist_response = playlist_request.execute()
+                    pages_fetched += 1
                     
-                    # Parse published date and check if it's within the time range
-                    published_at = snippet.get('publishedAt', '')
-                    if published_at:
-                        try:
-                            # Parse ISO format: "2024-01-15T10:30:00Z"
-                            published_date = datetime.fromisoformat(published_at.replace('Z', '+00:00'))
-                            # Convert to UTC for comparison (remove timezone info)
-                            published_date_utc = published_date.replace(tzinfo=None)
-                            
-                            # Skip videos older than the cutoff date
-                            if published_date_utc < cutoff_date:
-                                print(f"Skipping old video {video_id}: published {published_at} (before cutoff {cutoff_date.isoformat()})")
-                                continue
-                            else:
-                                print(f"Including video {video_id}: published {published_at} (after cutoff {cutoff_date.isoformat()})")
+                    current_page_videos = []
+                    videos_beyond_cutoff = 0
+                    
+                    for item in playlist_response.get('items', []):
+                        video_id = item['snippet']['resourceId']['videoId']
+                        snippet = item['snippet']
+                        
+                        # Parse published date and check if it's within the time range
+                        published_at = snippet.get('publishedAt', '')
+                        include_video = True
+                        
+                        if published_at:
+                            try:
+                                # Parse ISO format: "2024-01-15T10:30:00Z"
+                                published_date = datetime.fromisoformat(published_at.replace('Z', '+00:00'))
+                                # Convert to UTC for comparison (remove timezone info)
+                                published_date_utc = published_date.replace(tzinfo=None)
                                 
-                        except Exception as e:
-                            print(f"Could not parse date {published_at} for video {video_id}: {e}")
-                            # If we can't parse the date, include the video to be safe
+                                # Check if video is within date range
+                                if published_date_utc < cutoff_date:
+                                    videos_beyond_cutoff += 1
+                                    include_video = False
+                                    if import_settings.get('log_import_operations', True):
+                                        print(f"Excluding video {video_id}: published {published_at} (before cutoff {cutoff_date.isoformat()})")
+                                else:
+                                    if import_settings.get('log_import_operations', True):
+                                        print(f"Including video {video_id}: published {published_at} (after cutoff {cutoff_date.isoformat()})")
+                                    
+                            except Exception as e:
+                                print(f"Could not parse date {published_at} for video {video_id}: {e}")
+                                # If we can't parse the date, include the video to be safe
+                                include_video = True
+                        
+                        if include_video:
+                            # Check if this video already exists for early stopping optimization
+                            from .database_storage import database_storage
+                            existing_video = database_storage.get(video_id)
+                            
+                            current_page_videos.append({
+                                'video_id': video_id,
+                                'title': snippet.get('title', ''),
+                                'description': snippet.get('description', ''),
+                                'published_at': published_at,
+                                'thumbnail_url': snippet.get('thumbnails', {}).get('medium', {}).get('url', ''),
+                                'channel_name': snippet.get('channelTitle', channel_name),
+                                'channel_id': channel_id
+                            })
+                            
+                            # Track consecutive existing videos for early stopping
+                            if existing_video:
+                                consecutive_existing_videos += 1
+                            else:
+                                consecutive_existing_videos = 0  # Reset counter when we find a new video
                     
-                    videos.append({
-                        'video_id': video_id,
-                        'title': snippet.get('title', ''),
-                        'description': snippet.get('description', ''),
-                        'published_at': published_at,
-                        'thumbnail_url': snippet.get('thumbnails', {}).get('medium', {}).get('url', ''),
-                        'channel_name': snippet.get('channelTitle', channel_name),
-                        'channel_id': channel_id
-                    })
+                    videos.extend(current_page_videos)
+                    print(f"📄 Page {pages_fetched}: Found {len(current_page_videos)} videos in date range, {videos_beyond_cutoff} beyond cutoff")
                     
-                    # Stop when we have enough videos within the date range
-                    if len(videos) >= max_results:
+                    # Check if we should continue paginating
+                    next_page_token = playlist_response.get('nextPageToken')
+                    
+                    # Stop conditions:
+                    # 1. No more pages
+                    # 2. All videos on this page were beyond cutoff (we've gone too far back)
+                    # 3. We have enough videos within the date range (early stopping for efficiency)
+                    # 4. Too many consecutive existing videos (likely all remaining videos are already imported)
+                    if not next_page_token:
+                        print(f"📄 No more pages available")
                         break
+                    elif videos_beyond_cutoff == len(playlist_response.get('items', [])):
+                        print(f"📄 All videos on page {pages_fetched} are beyond cutoff date - stopping pagination")
+                        break
+                    elif len(videos) >= max_results:  # Stop as soon as we have enough videos
+                        print(f"📄 Found enough videos ({len(videos)}) for target ({max_results}) - stopping pagination early")
+                        break
+                    elif consecutive_existing_videos >= 10 and max_results <= 10:  # For small requests, stop if we hit many existing videos
+                        print(f"📄 Found {consecutive_existing_videos} consecutive existing videos for small request - stopping pagination early")
+                        break
+                
+                print(f"📄 Pagination complete: {pages_fetched} pages fetched, {len(videos)} total videos in date range")
                 
                 if videos:
                     print(f"Found {len(videos)} videos from uploads playlist within {days_back} days")
@@ -529,10 +584,16 @@ class YouTubeAPI:
                 # If not filtering existing videos, fetch exactly what's requested
                 return target_new_videos
             
-            # Estimate that 30-50% of recent videos might already exist
-            # Fetch 2x the target amount to increase chances of getting enough new videos
-            # But cap it at reasonable limits to avoid excessive API usage
-            fetch_size = min(target_new_videos * 2, 100)  # Max 100 videos per API call
+            # For channels with many existing videos, we need to fetch more to find new ones
+            # Use a more aggressive multiplier for larger requests
+            if target_new_videos <= 10:
+                multiplier = 3  # Fetch 3x for small requests
+            elif target_new_videos <= 20:
+                multiplier = 4  # Fetch 4x for medium requests  
+            else:
+                multiplier = 5  # Fetch 5x for large requests
+            
+            fetch_size = min(target_new_videos * multiplier, 200)  # Increased max from 100 to 200
             
             if import_settings.get('log_import_operations', True):
                 print(f"📊 Fetch strategy: targeting {target_new_videos} new videos, fetching {fetch_size} total to account for existing videos")
