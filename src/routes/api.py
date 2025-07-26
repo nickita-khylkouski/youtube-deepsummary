@@ -591,32 +591,17 @@ def import_channel_videos(channel_handle):
         days_back = int(data.get('days_back', default_days_back))
         max_results_limit = int(max_results_limit)
         
-        # 🚀 SMART AUTO-ADJUSTMENT: Automatically increase limits based on time period
+        # 🎯 TIME-BASED IMPORT: Get videos from selected time period up to safety limit
+        # The max_results_limit serves as a safety limit to prevent runaway imports
+        # For time-based imports, we want to get ALL videos from the period (up to the limit)
         original_max_results = max_results
-        original_max_limit = max_results_limit
         
-        if days_back <= 7:
-            # 1 week or less: Use default settings
-            pass
-        elif days_back <= 30:
-            # 1 month: Slightly increase limits
-            max_results = max(max_results, 25)
-            max_results_limit = max(max_results_limit, 60)
-        elif days_back <= 90:
-            # 3 months: Moderately increase limits
-            max_results = max(max_results, 35)
-            max_results_limit = max(max_results_limit, 80)
-        elif days_back <= 180:
-            # 6 months: Significantly increase limits
-            max_results = max(max_results, 50)
-            max_results_limit = max(max_results_limit, 100)
-        else:
-            # 6+ months: Maximum limits
-            max_results = max(max_results, 60)
-            max_results_limit = max(max_results_limit, 150)
+        # For time-based selections, use the maxResultsLimit as the target
+        # (This allows getting all videos from the time period up to a reasonable safety limit)
+        max_results = max_results_limit
         
-        if max_results != original_max_results or max_results_limit != original_max_limit:
-            print(f"🎯 Smart adjustment for {days_back} days: max_results {original_max_results}→{max_results}, limit {original_max_limit}→{max_results_limit}")
+        if max_results != original_max_results:
+            print(f"🎯 Time-based import for {days_back} days: targeting {max_results} videos (safety limit)")
         
         # Support per-request override of import_shorts setting
         request_import_shorts = data.get('import_shorts')
