@@ -850,8 +850,22 @@ def import_channel_videos(channel_handle):
         default_days_back = import_settings.get('defaultDaysBack', import_settings.get('default_days_back', 30))
         max_results_limit = import_settings.get('maxResultsLimit', import_settings.get('max_results_limit', 50))
         
+        # Ensure all values are converted to integers to prevent type comparison errors
         max_results = int(data.get('max_results', default_max_results))
         days_back = int(data.get('days_back', default_days_back))
+        max_results_limit = int(max_results_limit)
+        
+        # 🎯 TIME-BASED IMPORT: Get videos from selected time period up to safety limit
+        # The max_results_limit serves as a safety limit to prevent runaway imports
+        # For time-based imports, we want to get ALL videos from the period (up to the limit)
+        original_max_results = max_results
+        
+        # For time-based selections, use the maxResultsLimit as the target
+        # (This allows getting all videos from the time period up to a reasonable safety limit)
+        max_results = max_results_limit
+        
+        if max_results != original_max_results:
+            print(f"🎯 Time-based import for {days_back} days: targeting {max_results} videos (safety limit)")
         
         # Support per-request override of import_shorts setting
         request_import_shorts = data.get('import_shorts')
@@ -861,7 +875,7 @@ def import_channel_videos(channel_handle):
             import_settings['import_shorts'] = bool(request_import_shorts)
             print(f"Overriding import_shorts setting for this request: {bool(request_import_shorts)}")
         
-        # Validate parameters using settings
+        # Validate parameters using (possibly adjusted) settings
         if max_results > max_results_limit:
             max_results = max_results_limit
         if days_back < 1 or days_back > 365:  # Reasonable range: 1 day to 1 year
@@ -876,13 +890,49 @@ def import_channel_videos(channel_handle):
         
         # Get latest videos from channel using channel name for the YouTube API
         print(f"Fetching {max_results} videos from channel: {channel_info['channel_name']} within {days_back} days")
-        videos = youtube_api.get_channel_videos(channel_info['channel_name'], max_results, days_back, import_settings)
+        import_result = youtube_api.get_channel_videos(channel_info['channel_name'], max_results, days_back, import_settings)
         
+        videos = import_result['videos']
+        metadata = import_result['metadata']
+        
+        # Check if no videos were found
         if not videos:
-            return jsonify({
-                'success': False,
-                'error': f'No videos found for channel: {channel_handle}'
-            }), 404
+            # Distinguish between different scenarios
+            if metadata['total_found'] == 0:
+                # No videos exist in the time range
+                return jsonify({
+                    'success': False,
+                    'error': f'No videos found for channel "{channel_info["channel_name"]}" within {days_back} days',
+                    'metadata': {
+                        'total_found': metadata['total_found'],
+                        'existing_count': metadata['existing_count'],
+                        'days_back': days_back
+                    }
+                }), 404
+            elif metadata['existing_count'] > 0:
+                # Videos exist but all are already imported
+                return jsonify({
+                    'success': True,
+                    'message': f'All {metadata["existing_count"]} videos from "{channel_info["channel_name"]}" within {days_back} days are already imported',
+                    'channel_name': channel_info['channel_name'],
+                    'total_videos': 0,
+                    'processed': 0,
+                    'skipped': metadata['existing_count'],
+                    'errors': 0,
+                    'metadata': {
+                        'total_found': metadata['total_found'],
+                        'existing_count': metadata['existing_count'],
+                        'days_back': days_back,
+                        'strategy_used': metadata['strategy_used']
+                    },
+                    'results': []
+                })
+            else:
+                # Fallback generic message
+                return jsonify({
+                    'success': False,
+                    'error': f'No videos found for channel: {channel_handle}'
+                }), 404
         
         # Process each video (existing videos are already filtered out by YouTube API layer)
         results = []
@@ -912,8 +962,14 @@ def import_channel_videos(channel_handle):
             'channel_name': channel_info['channel_name'],
             'total_videos': len(videos),
             'processed': processed_count,
-            'skipped': skipped_count,
+            'skipped': skipped_count + metadata['existing_count'],  # Include both API-level and processing-level skips
             'errors': error_count,
+            'metadata': {
+                'total_found': metadata['total_found'],
+                'existing_count': metadata['existing_count'],
+                'days_back': days_back,
+                'strategy_used': metadata['strategy_used']
+            },
             'results': results
         })
         

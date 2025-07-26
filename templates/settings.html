@@ -59,23 +59,6 @@
         .alert-dismissible .btn-close {
             font-size: 0.75rem;
         }
-        .fallback-strategy-item {
-            transition: all 0.2s ease;
-            border-radius: 6px;
-            padding: 8px;
-        }
-        .fallback-strategy-item:hover {
-            background-color: #e9ecef;
-        }
-        .fallback-strategy-item.disabled {
-            opacity: 0.6;
-        }
-        .fallback-strategy-item .form-check-label {
-            font-weight: 500;
-        }
-        #fallbackStrategiesList {
-            min-height: 120px;
-        }
     </style>
 </head>
 <body>
@@ -374,21 +357,21 @@
                                 </div>
                                 <div class="card-body">
                                     <div class="mb-3">
-                                        <label for="defaultMaxResults" class="form-label">Default Max Results</label>
+                                        <label for="defaultMaxResults" class="form-label">Videos Per Import (Default)</label>
                                         <input type="number" class="form-control" id="defaultMaxResults" name="default_max_results" min="1" max="100" value="20">
-                                        <div class="form-text">Default number of videos to import per channel</div>
+                                        <div class="form-text">How many videos to import by default when you click "Import Videos" (you can change this per import)</div>
                                     </div>
                                     
                                     <div class="mb-3">
-                                        <label for="defaultDaysBack" class="form-label">Default Days Back</label>
+                                        <label for="defaultDaysBack" class="form-label">Time Range (Default)</label>
                                         <input type="number" class="form-control" id="defaultDaysBack" name="default_days_back" min="1" max="365" value="30">
-                                        <div class="form-text">Default time range in days to look back for videos</div>
+                                        <div class="form-text">How many days back to look for videos by default (you can change this per import)</div>
                                     </div>
                                     
                                     <div class="mb-3">
-                                        <label for="maxResultsLimit" class="form-label">Max Results Limit</label>
+                                        <label for="maxResultsLimit" class="form-label">Maximum Videos Allowed</label>
                                         <input type="number" class="form-control" id="maxResultsLimit" name="max_results_limit" min="1" max="100" value="50">
-                                        <div class="form-text">Maximum number of videos that can be imported in one request</div>
+                                        <div class="form-text">Safety limit - prevents importing more than this many videos in a single request (protects against API limits)</div>
                                     </div>
                                     
                                     <div class="mb-3">
@@ -477,63 +460,6 @@
                                             <option value="search_api">Search API</option>
                                         </select>
                                         <div class="form-text">Primary strategy for finding videos</div>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label class="form-label">Fallback Strategies</label>
-                                        <div class="form-text mb-2">Select and reorder fallback strategies to try when the primary strategy fails</div>
-                                        <div id="fallbackStrategiesList" class="border rounded p-3" style="background-color: #f8f9fa;">
-                                            <div class="fallback-strategy-item d-flex align-items-center mb-2" data-strategy="activities_api">
-                                                <div class="form-check me-3">
-                                                    <input class="form-check-input" type="checkbox" id="fallback_activities_api" checked>
-                                                    <label class="form-check-label" for="fallback_activities_api">
-                                                        Activities API
-                                                    </label>
-                                                </div>
-                                                <div class="ms-auto">
-                                                    <button type="button" class="btn btn-outline-secondary btn-sm me-1" onclick="moveFallbackStrategy(this, 'up')" title="Move up">
-                                                        <i class="fas fa-chevron-up"></i>
-                                                    </button>
-                                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="moveFallbackStrategy(this, 'down')" title="Move down">
-                                                        <i class="fas fa-chevron-down"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div class="fallback-strategy-item d-flex align-items-center mb-2" data-strategy="search_api">
-                                                <div class="form-check me-3">
-                                                    <input class="form-check-input" type="checkbox" id="fallback_search_api" checked>
-                                                    <label class="form-check-label" for="fallback_search_api">
-                                                        Search API
-                                                    </label>
-                                                </div>
-                                                <div class="ms-auto">
-                                                    <button type="button" class="btn btn-outline-secondary btn-sm me-1" onclick="moveFallbackStrategy(this, 'up')" title="Move up">
-                                                        <i class="fas fa-chevron-up"></i>
-                                                    </button>
-                                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="moveFallbackStrategy(this, 'down')" title="Move down">
-                                                        <i class="fas fa-chevron-down"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div class="fallback-strategy-item d-flex align-items-center" data-strategy="uploads_playlist">
-                                                <div class="form-check me-3">
-                                                    <input class="form-check-input" type="checkbox" id="fallback_uploads_playlist">
-                                                    <label class="form-check-label" for="fallback_uploads_playlist">
-                                                        Uploads Playlist
-                                                    </label>
-                                                </div>
-                                                <div class="ms-auto">
-                                                    <button type="button" class="btn btn-outline-secondary btn-sm me-1" onclick="moveFallbackStrategy(this, 'up')" title="Move up">
-                                                        <i class="fas fa-chevron-up"></i>
-                                                    </button>
-                                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="moveFallbackStrategy(this, 'down')" title="Move down">
-                                                        <i class="fas fa-chevron-down"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <!-- Hidden input to store the final comma-separated value -->
-                                        <input type="hidden" id="fallbackStrategies" name="fallback_strategies" value="activities_api,search_api">
                                     </div>
                                 </div>
                             </div>
@@ -834,10 +760,7 @@
         function populateImportSettingsForm(settings) {
             // Populate form fields with current settings
             for (const [key, value] of Object.entries(settings)) {
-                if (key === 'fallbackStrategies') {
-                    // Handle fallback strategies specially
-                    populateFallbackStrategiesFromValue(value);
-                } else {
+                {
                     const element = document.getElementById(key);
                     if (element) {
                         if (element.type === 'checkbox') {
@@ -866,7 +789,6 @@
                 { id: 'skipExistingVideos', type: 'checkbox' },
                 { id: 'importShorts', type: 'checkbox' },
                 { id: 'importStrategy', type: 'select' },
-                { id: 'fallbackStrategies', type: 'text' },
                 { id: 'batchProcessing', type: 'checkbox' },
                 { id: 'batchSize', type: 'number' },
                 { id: 'retryFailedImports', type: 'checkbox' },
@@ -933,69 +855,6 @@
             });
         }
 
-        // Fallback Strategies Functions
-        function moveFallbackStrategy(button, direction) {
-            const item = button.closest('.fallback-strategy-item');
-            const container = item.parentNode;
-            
-            if (direction === 'up' && item.previousElementSibling) {
-                container.insertBefore(item, item.previousElementSibling);
-            } else if (direction === 'down' && item.nextElementSibling) {
-                container.insertBefore(item.nextElementSibling, item);
-            }
-            
-            updateFallbackStrategiesValue();
-        }
-        
-        function updateFallbackStrategiesValue() {
-            const container = document.getElementById('fallbackStrategiesList');
-            const items = container.querySelectorAll('.fallback-strategy-item');
-            const strategies = [];
-            
-            items.forEach(item => {
-                const checkbox = item.querySelector('input[type="checkbox"]');
-                if (checkbox.checked) {
-                    strategies.push(item.dataset.strategy);
-                }
-            });
-            
-            document.getElementById('fallbackStrategies').value = strategies.join(',');
-            console.log('Updated fallback strategies:', strategies.join(','));
-        }
-        
-        function initializeFallbackStrategies() {
-            // Add event listeners to checkboxes
-            const checkboxes = document.querySelectorAll('#fallbackStrategiesList input[type="checkbox"]');
-            checkboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', updateFallbackStrategiesValue);
-            });
-            
-            // Initial update
-            updateFallbackStrategiesValue();
-        }
-        
-        function populateFallbackStrategiesFromValue(value) {
-            if (!value) return;
-            
-            const strategies = value.split(',').map(s => s.trim()).filter(s => s);
-            const container = document.getElementById('fallbackStrategiesList');
-            
-            // First, uncheck all checkboxes
-            const checkboxes = container.querySelectorAll('input[type="checkbox"]');
-            checkboxes.forEach(cb => cb.checked = false);
-            
-            // Then check and reorder based on the value
-            strategies.forEach((strategy, index) => {
-                const item = container.querySelector(`[data-strategy="${strategy}"]`);
-                if (item) {
-                    const checkbox = item.querySelector('input[type="checkbox"]');
-                    checkbox.checked = true;
-                    
-                    // Move to correct position
-                    container.appendChild(item);
-                }
-            });
-        }
 
         // Summarizer Settings Functions
         function togglePasswordVisibility(fieldId) {
@@ -1252,7 +1111,6 @@
 
         // Load import settings when the page loads
         document.addEventListener('DOMContentLoaded', function() {
-            initializeFallbackStrategies();
             loadImportSettings();
             loadAvailableModels();
             
