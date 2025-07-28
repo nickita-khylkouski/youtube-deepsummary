@@ -671,8 +671,8 @@ def import_missing_transcripts(channel_handle):
             print(f"Importing transcript for video: {video_id} - {video.get('title', 'Unknown')}")
             
             try:
-                # Use the video processor to extract and import transcript only
-                result = video_processor.process_video_complete(video_id, channel_info['channel_id'])
+                # Use the video processor to extract and import transcript with force enabled
+                result = video_processor.process_video_complete(video_id, channel_info['channel_id'], force_transcript_extraction=True)
                 
                 if result['status'] == 'processed' or result['status'] == 'exists':
                     results.append({
