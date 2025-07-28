@@ -287,6 +287,13 @@
         </div>
         {% endif %}
         
+        {% if videos_without_transcripts_count > 0 %}
+            <button onclick="extractMissingTranscripts('{{ channel_info.handle }}')" 
+                    style="background: #8bc34a; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s;">
+                📝 Extract Missing Transcripts ({{ videos_without_transcripts_count }})
+            </button>
+        {% endif %}
+        
         {% if videos_without_summaries_count > 0 %}
             <button onclick="generateMissingSummaries('{{ channel_info.handle }}')" 
                     style="background: #2196f3; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s;">
@@ -661,6 +668,57 @@ function loadAvailableModels() {
             console.error('Error loading models:', error);
             modelSelect.innerHTML = '<option value="">Error loading models</option>';
         });
+}
+
+async function extractMissingTranscripts(channelHandle) {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    
+    // Disable button and show loading state
+    button.disabled = true;
+    button.innerHTML = '⏳ Extracting Transcripts...';
+    button.style.background = '#9e9e9e';
+    
+    try {
+        console.log(`Starting transcript extraction for channel: ${channelHandle}`);
+        
+        const response = await fetch(`/api/@${channelHandle}/extract-missing-transcripts`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        const result = await response.json();
+        console.log('Transcript extraction result:', result);
+        
+        if (result.success) {
+            // Show success message
+            const message = result.processed > 0 
+                ? `Successfully extracted ${result.processed} transcripts (${result.errors} errors)`
+                : result.message;
+            
+            // Create and show success notification
+            showNotification(message, 'success');
+            
+            // Refresh the page after a short delay to show updated counts
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+            
+        } else {
+            showNotification(`Error: ${result.error}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('Transcript extraction error:', error);
+        showNotification(`Failed to extract transcripts: ${error.message}`, 'error');
+    } finally {
+        // Reset button state
+        button.disabled = false;
+        button.innerHTML = originalText;
+        button.style.background = '#8bc34a';
+    }
 }
 
 async function generateMissingSummaries(channelHandle) {
