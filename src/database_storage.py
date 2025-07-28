@@ -1231,6 +1231,18 @@ class DatabaseStorage:
             transcripts_response = self.supabase.table('transcripts').delete().eq('video_id', video_id).execute()
             print(f"Deleted transcripts: {len(transcripts_response.data) if transcripts_response.data else 0}")
 
+            # Delete memory snippets
+            snippets_response = self.supabase.table('memory_snippets').delete().eq('video_id', video_id).execute()
+            print(f"Deleted memory snippets: {len(snippets_response.data) if snippets_response.data else 0}")
+
+            # Delete chapter summaries (if they exist)
+            try:
+                chapter_summaries_response = self.supabase.table('chapter_summaries').delete().eq('video_id', video_id).execute()
+                print(f"Deleted chapter summaries: {len(chapter_summaries_response.data) if chapter_summaries_response.data else 0}")
+            except Exception as e:
+                # Table might not exist in all installations
+                print(f"Chapter summaries table not found or error: {e}")
+
             # Delete the main video record
             video_response = self.supabase.table('youtube_videos').delete().eq('video_id', video_id).execute()
             print(f"Deleted video: {len(video_response.data) if video_response.data else 0}")
@@ -1726,6 +1738,53 @@ class DatabaseStorage:
                         print(f"Warning: Failed to delete video {video_id}")
                         # Continue with other videos even if one fails
             
+            # Delete chat conversations and their messages for this channel
+            print(f"Deleting chat conversations for channel {channel_id}...")
+            chats_result = self.supabase.table('chat_conversations')\
+                .select('id')\
+                .eq('channel_id', channel_id)\
+                .execute()
+            
+            chat_count = 0
+            message_count = 0
+            if chats_result.data:
+                for chat in chats_result.data:
+                    chat_id = chat['id']
+                    # Delete messages first (foreign key dependency)
+                    messages_response = self.supabase.table('chat_messages').delete().eq('conversation_id', chat_id).execute()
+                    deleted_messages = len(messages_response.data) if messages_response.data else 0
+                    message_count += deleted_messages
+                    print(f"  Deleted {deleted_messages} messages for conversation {chat_id}")
+                
+                # Delete all conversations for this channel
+                chat_conversations_response = self.supabase.table('chat_conversations').delete().eq('channel_id', channel_id).execute()
+                chat_count = len(chat_conversations_response.data) if chat_conversations_response.data else 0
+                
+            print(f"Deleted {chat_count} chat conversations and {message_count} messages")
+
+            # Delete global chat conversations where this channel was the original channel
+            print(f"Deleting global chat conversations originated from channel {channel_id}...")
+            global_chats_result = self.supabase.table('chat_conversations')\
+                .select('id')\
+                .eq('original_channel_id', channel_id)\
+                .execute()
+            
+            global_chat_count = 0
+            global_message_count = 0
+            if global_chats_result.data:
+                for chat in global_chats_result.data:
+                    chat_id = chat['id']
+                    # Delete messages first
+                    messages_response = self.supabase.table('chat_messages').delete().eq('conversation_id', chat_id).execute()
+                    deleted_messages = len(messages_response.data) if messages_response.data else 0
+                    global_message_count += deleted_messages
+                    
+                # Delete all global conversations originated from this channel
+                global_conversations_response = self.supabase.table('chat_conversations').delete().eq('original_channel_id', channel_id).execute()
+                global_chat_count = len(global_conversations_response.data) if global_conversations_response.data else 0
+                
+            print(f"Deleted {global_chat_count} global chat conversations and {global_message_count} global messages")
+
             # Finally, delete the channel itself
             channel_response = self.supabase.table('youtube_channels')\
                 .delete()\
