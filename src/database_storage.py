@@ -1703,11 +1703,49 @@ class DatabaseStorage:
             return False
 
     def delete_channel(self, channel_id: str) -> bool:
-        """Delete a channel and all its associated data (videos, transcripts, summaries, snippets)"""
+        """Delete a channel and all its associated data (videos, transcripts, summaries, snippets, chat data)"""
         try:
             print(f"Deleting channel {channel_id} and all associated data...")
 
-            # First, get all videos for this channel
+            # Step 1: Delete chat conversations and their messages
+            print(f"Deleting chat conversations for channel {channel_id}...")
+            
+            # Get all conversations for this channel (both current and original)
+            conversations_result = self.supabase.table('chat_conversations')\
+                .select('id')\
+                .or_(f'channel_id.eq.{channel_id},original_channel_id.eq.{channel_id}')\
+                .execute()
+            
+            conversation_ids = [conv['id'] for conv in conversations_result.data] if conversations_result.data else []
+            
+            if conversation_ids:
+                print(f"Found {len(conversation_ids)} conversations to delete for channel {channel_id}")
+                
+                # Delete all chat messages for these conversations
+                for conv_id in conversation_ids:
+                    self.supabase.table('chat_messages')\
+                        .delete()\
+                        .eq('conversation_id', conv_id)\
+                        .execute()
+                    print(f"Deleted messages for conversation {conv_id}")
+                
+                # Delete the conversations themselves
+                for conv_id in conversation_ids:
+                    self.supabase.table('chat_conversations')\
+                        .delete()\
+                        .eq('id', conv_id)\
+                        .execute()
+                    print(f"Deleted conversation {conv_id}")
+            
+            # Step 2: Delete channel_chat entries
+            print(f"Deleting channel chat entries for channel {channel_id}...")
+            self.supabase.table('channel_chat')\
+                .delete()\
+                .eq('channel_id', channel_id)\
+                .execute()
+            print(f"Deleted channel chat entries for channel {channel_id}")
+
+            # Step 3: Delete all videos for this channel
             videos_result = self.supabase.table('youtube_videos')\
                 .select('video_id')\
                 .eq('channel_id', channel_id)\
@@ -1726,14 +1764,15 @@ class DatabaseStorage:
                         print(f"Warning: Failed to delete video {video_id}")
                         # Continue with other videos even if one fails
             
-            # Finally, delete the channel itself
+            # Step 4: Finally, delete the channel itself
+            print(f"Deleting channel record for {channel_id}...")
             channel_response = self.supabase.table('youtube_channels')\
                 .delete()\
                 .eq('channel_id', channel_id)\
                 .execute()
             
             if channel_response.data:
-                print(f"Successfully deleted channel {channel_id}")
+                print(f"Successfully deleted channel {channel_id} and all associated data")
                 return True
             else:
                 print(f"No channel found with ID {channel_id}")
