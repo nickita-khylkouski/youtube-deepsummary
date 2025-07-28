@@ -122,6 +122,17 @@
         </div>
     </div>
     {% endif %}
+    
+    <!-- Videos without transcripts card -->
+    {% if videos_without_transcripts_count > 0 %}
+    <div class="stat-card" style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; border-left: 4px solid #f44336;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <span style="font-size: 18px;">❌</span>
+            <span style="font-size: 24px; font-weight: bold; color: #f44336;">{{ videos_without_transcripts_count }}</span>
+            <span style="color: #666; font-weight: 500; font-size: 14px;">Missing Transcript{{ 's' if videos_without_transcripts_count != 1 else '' }}</span>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Recent Videos -->
@@ -291,6 +302,13 @@
             <button onclick="generateMissingSummaries('{{ channel_info.handle }}')" 
                     style="background: #2196f3; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s;">
                 🤖 Generate Missing Summaries ({{ videos_without_summaries_count }})
+            </button>
+        {% endif %}
+        
+        {% if videos_without_transcripts_count > 0 %}
+            <button onclick="importMissingTranscripts('{{ channel_info.handle }}')" 
+                    style="background: #673ab7; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s;">
+                📝 Import Missing Transcripts ({{ videos_without_transcripts_count }})
             </button>
         {% endif %}
         
@@ -715,6 +733,56 @@ async function generateMissingSummaries(channelHandle) {
         button.disabled = false;
         button.innerHTML = originalText;
         button.style.background = '#2196f3';
+    }
+}
+
+async function importMissingTranscripts(channelHandle) {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    
+    // Disable button and show loading state
+    button.disabled = true;
+    button.innerHTML = '⏳ Importing Transcripts...';
+    button.style.background = '#9e9e9e';
+    
+    try {
+        console.log(`Starting transcript import for channel: ${channelHandle}`);
+        
+        const response = await fetch(`/api/${channelHandle}/import-missing-transcripts`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Show success message
+            const message = result.processed > 0 
+                ? `Successfully imported ${result.processed} transcripts (${result.errors} errors)`
+                : result.message;
+            
+            // Create and show success notification
+            showNotification(message, 'success');
+            
+            // Refresh the page after a short delay to show updated counts
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+            
+        } else {
+            showNotification(`Error: ${result.error}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('Transcript import error:', error);
+        showNotification(`Failed to import transcripts: ${error.message}`, 'error');
+    } finally {
+        // Reset button state
+        button.disabled = false;
+        button.innerHTML = originalText;
+        button.style.background = '#673ab7';
     }
 }
 

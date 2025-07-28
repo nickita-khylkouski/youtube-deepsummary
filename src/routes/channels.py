@@ -52,12 +52,33 @@ def channel_overview(channel_handle):
         # Get summary count and videos without summaries
         summary_count = 0
         videos_without_summaries = []
+        videos_without_transcripts = []
         if channel_videos:
             for video in channel_videos:
                 if database_storage.get_summary(video['video_id']):
                     summary_count += 1
                 else:
                     videos_without_summaries.append(video['video_id'])
+                
+                # Check if video has a valid transcript
+                transcript_response = database_storage.supabase.table('transcripts').select('formatted_transcript').eq('video_id', video['video_id']).execute()
+                has_valid_transcript = False
+                
+                if transcript_response.data and len(transcript_response.data) > 0:
+                    formatted_transcript = transcript_response.data[0].get('formatted_transcript', '')
+                    # Check if transcript is valid (not failed/empty)
+                    failed_indicators = [
+                        'transcript extraction failed',
+                        'no transcript available',
+                        'transcript not available',
+                        'failed to extract',
+                        'error extracting'
+                    ]
+                    is_failed = any(indicator.lower() in formatted_transcript.lower() for indicator in failed_indicators)
+                    has_valid_transcript = len(formatted_transcript.strip()) > 100 and not is_failed
+                
+                if not has_valid_transcript:
+                    videos_without_transcripts.append(video['video_id'])
         
         # Get snippet count for this channel
         snippets = database_storage.get_memory_snippets(limit=1000)
@@ -79,6 +100,8 @@ def channel_overview(channel_handle):
                              summary_count=summary_count,
                              videos_without_summaries_count=len(videos_without_summaries),
                              videos_without_summaries=videos_without_summaries,
+                             videos_without_transcripts_count=len(videos_without_transcripts),
+                             videos_without_transcripts=videos_without_transcripts,
                              snippet_count=snippet_count,
                              recent_videos=recent_videos)
         

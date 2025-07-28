@@ -375,18 +375,24 @@ class DatabaseStorage:
             # Use upsert to insert or update (on_conflict specifies the unique constraint)
             self.supabase.table('youtube_videos').upsert(video_data, on_conflict='video_id').execute()
 
-            # Insert or update transcript
-            transcript_data = {
-                'video_id': video_id,
-                'transcript_data': transcript,
-                'formatted_transcript': formatted_transcript,
-                'language_used': 'en',  # Default, could be enhanced
-                'updated_at': datetime.now(timezone.utc).isoformat()
-            }
+            # Insert or update transcript only if transcript extraction was enabled
+            if formatted_transcript is not None:
+                transcript_data = {
+                    'video_id': video_id,
+                    'transcript_data': transcript,
+                    'formatted_transcript': formatted_transcript,
+                    'language_used': 'en',  # Default, could be enhanced
+                    'updated_at': datetime.now(timezone.utc).isoformat()
+                }
 
-            # Delete existing transcript and insert new one
-            self.supabase.table('transcripts').delete().eq('video_id', video_id).execute()
-            self.supabase.table('transcripts').insert(transcript_data).execute()
+                # Delete existing transcript and insert new one
+                self.supabase.table('transcripts').delete().eq('video_id', video_id).execute()
+                self.supabase.table('transcripts').insert(transcript_data).execute()
+                print(f"Transcript saved for video {video_id}")
+            else:
+                # Delete any existing transcript record if transcript extraction is disabled
+                self.supabase.table('transcripts').delete().eq('video_id', video_id).execute()
+                print(f"Transcript extraction disabled - no transcript record created for {video_id}")
 
             # Insert or update chapters if available
             chapters = video_info.get('chapters')

@@ -79,8 +79,9 @@ class VideoProcessor:
                     formatted_transcript = "Transcript extraction failed or not available."
             else:
                 print(f"Skipping transcript extraction for {video_id} (disabled in settings)")
-                transcript = []
-                formatted_transcript = "Transcript extraction is disabled in import settings."
+                # Don't create any transcript record when disabled
+                transcript = None
+                formatted_transcript = None
             
             # Store in database
             # Get channel_id from video_info if not provided
