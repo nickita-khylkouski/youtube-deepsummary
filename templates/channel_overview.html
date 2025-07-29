@@ -122,6 +122,17 @@
         </div>
     </div>
     {% endif %}
+    
+    <!-- Videos without transcripts card -->
+    {% if videos_without_transcripts_count > 0 %}
+    <div class="stat-card" style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; border-left: 4px solid #f44336;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <span style="font-size: 18px;">❌</span>
+            <span style="font-size: 24px; font-weight: bold; color: #f44336;">{{ videos_without_transcripts_count }}</span>
+            <span style="color: #666; font-weight: 500; font-size: 14px;">Missing Transcript{{ 's' if videos_without_transcripts_count != 1 else '' }}</span>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Recent Videos -->
@@ -294,6 +305,47 @@
             </button>
         {% endif %}
         
+        {% if videos_without_transcripts_count > 0 %}
+        <div class="import-transcripts-dropdown" style="position: relative; display: inline-block;">
+            <button onclick="toggleImportTranscriptsDropdown()" 
+                    style="background: #673ab7; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 8px;">
+                📝 Import Missing Transcripts ({{ videos_without_transcripts_count }}) <span style="font-size: 12px;">▼</span>
+            </button>
+            <div id="importTranscriptsDropdown" class="import-transcripts-dropdown-content" style="display: none; position: absolute; background: white; min-width: 320px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 8px; z-index: 1; top: 100%; left: 0; margin-top: 5px;">
+                <div style="padding: 16px; border-bottom: 1px solid #eee;">
+                    <div style="font-size: 14px; font-weight: 500; color: #333; margin-bottom: 12px;">Import Options:</div>
+                    
+                    <!-- Chapter Extraction Option -->
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="importChaptersCheck" 
+                                   style="margin-right: 8px; cursor: pointer;"
+                                   onmousedown="event.stopPropagation();">
+                            <span style="font-size: 14px; color: #333;">📖 Extract chapters</span>
+                        </label>
+                        <small style="color: #666; margin-left: 24px; display: block;">Get video chapter information</small>
+                    </div>
+                    
+                    <!-- Auto Summary Option -->
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="importAutoSummaryCheck" 
+                                   style="margin-right: 8px; cursor: pointer;"
+                                   onmousedown="event.stopPropagation();">
+                            <span style="font-size: 14px; color: #333;">🤖 Generate AI summaries</span>
+                        </label>
+                        <small style="color: #666; margin-left: 24px; display: block;">Create AI summaries for imported transcripts</small>
+                    </div>
+                </div>
+                <button onclick="importMissingTranscripts('{{ channel_info.handle }}')" 
+                        style="background: #673ab7; color: white; border: none; padding: 12px 16px; border-radius: 0 0 8px 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s; width: 100%; text-align: left;"
+                        onmousedown="event.stopPropagation();">
+                    📝 Start Import
+                </button>
+            </div>
+        </div>
+        {% endif %}
+        
         <button onclick="deleteChannel('{{ channel_info.handle }}', '{{ channel_info.channel_name }}')" 
                 style="background: #d32f2f; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s;">
             🗑️ Delete Channel
@@ -339,6 +391,14 @@
     }
     
     .regenerate-dropdown-content {
+        border: 1px solid #ddd;
+    }
+    
+    .import-transcripts-dropdown-content button:hover {
+        background: #5e35b1 !important;
+    }
+    
+    .import-transcripts-dropdown-content {
         border: 1px solid #ddd;
     }
     
@@ -443,16 +503,27 @@ function toggleImportDropdown() {
     }
 }
 
+function toggleImportTranscriptsDropdown() {
+    const dropdown = document.getElementById('importTranscriptsDropdown');
+    if (dropdown.style.display === 'none') {
+        dropdown.style.display = 'block';
+    } else {
+        dropdown.style.display = 'none';
+    }
+}
+
 // Close dropdowns when clicking outside
 document.addEventListener('click', function(event) {
     const importDropdown = document.getElementById('importDropdown');
     const exportDropdown = document.getElementById('exportDropdown');
     const chatDropdown = document.getElementById('chatDropdown');
     const regenerateDropdown = document.getElementById('regenerateDropdown');
+    const importTranscriptsDropdown = document.getElementById('importTranscriptsDropdown');
     const importButton = event.target.closest('.import-dropdown');
     const exportButton = event.target.closest('.export-dropdown');
     const chatButton = event.target.closest('.chat-dropdown');
     const regenerateButton = event.target.closest('.regenerate-dropdown');
+    const importTranscriptsButton = event.target.closest('.import-transcripts-dropdown');
     
     if (!importButton && importDropdown && importDropdown.style.display === 'block') {
         importDropdown.style.display = 'none';
@@ -468,6 +539,10 @@ document.addEventListener('click', function(event) {
     
     if (!regenerateButton && regenerateDropdown && regenerateDropdown.style.display === 'block') {
         regenerateDropdown.style.display = 'none';
+    }
+    
+    if (!importTranscriptsButton && importTranscriptsDropdown && importTranscriptsDropdown.style.display === 'block') {
+        importTranscriptsDropdown.style.display = 'none';
     }
 });
 
@@ -716,6 +791,67 @@ async function generateMissingSummaries(channelHandle) {
         button.disabled = false;
         button.innerHTML = originalText;
         button.style.background = '#2196f3';
+    }
+}
+
+async function importMissingTranscripts(channelHandle) {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    
+    // Get checkbox values
+    const extractChapters = document.getElementById('importChaptersCheck').checked;
+    const generateSummaries = document.getElementById('importAutoSummaryCheck').checked;
+    
+    // Disable button and show loading state
+    button.disabled = true;
+    button.innerHTML = '⏳ Importing Transcripts...';
+    button.style.background = '#9e9e9e';
+    
+    try {
+        console.log(`Starting transcript import for channel: ${channelHandle} (chapters: ${extractChapters}, summaries: ${generateSummaries})`);
+        
+        const response = await fetch(`/api/${channelHandle}/import-missing-transcripts`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                extract_chapters: extractChapters,
+                generate_summaries: generateSummaries
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Show success message
+            const message = result.processed > 0 
+                ? `Successfully imported ${result.processed} transcripts (${result.errors} errors)`
+                : result.message;
+            
+            // Create and show success notification
+            showNotification(message, 'success');
+            
+            // Close the dropdown
+            document.getElementById('importTranscriptsDropdown').style.display = 'none';
+            
+            // Refresh the page after a short delay to show updated counts
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+            
+        } else {
+            showNotification(`Error: ${result.error}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('Transcript import error:', error);
+        showNotification(`Failed to import transcripts: ${error.message}`, 'error');
+    } finally {
+        // Reset button state
+        button.disabled = false;
+        button.innerHTML = originalText;
+        button.style.background = '#673ab7';
     }
 }
 
