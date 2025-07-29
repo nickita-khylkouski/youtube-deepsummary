@@ -276,14 +276,14 @@ class DatabaseStorage:
 
             video_data = video_response.data[0]
 
-            # Get transcript
+            # Get transcript (optional)
             transcript_response = self.supabase.table('transcripts').select('*').eq('video_id', video_id).execute()
 
             if not transcript_response.data or len(transcript_response.data) == 0:
-                print(f"Database MISS - no transcript for video {video_id}")
-                return None
-
-            transcript_data = transcript_response.data[0]
+                print(f"Database HIT for video {video_id} (no transcript)")
+                transcript_data = None
+            else:
+                transcript_data = transcript_response.data[0]
 
             # Get chapters (optional)
             chapters_response = self.supabase.table('video_chapters').select('*').eq('video_id', video_id).execute()
@@ -309,7 +309,7 @@ class DatabaseStorage:
             cached_data = {
                 'video_id': video_id,
                 'timestamp': time.mktime(self._parse_datetime(video_data['created_at']).timetuple()),
-                'transcript': transcript_data['transcript_data'],
+                'transcript': transcript_data['transcript_data'] if transcript_data else None,
                 'video_info': {
                     'title': video_data['title'],
                     'duration': video_data['duration'],
@@ -317,10 +317,13 @@ class DatabaseStorage:
                     'channel_id': video_data.get('channel_id'),
                     'youtube_channels': channel_info
                 },
-                'formatted_transcript': transcript_data['formatted_transcript']
+                'formatted_transcript': transcript_data['formatted_transcript'] if transcript_data else None
             }
 
-            print(f"Database HIT for video {video_id}")
+            if transcript_data:
+                print(f"Database HIT for video {video_id}")
+            else:
+                print(f"Database HIT for video {video_id} (without transcript)")
             return cached_data
 
         except Exception as e:
