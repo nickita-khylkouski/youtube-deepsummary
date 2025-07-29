@@ -626,6 +626,13 @@ def import_missing_transcripts(channel_handle):
                 'error': f'Channel not found: {channel_handle}'
             }), 404
         
+        # Get options from request
+        data = request.get_json() if request.content_type == 'application/json' else {}
+        extract_chapters = data.get('extract_chapters', False)
+        generate_summaries = data.get('generate_summaries', False)
+        
+        print(f"Import options - Extract chapters: {extract_chapters}, Generate summaries: {generate_summaries}")
+        
         # Get videos for this channel
         channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
         
@@ -671,8 +678,14 @@ def import_missing_transcripts(channel_handle):
             print(f"Importing transcript for video: {video_id} - {video.get('title', 'Unknown')}")
             
             try:
-                # Use the video processor to extract and import transcript with force enabled
-                result = video_processor.process_video_complete(video_id, channel_info['channel_id'], force_transcript_extraction=True)
+                # Use the video processor to extract and import transcript with specified options
+                result = video_processor.process_video_complete(
+                    video_id, 
+                    channel_info['channel_id'], 
+                    force_transcript_extraction=True,
+                    force_chapter_extraction=extract_chapters,
+                    force_auto_summary=generate_summaries
+                )
                 
                 if result['status'] == 'processed' or result['status'] == 'exists':
                     results.append({
