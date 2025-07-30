@@ -1552,74 +1552,56 @@ def extract_missing_transcripts(channel_handle):
                 'errors': 0
             })
         
-        # Extract transcripts for each video with rate limiting
+        # Extract transcripts for each video using exact same logic as single video extraction
         processed_count = 0
         error_count = 0
-        import time
         
         for i, video_id in enumerate(videos_without_transcripts):
-            max_retries = 2
-            retry_count = 0
-            success = False
+            print(f"API: Processing video {i+1}/{len(videos_without_transcripts)}: {video_id}")
             
-            while retry_count <= max_retries and not success:
+            # Check database first (copy from transcript.py)
+            cached_data = database_storage.get(video_id)
+            
+            # Force extraction since we know these videos don't have transcripts
+            try:
+                print(f"API: Extracting transcript for video: {video_id}")
+                
+                # Extract transcript only (exact copy from transcript.py line 42)
+                transcript = video_processor.get_transcript(video_id)
+                
+                # Format transcript (exact copy from transcript.py line 45)
+                formatted_transcript = video_processor.transcript_formatter.format_for_readability(transcript, None)
+                
+                # Get minimal video info (exact copy from transcript.py lines 48-53)
                 try:
+                    video_info = youtube_api.get_video_info(video_id)
+                    if not video_info:
+                        video_info = {'title': 'Unknown Title'}
+                except Exception:
+                    video_info = {'title': 'Unknown Title'}
+                
+                # Update existing video data (exact copy from transcript.py lines 55-69)
+                if cached_data:
+                    # Update existing entry with new transcript data
+                    existing_video_info = cached_data['video_info']
+                    existing_video_info.update(video_info)  # Merge any new metadata
                     
-                    print(f"Processing video {i+1}/{len(videos_without_transcripts)}: {video_id} (attempt {retry_count + 1})")
+                    # Get existing channel info to avoid re-fetching
+                    channel_id = existing_video_info.get('channel_id')
+                    existing_channel_info = existing_video_info.get('youtube_channels')
                     
-                    # Call the same transcript extraction logic used by individual video pages
-                    transcript = video_processor.get_transcript(video_id)
-                    
-                    if transcript and len(transcript) > 0:
-                        # Format transcript  
-                        formatted_transcript = video_processor.transcript_formatter.format_for_readability(transcript, None)
-                        
-                        # Get video info if we don't have it
-                        existing_data = database_storage.get(video_id)
-                        if existing_data:
-                            video_info = existing_data['video_info']
-                            channel_id = video_info.get('channel_id')
-                            channel_info_dict = video_info.get('youtube_channels')
-                        else:
-                            # Get minimal video info
-                            try:
-                                video_info = youtube_api.get_video_info(video_id)
-                                if not video_info:
-                                    video_info = {'title': 'Unknown Title'}
-                                channel_id = video_info.get('channel_id', channel_info['channel_id'])
-                                channel_info_dict = None
-                            except Exception:
-                                video_info = {'title': 'Unknown Title'}
-                                channel_id = channel_info['channel_id']
-                                channel_info_dict = None
-                        
-                        # Store transcript in database
-                        database_storage.set(video_id, transcript, video_info, formatted_transcript, channel_id, channel_info_dict)
-                        processed_count += 1
-                        success = True
-                        print(f"Successfully extracted transcript for video: {video_id}")
-                    else:
-                        print(f"No transcript available for video: {video_id}")
-                        error_count += 1
-                        success = True  # Don't retry if no transcript exists
-                        
-                except Exception as e:
-                    error_message = str(e)
-                    retry_count += 1
-                    
-                    # Check if it's a rate limit error
-                    if "429" in error_message or "Too Many Requests" in error_message:
-                        if retry_count <= max_retries:
-                            print(f"Rate limit detected for video {video_id}, will retry (attempt {retry_count + 1}/{max_retries + 1})")
-                        else:
-                            print(f"Rate limit persists for video {video_id}, giving up after {max_retries + 1} attempts")
-                            error_count += 1
-                    else:
-                        print(f"Failed to extract transcript for video {video_id}: {error_message}")
-                        if retry_count <= max_retries:
-                            print(f"Will retry (attempt {retry_count + 1}/{max_retries + 1})")
-                        else:
-                            error_count += 1
+                    database_storage.set(video_id, transcript, existing_video_info, formatted_transcript, channel_id, existing_channel_info)
+                else:
+                    # New video, minimal setup
+                    channel_id = video_info.get('channel_id')
+                    database_storage.set(video_id, transcript, video_info, formatted_transcript, channel_id, None)
+                
+                processed_count += 1
+                print(f"API: Successfully extracted transcript for video: {video_id}")
+                
+            except Exception as e:
+                print(f"API: Failed to extract transcript for video {video_id}: {str(e)}")
+                error_count += 1
         
         return jsonify({
             'success': True,
