@@ -1167,6 +1167,93 @@ class DatabaseStorage:
             print(f"Error getting video by url_path '{url_path}': {e}")
             return None
 
+    def get_channel_complete_data(self, channel_id: str) -> Dict:
+        """
+        OPTIMIZED: Get complete channel data in one efficient query
+        Replaces multiple individual queries with a single batch operation
+        
+        Returns:
+            Dict containing channel info, videos with summary status, and counts
+        """
+        try:
+            # Get videos with summaries using LEFT JOIN
+            videos_response = self.supabase.table('youtube_videos')\
+                .select('''
+                    *,
+                    summaries!left(summary_text, is_current)
+                ''')\
+                .eq('channel_id', channel_id)\
+                .order('created_at', desc=True)\
+                .execute()
+            
+            # Get channel info
+            channel_response = self.supabase.table('youtube_channels')\
+                .select('*')\
+                .eq('channel_id', channel_id)\
+                .execute()
+            
+            # Get memory snippets count for this channel's videos
+            all_video_ids = [v["video_id"] for v in (videos_response.data or [])]
+            snippets_response = None
+            if all_video_ids:
+                snippets_response = self.supabase.table('memory_snippets')\
+                    .select('id', count='exact')\
+                    .in_('video_id', all_video_ids)\
+                    .execute()
+            
+            # Process results
+            all_videos = videos_response.data or []
+            videos_with_summaries = []
+            
+            # Mark which videos have summaries and count them
+            for video in all_videos:
+                summaries = video.get('summaries', [])
+                # Check if video has current summary
+                has_current_summary = False
+                if summaries:
+                    for summary in summaries:
+                        if summary and summary.get('is_current', False):
+                            has_current_summary = True
+                            break
+                
+                video['has_summary'] = has_current_summary
+                if has_current_summary:
+                    videos_with_summaries.append(video)
+                
+                # Clean up the joined summary data
+                if 'summaries' in video:
+                    del video['summaries']
+            
+            # Get channel info
+            channel_info = channel_response.data[0] if channel_response.data else {}
+            
+            # Add channel info to each video
+            for video in all_videos:
+                video['channel_name'] = channel_info.get('channel_name', 'Unknown')
+                video['handle'] = channel_info.get('handle')
+            
+            return {
+                'channel_info': channel_info,
+                'videos': all_videos,
+                'summary_count': len(videos_with_summaries),
+                'video_count': len(all_videos),
+                'snippet_count': snippets_response.count if snippets_response else 0,
+                'recent_videos': all_videos[:6]  # First 6 for overview page
+            }
+            
+        except Exception as e:
+            print(f"Error getting complete channel data for {channel_id}: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'channel_info': {},
+                'videos': [],
+                'summary_count': 0,
+                'video_count': 0,
+                'snippet_count': 0,
+                'recent_videos': []
+            }
+
     def get_videos_by_channel(self, channel_name: str = None, channel_id: str = None) -> List[Dict]:
         """Get all videos from a specific channel (by name or ID)"""
         try:

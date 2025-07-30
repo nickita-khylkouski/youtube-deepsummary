@@ -46,36 +46,26 @@ def channel_overview(channel_handle):
             return render_template('error.html', 
                                  error_message=f"Channel not found: {channel_handle}"), 404
         
-        # Get videos for this channel
-        channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
+        # OPTIMIZED: Get all channel data in one efficient query
+        channel_data = database_storage.get_channel_complete_data(channel_info['channel_id'])
         
-        # Get summary count and videos without summaries
-        summary_count = 0
-        videos_without_summaries = []
-        if channel_videos:
-            for video in channel_videos:
-                if database_storage.get_summary(video['video_id']):
-                    summary_count += 1
-                else:
-                    videos_without_summaries.append(video['video_id'])
+        # Extract data from optimized response
+        channel_videos = channel_data['videos']
+        summary_count = channel_data['summary_count']
+        snippet_count = channel_data['snippet_count']
+        recent_videos = channel_data['recent_videos']
         
-        # Get snippet count for this channel
-        snippets = database_storage.get_memory_snippets(limit=1000)
-        snippet_count = 0
-        for snippet in snippets:
-            if snippet.get('channel_id') == channel_info['channel_id']:
-                snippet_count += 1
+        # Calculate videos without summaries
+        videos_without_summaries = [v['video_id'] for v in channel_videos if not v.get('has_summary', False)]
         
-        # Get recent videos (latest 6)
-        recent_videos = channel_videos[:6] if channel_videos else []
+        # Add thumbnail URLs to recent videos
         for video in recent_videos:
             video['thumbnail_url'] = f"https://img.youtube.com/vi/{video['video_id']}/maxresdefault.jpg"
-            video['has_summary'] = database_storage.get_summary(video['video_id']) is not None
         
         return render_template('channel_overview.html',
                              channel_info=channel_info,
                              channel_handle=channel_handle,
-                             total_videos=len(channel_videos) if channel_videos else 0,
+                             total_videos=len(channel_videos),
                              summary_count=summary_count,
                              videos_without_summaries_count=len(videos_without_summaries),
                              videos_without_summaries=videos_without_summaries,
@@ -97,16 +87,16 @@ def channel_videos(channel_handle):
             return render_template('error.html', 
                                  error_message=f"Channel not found: {channel_handle}"), 404
         
-        # Get videos for this channel
-        channel_videos_list = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
+        # OPTIMIZED: Get all channel data in one efficient query
+        channel_data = database_storage.get_channel_complete_data(channel_info['channel_id'])
+        channel_videos_list = channel_data['videos']
         
         if not channel_videos_list:
             return render_template('error.html', 
                                  error_message=f"No videos found for channel: {channel_handle}"), 404
         
-        # Check which videos have summaries
+        # Add thumbnail URLs (has_summary already included from optimized query)
         for video in channel_videos_list:
-            video['has_summary'] = database_storage.get_summary(video['video_id']) is not None
             video['thumbnail_url'] = f"https://img.youtube.com/vi/{video['video_id']}/maxresdefault.jpg"
         
         # Use channel name from channel_info
