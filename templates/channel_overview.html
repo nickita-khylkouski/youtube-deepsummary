@@ -287,6 +287,48 @@
         </div>
         {% endif %}
         
+        <!-- Fetch Missing Transcripts Dropdown -->
+        {% if videos_without_transcripts_count > 0 %}
+        <div class="refresh-transcripts-dropdown" style="position: relative; display: inline-block;">
+            <button onclick="toggleRefreshTranscriptsDropdown()" 
+                    style="background: #ff9800; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 8px;">
+                📥 Fetch Missing Transcripts ({{ videos_without_transcripts_count }}) <span style="font-size: 12px;">▼</span>
+            </button>
+            <div id="refreshTranscriptsDropdown" class="refresh-transcripts-dropdown-content" style="display: none; position: absolute; background: white; min-width: 320px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 8px; z-index: 1; top: 100%; left: 0; margin-top: 5px;">
+                <div style="padding: 16px; border-bottom: 1px solid #eee;">
+                    <div style="font-size: 14px; font-weight: 500; color: #333; margin-bottom: 12px;">Fetch Options:</div>
+
+                    <!-- Chapter Extraction Option -->
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="refreshChaptersCheck" 
+                                   style="margin-right: 8px; cursor: pointer;"
+                                   onmousedown="event.stopPropagation();">
+                            <span style="font-size: 14px; color: #333;">📖 Retrieve chapters</span>
+                        </label>
+                        <small style="color: #666; margin-left: 24px; display: block;">Obtain video chapter data</small>
+                    </div>
+
+                    <!-- Auto Summary Option -->
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="refreshAutoSummaryCheck" 
+                                   style="margin-right: 8px; cursor: pointer;"
+                                   onmousedown="event.stopPropagation();">
+                            <span style="font-size: 14px; color: #333;">🤖 Produce AI summaries</span>
+                        </label>
+                        <small style="color: #666; margin-left: 24px; display: block;">Build AI summaries for fetched transcripts</small>
+                    </div>
+                </div>
+                <button onclick="refreshTranscripts('{{ channel_info.handle }}')" 
+                        style="background: #ff9800; color: white; border: none; padding: 12px 16px; border-radius: 0 0 8px 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s; width: 100%; text-align: left;"
+                        onmousedown="event.stopPropagation();">
+                    📥 Start Fetch
+                </button>
+            </div>
+        </div>
+        {% endif %}
+        
         {% if videos_without_summaries_count > 0 %}
             <button onclick="generateMissingSummaries('{{ channel_info.handle }}')" 
                     style="background: #2196f3; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s;">
@@ -339,6 +381,14 @@
     }
     
     .regenerate-dropdown-content {
+        border: 1px solid #ddd;
+    }
+    
+    .refresh-transcripts-dropdown-content button:hover {
+        background: #5d4037 !important;
+    }
+    
+    .refresh-transcripts-dropdown-content {
         border: 1px solid #ddd;
     }
     
@@ -449,10 +499,12 @@ document.addEventListener('click', function(event) {
     const exportDropdown = document.getElementById('exportDropdown');
     const chatDropdown = document.getElementById('chatDropdown');
     const regenerateDropdown = document.getElementById('regenerateDropdown');
+    const refreshTranscriptsDropdown = document.getElementById('refreshTranscriptsDropdown');
     const importButton = event.target.closest('.import-dropdown');
     const exportButton = event.target.closest('.export-dropdown');
     const chatButton = event.target.closest('.chat-dropdown');
     const regenerateButton = event.target.closest('.regenerate-dropdown');
+    const refreshTranscriptsButton = event.target.closest('.refresh-transcripts-dropdown');
     
     if (!importButton && importDropdown && importDropdown.style.display === 'block') {
         importDropdown.style.display = 'none';
@@ -468,6 +520,10 @@ document.addEventListener('click', function(event) {
     
     if (!regenerateButton && regenerateDropdown && regenerateDropdown.style.display === 'block') {
         regenerateDropdown.style.display = 'none';
+    }
+    
+    if (!refreshTranscriptsButton && refreshTranscriptsDropdown && refreshTranscriptsDropdown.style.display === 'block') {
+        refreshTranscriptsDropdown.style.display = 'none';
     }
 });
 
@@ -1769,6 +1825,77 @@ function toggleRegenerateDropdown() {
         dropdown.style.display = 'block';
     } else {
         dropdown.style.display = 'none';
+    }
+}
+
+// Refresh transcripts dropdown functionality
+function toggleRefreshTranscriptsDropdown() {
+    const dropdown = document.getElementById('refreshTranscriptsDropdown');
+    if (dropdown.style.display === 'none') {
+        dropdown.style.display = 'block';
+    } else {
+        dropdown.style.display = 'none';
+    }
+}
+
+async function refreshTranscripts(channelHandle) {
+    const button = event.target;
+    const originalText = button.innerHTML;
+
+    // Get checkbox values
+    const extractChapters = document.getElementById('refreshChaptersCheck').checked;
+    const generateSummaries = document.getElementById('refreshAutoSummaryCheck').checked;
+
+    // Disable button and show loading state
+    button.disabled = true;
+    button.innerHTML = '⏳ Refreshing Transcripts...';
+    button.style.background = '#9e9e9e';
+
+    try {
+        console.log(`Starting transcript refresh for channel: ${channelHandle} (chapters: ${extractChapters}, summaries: ${generateSummaries})`);
+
+        const response = await fetch(`/api/@${channelHandle}/refresh-transcripts`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                extract_chapters: extractChapters,
+                generate_summaries: generateSummaries
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Show success message
+            const message = result.processed > 0 
+                ? `Successfully refreshed ${result.processed} transcripts (${result.errors} errors)`
+                : result.message;
+
+            // Create and show success notification
+            showNotification(message, 'success');
+
+            // Close the dropdown
+            document.getElementById('refreshTranscriptsDropdown').style.display = 'none';
+
+            // Refresh the page after a short delay to show updated counts
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+
+        } else {
+            showNotification(`Error: ${result.error}`, 'error');
+        }
+
+    } catch (error) {
+        console.error('Transcript refresh error:', error);
+        showNotification(`Failed to refresh transcripts: ${error.message}`, 'error');
+    } finally {
+        // Reset button state
+        button.disabled = false;
+        button.innerHTML = originalText;
+        button.style.background = '#795548';
     }
 }
 

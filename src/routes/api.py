@@ -1522,3 +1522,198 @@ def delete_global_chat_conversation(conversation_id):
         print(f"Error deleting global conversation: {e}")
         return jsonify({'error': str(e)}), 500
 
+
+@api_bp.route('/@<channel_handle>/refresh-transcripts', methods=['POST'])
+def refresh_transcripts(channel_handle):
+    """API endpoint to refresh transcripts for videos with existing transcripts"""
+    try:
+        # Get channel info by handle
+        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return jsonify({
+                'success': False,
+                'error': f'Channel not found: {channel_handle}'
+            }), 404
+
+        # Get options from request
+        data = request.get_json() if request.content_type == 'application/json' else {}
+        extract_chapters = data.get('extract_chapters', False)
+        generate_summaries = data.get('generate_summaries', False)
+
+        print(f"Refresh options - Extract chapters: {extract_chapters}, Generate summaries: {generate_summaries}")
+
+        # Get videos for this channel
+        channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
+
+        # Find videos without transcripts (for fetching missing ones)
+        videos_without_transcripts = []
+        if channel_videos:
+            for video in channel_videos:
+                transcript_response = database_storage.supabase.table('transcripts').select('formatted_transcript').eq('video_id', video['video_id']).execute()
+                has_valid_transcript = False
+
+                if transcript_response.data and len(transcript_response.data) > 0:
+                    formatted_transcript = transcript_response.data[0].get('formatted_transcript', '')
+                    # Check if transcript is valid (not failed/empty)
+                    failed_indicators = [
+                        'transcript extraction failed',
+                        'no transcript available',
+                        'transcript not available',
+                        'failed to extract',
+                        'error extracting'
+                    ]
+                    is_failed = any(indicator.lower() in formatted_transcript.lower() for indicator in failed_indicators)
+                    has_valid_transcript = len(formatted_transcript.strip()) > 100 and not is_failed
+
+                if not has_valid_transcript:
+                    # Video has no transcript or transcript is failed/invalid
+                    videos_without_transcripts.append(video)
+
+        if not videos_without_transcripts:
+            return jsonify({
+                'success': True,
+                'message': 'All videos already have transcripts',
+                'processed': 0,
+                'errors': 0,
+                'results': []
+            })
+
+        # Process each video without transcript
+        results = []
+        processed_count = 0
+        error_count = 0
+
+        for video in videos_without_transcripts:
+            video_id = video['video_id']
+            print(f"Fetching missing transcript for video: {video_id} - {video.get('title', 'Unknown')}")
+
+            try:
+                # Use the video processor to refresh transcript with specified options
+                result = video_processor.process_video_complete(
+                    video_id, 
+                    channel_info['channel_id'], 
+                    force_transcript_extraction=True
+                )
+
+                if result['status'] == 'processed' or result['status'] == 'exists':
+                    # Additional processing based on checkbox options
+                    additional_actions = []
+                    
+                    # Extract chapters if requested (bypass settings)
+                    if extract_chapters:
+                        try:
+                            # Use global function that bypasses settings checks
+                            from ..chapter_extractor import extract_video_chapters
+                            chapters_result = extract_video_chapters(video_id)
+                            
+                            if chapters_result:
+                                # Save chapters to database using Supabase MCP
+                                from datetime import datetime, timezone
+                                
+                                # Delete existing chapters first
+                                database_storage.supabase.table('video_chapters').delete().eq('video_id', video_id).execute()
+                                
+                                # Insert new chapters
+                                chapters_data = {
+                                    'video_id': video_id,
+                                    'chapters_data': chapters_result,
+                                    'updated_at': datetime.now(timezone.utc).isoformat()
+                                }
+                                database_storage.supabase.table('video_chapters').insert(chapters_data).execute()
+                                additional_actions.append('chapters extracted')
+                            else:
+                                additional_actions.append('no chapters found')
+                        except Exception as e:
+                            print(f"Error extracting chapters for {video_id}: {e}")
+                            additional_actions.append('chapters failed')
+                    
+                    # Generate AI summary if requested
+                    if generate_summaries:
+                        try:
+                            # Get the video data with transcript
+                            video_data = database_storage.get(video_id)
+                            if video_data and video_data.get('transcript'):
+                                transcript_data = video_data['transcript']
+                                
+                                # Generate summary using the correct method signature
+                                summary = video_processor.summarizer.summarize_transcript(transcript_data)
+                                
+                                if summary:
+                                    # Save summary to database
+                                    database_storage.save_summary(video_id, summary)
+                                    additional_actions.append('AI summary generated')
+                            else:
+                                additional_actions.append('AI summary failed - no transcript')
+                        except Exception as e:
+                            print(f"Error generating summary for {video_id}: {e}")
+                            additional_actions.append('AI summary failed')
+                    
+                    # Prepare success message
+                    base_message = 'Missing transcript fetched successfully'
+                    if additional_actions:
+                        base_message += f' ({", ".join(additional_actions)})'
+                    
+                    results.append({
+                        'video_id': video_id,
+                        'title': video.get('title', 'Unknown'),
+                        'status': 'success',
+                        'message': base_message
+                    })
+                    processed_count += 1
+                else:
+                    results.append({
+                        'video_id': video_id,
+                        'title': video.get('title', 'Unknown'),
+                        'status': 'error',
+                        'message': result.get('message', 'Failed to refresh transcript')
+                    })
+                    error_count += 1
+
+            except Exception as e:
+                print(f"Error refreshing transcript for {video_id}: {e}")
+                results.append({
+                    'video_id': video_id,
+                    'title': video.get('title', 'Unknown'),
+                    'status': 'error',
+                    'message': f'Failed to refresh transcript: {str(e)}'
+                })
+                error_count += 1
+
+        return jsonify({
+            'success': True,
+            'channel_name': channel_info['channel_name'],
+            'total_videos_without_transcripts': len(videos_without_transcripts),
+            'processed': processed_count,
+            'errors': error_count,
+            'results': results
+        })
+
+    except Exception as e:
+        print(f"Error refreshing transcripts: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@api_bp.route('/@<channel_handle>/videos')
+def get_channel_videos_api(channel_handle):
+    """Get all videos for a channel"""
+    try:
+        # Get channel info by handle
+        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return jsonify({'error': f'Channel not found: {channel_handle}'}), 404
+        
+        # Get videos for this channel
+        channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
+        
+        return jsonify({
+            'success': True,
+            'videos': channel_videos,
+            'count': len(channel_videos)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Failed to get videos: {str(e)}'}), 500
+
