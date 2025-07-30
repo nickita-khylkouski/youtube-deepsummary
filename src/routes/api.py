@@ -1564,11 +1564,6 @@ def extract_missing_transcripts(channel_handle):
             
             while retry_count <= max_retries and not success:
                 try:
-                    # Add delay between requests to avoid rate limiting
-                    if i > 0 or retry_count > 0:
-                        delay = 2 if retry_count == 0 else (5 * retry_count)  # Exponential backoff
-                        print(f"Rate limiting: waiting {delay} seconds before processing video {i+1}/{len(videos_without_transcripts)} (attempt {retry_count + 1})")
-                        time.sleep(delay)
                     
                     print(f"Processing video {i+1}/{len(videos_without_transcripts)}: {video_id} (attempt {retry_count + 1})")
                     
