@@ -287,11 +287,84 @@
         </div>
         {% endif %}
         
-        {% if videos_without_summaries_count > 0 %}
-            <button onclick="generateMissingSummaries('{{ channel_info.handle }}')" 
-                    style="background: #2196f3; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s;">
-                🤖 Generate Missing Summaries ({{ videos_without_summaries_count }})
+        <!-- Smart Bulk Processing Dropdown -->
+        {% set has_missing_content = videos_without_transcripts_count > 0 or videos_without_chapters_count > 0 or videos_without_summaries_count > 0 %}
+        {% if has_missing_content %}
+        <div class="bulk-process-dropdown" style="position: relative; display: inline-block;">
+            <button onclick="toggleBulkProcessDropdown()" 
+                    style="background: #ff6f00; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 8px;">
+                🔧 Bulk Process Channel <span style="font-size: 12px;">▼</span>
             </button>
+            <div id="bulkProcessDropdown" class="bulk-process-dropdown-content" style="display: none; position: absolute; background: white; min-width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 8px; z-index: 1; top: 100%; left: 0; margin-top: 5px; border: 1px solid #ddd;">
+                <div style="padding: 20px;">
+                    <div style="font-size: 16px; font-weight: 600; color: #333; margin-bottom: 16px;">Select Processing Options</div>
+                    
+                    <!-- Processing Options -->
+                    <div style="margin-bottom: 20px;">
+                        {% if videos_without_transcripts_count > 0 %}
+                        <label style="display: flex; align-items: center; margin-bottom: 12px; cursor: pointer;">
+                            <input type="checkbox" id="bulkTranscripts" onchange="validateBulkOptions()" 
+                                   style="margin-right: 10px; width: 16px; height: 16px;">
+                            <span style="font-size: 14px; color: #333;">
+                                📝 <strong>Extract Transcripts</strong> ({{ videos_without_transcripts_count }} videos)
+                                <br><small style="color: #666; margin-left: 24px;">Download transcript data from YouTube</small>
+                            </span>
+                        </label>
+                        {% endif %}
+                        
+                        {% if videos_without_chapters_count > 0 %}
+                        <label style="display: flex; align-items: center; margin-bottom: 12px; cursor: pointer;">
+                            <input type="checkbox" id="bulkChapters" onchange="validateBulkOptions()"
+                                   style="margin-right: 10px; width: 16px; height: 16px;">
+                            <span style="font-size: 14px; color: #333;">
+                                📚 <strong>Extract Chapters</strong> ({{ videos_without_chapters_count }} videos)
+                                <br><small style="color: #666; margin-left: 24px;">Get video chapter information and timestamps</small>
+                            </span>
+                        </label>
+                        {% endif %}
+                        
+                        {% if videos_without_summaries_count > 0 %}
+                        <label style="display: flex; align-items: center; margin-bottom: 12px; cursor: pointer;">
+                            <input type="checkbox" id="bulkSummaries" onchange="validateBulkOptions()"
+                                   style="margin-right: 10px; width: 16px; height: 16px;">
+                            <span style="font-size: 14px; color: #333;">
+                                🤖 <strong>Generate AI Summaries</strong> ({{ videos_without_summaries_count }} videos)
+                                <br><small style="color: #666; margin-left: 24px;">Create AI-powered summaries using GPT-4/Claude</small>
+                            </span>
+                        </label>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Dependency Warning -->
+                    <div id="dependencyWarning" style="display: none; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; padding: 12px; margin-bottom: 16px;">
+                        <div style="font-size: 13px; color: #856404;">
+                            ⚠️ <strong>Note:</strong> <span id="dependencyMessage"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Processing Info -->
+                    <div id="processingInfo" style="background: #f8f9fa; border-radius: 6px; padding: 12px; margin-bottom: 16px; display: none;">
+                        <div style="font-size: 13px; color: #495057;">
+                            📊 <strong>Will process:</strong> <span id="processingCount">0</span> videos
+                            <br>⏱️ <strong>Estimated time:</strong> <span id="estimatedTime">-</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div style="display: flex; gap: 10px; margin-top: 16px;">
+                        <button id="startBulkProcessing" onclick="startBulkProcessing('{{ channel_info.handle }}')" 
+                                disabled
+                                style="background: #28a745; color: white; border: none; padding: 12px 20px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s; flex: 1; opacity: 0.5;">
+                            🚀 Start Processing
+                        </button>
+                        <button onclick="toggleBulkProcessDropdown()" 
+                                style="background: #6c757d; color: white; border: none; padding: 12px 16px; border-radius: 6px; font-size: 14px; cursor: pointer;">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
         {% endif %}
         
         <button onclick="deleteChannel('{{ channel_info.handle }}', '{{ channel_info.channel_name }}')" 
@@ -443,16 +516,156 @@ function toggleImportDropdown() {
     }
 }
 
+function toggleBulkProcessDropdown() {
+    const dropdown = document.getElementById('bulkProcessDropdown');
+    if (dropdown.style.display === 'none') {
+        dropdown.style.display = 'block';
+    } else {
+        dropdown.style.display = 'none';
+    }
+}
+
+function validateBulkOptions() {
+    const transcriptsChecked = document.getElementById('bulkTranscripts')?.checked || false;
+    const chaptersChecked = document.getElementById('bulkChapters')?.checked || false;
+    const summariesChecked = document.getElementById('bulkSummaries')?.checked || false;
+    
+    let processingCount = 0;
+    let estimatedMinutes = 0;
+    let dependencyMessage = '';
+    
+    // Calculate processing count and time
+    if (transcriptsChecked) {
+        processingCount += {{ videos_without_transcripts_count }};
+        estimatedMinutes += {{ videos_without_transcripts_count }} * 0.5; // 30 seconds per transcript
+    }
+    if (chaptersChecked) {
+        processingCount += {{ videos_without_chapters_count }};
+        estimatedMinutes += {{ videos_without_chapters_count }} * 0.2; // 12 seconds per chapter
+    }
+    if (summariesChecked) {
+        processingCount += {{ videos_without_summaries_count }};
+        estimatedMinutes += {{ videos_without_summaries_count }} * 1.0; // 1 minute per summary
+    }
+    
+    // Check dependencies
+    if (summariesChecked && !transcriptsChecked && {{ videos_without_transcripts_count }} > 0) {
+        // Auto-enable transcripts for summaries
+        if (document.getElementById('bulkTranscripts')) {
+            document.getElementById('bulkTranscripts').checked = true;
+            dependencyMessage = 'Transcripts will be extracted first (required for AI summaries)';
+            processingCount += {{ videos_without_transcripts_count }};
+            estimatedMinutes += {{ videos_without_transcripts_count }} * 0.5;
+        }
+    }
+    
+    // Update UI
+    const anyChecked = transcriptsChecked || chaptersChecked || summariesChecked || 
+                      (document.getElementById('bulkTranscripts')?.checked || false);
+    
+    const startButton = document.getElementById('startBulkProcessing');
+    const processingInfo = document.getElementById('processingInfo');
+    const dependencyWarning = document.getElementById('dependencyWarning');
+    
+    if (anyChecked) {
+        startButton.disabled = false;
+        startButton.style.opacity = '1';
+        startButton.style.cursor = 'pointer';
+        
+        processingInfo.style.display = 'block';
+        document.getElementById('processingCount').textContent = processingCount;
+        document.getElementById('estimatedTime').textContent = 
+            estimatedMinutes < 1 ? '< 1 minute' : 
+            estimatedMinutes < 60 ? Math.ceil(estimatedMinutes) + ' minutes' :
+            Math.ceil(estimatedMinutes/60) + ' hours';
+    } else {
+        startButton.disabled = true;
+        startButton.style.opacity = '0.5';
+        startButton.style.cursor = 'not-allowed';
+        processingInfo.style.display = 'none';
+    }
+    
+    if (dependencyMessage) {
+        dependencyWarning.style.display = 'block';
+        document.getElementById('dependencyMessage').textContent = dependencyMessage;
+    } else {
+        dependencyWarning.style.display = 'none';
+    }
+}
+
+async function startBulkProcessing(channelHandle) {
+    const transcriptsChecked = document.getElementById('bulkTranscripts')?.checked || false;
+    const chaptersChecked = document.getElementById('bulkChapters')?.checked || false;
+    const summariesChecked = document.getElementById('bulkSummaries')?.checked || false;
+    
+    if (!transcriptsChecked && !chaptersChecked && !summariesChecked) {
+        showNotification('Please select at least one processing option', 'error');
+        return;
+    }
+    
+    const startButton = document.getElementById('startBulkProcessing');
+    const originalText = startButton.innerHTML;
+    
+    // Disable button and show loading state
+    startButton.disabled = true;
+    startButton.innerHTML = '⏳ Processing...';
+    startButton.style.background = '#9e9e9e';
+    
+    try {
+        const response = await fetch(`/api/@${channelHandle}/bulk-process`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                transcripts: transcriptsChecked,
+                chapters: chaptersChecked,
+                summaries: summariesChecked
+            })
+        });
+        
+        const result = await response.json();
+        console.log('Bulk processing result:', result);
+        
+        if (result.success) {
+            const message = `Processing complete! ${result.processed} items processed successfully` + 
+                          (result.errors > 0 ? ` (${result.errors} errors)` : '');
+            
+            showNotification(message, 'success');
+            
+            // Close dropdown and refresh page
+            document.getElementById('bulkProcessDropdown').style.display = 'none';
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+            
+        } else {
+            showNotification(`Error: ${result.error}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('Bulk processing error:', error);
+        showNotification(`Failed to process: ${error.message}`, 'error');
+    } finally {
+        // Reset button state
+        startButton.disabled = false;
+        startButton.innerHTML = originalText;
+        startButton.style.background = '#28a745';
+    }
+}
+
 // Close dropdowns when clicking outside
 document.addEventListener('click', function(event) {
     const importDropdown = document.getElementById('importDropdown');
     const exportDropdown = document.getElementById('exportDropdown');
     const chatDropdown = document.getElementById('chatDropdown');
     const regenerateDropdown = document.getElementById('regenerateDropdown');
+    const bulkProcessDropdown = document.getElementById('bulkProcessDropdown');
     const importButton = event.target.closest('.import-dropdown');
     const exportButton = event.target.closest('.export-dropdown');
     const chatButton = event.target.closest('.chat-dropdown');
     const regenerateButton = event.target.closest('.regenerate-dropdown');
+    const bulkProcessButton = event.target.closest('.bulk-process-dropdown');
     
     if (!importButton && importDropdown && importDropdown.style.display === 'block') {
         importDropdown.style.display = 'none';
@@ -468,6 +681,10 @@ document.addEventListener('click', function(event) {
     
     if (!regenerateButton && regenerateDropdown && regenerateDropdown.style.display === 'block') {
         regenerateDropdown.style.display = 'none';
+    }
+    
+    if (!bulkProcessButton && bulkProcessDropdown && bulkProcessDropdown.style.display === 'block') {
+        bulkProcessDropdown.style.display = 'none';
     }
 });
 
@@ -661,6 +878,57 @@ function loadAvailableModels() {
             console.error('Error loading models:', error);
             modelSelect.innerHTML = '<option value="">Error loading models</option>';
         });
+}
+
+async function extractMissingTranscripts(channelHandle) {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    
+    // Disable button and show loading state
+    button.disabled = true;
+    button.innerHTML = '⏳ Extracting Transcripts...';
+    button.style.background = '#9e9e9e';
+    
+    try {
+        console.log(`Starting transcript extraction for channel: ${channelHandle}`);
+        
+        const response = await fetch(`/api/@${channelHandle}/extract-missing-transcripts`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        const result = await response.json();
+        console.log('Transcript extraction result:', result);
+        
+        if (result.success) {
+            // Show success message
+            const message = result.processed > 0 
+                ? `Successfully extracted ${result.processed} transcripts (${result.errors} errors)`
+                : result.message;
+            
+            // Create and show success notification
+            showNotification(message, 'success');
+            
+            // Refresh the page after a short delay to show updated counts
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+            
+        } else {
+            showNotification(`Error: ${result.error}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('Transcript extraction error:', error);
+        showNotification(`Failed to extract transcripts: ${error.message}`, 'error');
+    } finally {
+        // Reset button state
+        button.disabled = false;
+        button.innerHTML = originalText;
+        button.style.background = '#8bc34a';
+    }
 }
 
 async function generateMissingSummaries(channelHandle) {

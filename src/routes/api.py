@@ -1522,3 +1522,395 @@ def delete_global_chat_conversation(conversation_id):
         print(f"Error deleting global conversation: {e}")
         return jsonify({'error': str(e)}), 500
 
+
+@api_bp.route('/@<channel_handle>/bulk-process', methods=['POST'])
+def bulk_process_channel(channel_handle):
+    """API endpoint for smart bulk processing with dependency validation"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No options provided'}), 400
+        
+        # Get options
+        process_transcripts = data.get('transcripts', False)
+        process_chapters = data.get('chapters', False) 
+        process_summaries = data.get('summaries', False)
+        
+        if not (process_transcripts or process_chapters or process_summaries):
+            return jsonify({'success': False, 'error': 'At least one processing option must be selected'}), 400
+        
+        # Get channel info
+        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return jsonify({'success': False, 'error': 'Channel not found'}), 404
+        
+        # Get all videos for this channel
+        channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
+        if not channel_videos:
+            return jsonify({'success': False, 'error': 'No videos found for this channel'}), 404
+        
+        # Find videos needing each type of processing
+        videos_need_transcripts = []
+        videos_need_chapters = []
+        videos_need_summaries = []
+        
+        for video in channel_videos:
+            video_data = database_storage.get(video['video_id'])
+            
+            # Check transcripts
+            if not video_data or not video_data.get('transcript') or len(video_data.get('transcript', [])) == 0:
+                videos_need_transcripts.append(video['video_id'])
+            
+            # Check chapters  
+            if not video_data or not video_data.get('video_info', {}).get('chapters') or len(video_data.get('video_info', {}).get('chapters', [])) == 0:
+                videos_need_chapters.append(video['video_id'])
+                
+            # Check summaries
+            if not database_storage.get_summary(video['video_id']):
+                videos_need_summaries.append(video['video_id'])
+        
+        # Dependency validation: summaries require transcripts
+        if process_summaries and not process_transcripts and len(videos_need_transcripts) > 0:
+            # Auto-enable transcript processing
+            process_transcripts = True
+            print(f"Auto-enabled transcript processing for {len(videos_need_transcripts)} videos (required for summaries)")
+        
+        # Process in correct order: transcripts -> chapters -> summaries
+        total_processed = 0
+        total_errors = 0
+        processing_steps = []
+        
+        # Step 1: Process transcripts
+        if process_transcripts and videos_need_transcripts:
+            print(f"Processing {len(videos_need_transcripts)} transcripts...")
+            transcripts_processed, transcripts_errors = process_bulk_transcripts(videos_need_transcripts, channel_info)
+            total_processed += transcripts_processed
+            total_errors += transcripts_errors
+            processing_steps.append(f"Transcripts: {transcripts_processed} processed, {transcripts_errors} errors")
+        
+        # Step 2: Process chapters
+        if process_chapters and videos_need_chapters:
+            print(f"Processing {len(videos_need_chapters)} chapters...")
+            chapters_processed, chapters_errors = process_bulk_chapters(videos_need_chapters, channel_info)
+            total_processed += chapters_processed  
+            total_errors += chapters_errors
+            processing_steps.append(f"Chapters: {chapters_processed} processed, {chapters_errors} errors")
+        
+        # Step 3: Process summaries (only for videos that now have transcripts)
+        if process_summaries:
+            # Re-check which videos need summaries and have transcripts
+            videos_ready_for_summaries = []
+            for video_id in videos_need_summaries:
+                if not database_storage.get_summary(video_id):  # Still no summary
+                    video_data = database_storage.get(video_id)
+                    if video_data and video_data.get('transcript') and len(video_data.get('transcript', [])) > 0:
+                        videos_ready_for_summaries.append(video_id)
+            
+            if videos_ready_for_summaries:
+                print(f"Processing {len(videos_ready_for_summaries)} summaries...")
+                summaries_processed, summaries_errors = process_bulk_summaries(videos_ready_for_summaries, channel_info)
+                total_processed += summaries_processed
+                total_errors += summaries_errors  
+                processing_steps.append(f"Summaries: {summaries_processed} processed, {summaries_errors} errors")
+        
+        return jsonify({
+            'success': True,
+            'processed': total_processed,
+            'errors': total_errors,
+            'steps': processing_steps,
+            'message': f'Bulk processing complete: {total_processed} items processed, {total_errors} errors'
+        })
+        
+    except Exception as e:
+        print(f"Error in bulk_process_channel: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+def process_bulk_transcripts(video_ids, channel_info):
+    """Process transcripts for multiple videos"""
+    processed = 0
+    errors = 0
+    
+    for i, video_id in enumerate(video_ids):
+        print(f"API: Processing transcript {i+1}/{len(video_ids)}: {video_id}")
+        
+        try:
+            # Use exact same logic as single transcript extraction
+            cached_data = database_storage.get(video_id)
+            
+            # Try transcript extraction with retry logic for proxy issues
+            transcript = None
+            for attempt in range(2):  # Try twice - once with proxy, once without
+                try:
+                    transcript = video_processor.get_transcript(video_id)
+                    break  # Success, exit retry loop
+                except Exception as transcript_error:
+                    if attempt == 0 and ("Connection reset by peer" in str(transcript_error) or "ProxyError" in str(transcript_error)):
+                        print(f"API: Proxy failed for {video_id}, trying without proxy...")
+                        # Temporarily disable proxy for this request
+                        import os
+                        original_proxy = os.environ.get('YOUTUBE_PROXY')
+                        if original_proxy:
+                            os.environ.pop('YOUTUBE_PROXY', None)
+                        try:
+                            transcript = video_processor.get_transcript(video_id)
+                            break  # Success without proxy
+                        finally:
+                            # Restore proxy setting
+                            if original_proxy:
+                                os.environ['YOUTUBE_PROXY'] = original_proxy
+                    else:
+                        raise transcript_error  # Re-raise the error if not proxy-related or second attempt
+            formatted_transcript = video_processor.transcript_formatter.format_for_readability(transcript, None)
+            
+            try:
+                video_info = youtube_api.get_video_info(video_id)
+                if not video_info:
+                    video_info = {'title': 'Unknown Title'}
+            except Exception:
+                video_info = {'title': 'Unknown Title'}
+            
+            if cached_data:
+                existing_video_info = cached_data['video_info']
+                existing_video_info.update(video_info)
+                channel_id = existing_video_info.get('channel_id')
+                existing_channel_info = existing_video_info.get('youtube_channels')
+                database_storage.set(video_id, transcript, existing_video_info, formatted_transcript, channel_id, existing_channel_info)
+            else:
+                channel_id = video_info.get('channel_id')
+                database_storage.set(video_id, transcript, video_info, formatted_transcript, channel_id, None)
+            
+            processed += 1
+            print(f"API: Successfully processed transcript for: {video_id}")
+            
+        except Exception as e:
+            error_msg = f"API: Failed to process transcript for {video_id}: {str(e)}"
+            print(error_msg)
+            print(f"Full error details: {repr(e)}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
+            errors += 1
+    
+    return processed, errors
+
+
+def process_bulk_chapters(video_ids, channel_info):
+    """Process chapters for multiple videos"""
+    processed = 0
+    errors = 0
+    
+    for i, video_id in enumerate(video_ids):
+        print(f"API: Processing chapters {i+1}/{len(video_ids)}: {video_id}")
+        
+        try:
+            # Use chapter extraction logic
+            chapters = video_processor.chapter_extractor.extract_chapters(video_id)
+            
+            if chapters and len(chapters) > 0:
+                # Update video data with chapters
+                cached_data = database_storage.get(video_id)
+                if cached_data:
+                    video_info = cached_data['video_info']
+                    video_info['chapters'] = chapters
+                    
+                    database_storage.set(
+                        video_id, 
+                        cached_data['transcript'], 
+                        video_info, 
+                        cached_data['formatted_transcript'], 
+                        video_info.get('channel_id'),
+                        video_info.get('youtube_channels')
+                    )
+                    processed += 1
+                    print(f"API: Successfully processed chapters for: {video_id}")
+                else:
+                    print(f"API: No video data found for chapters processing: {video_id}")
+                    errors += 1
+            else:
+                print(f"API: No chapters available for video: {video_id}")
+                errors += 1
+                
+        except Exception as e:
+            error_msg = f"API: Failed to process chapters for {video_id}: {str(e)}"
+            print(error_msg)
+            print(f"Full error details: {repr(e)}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
+            errors += 1
+    
+    return processed, errors
+
+
+def process_bulk_summaries(video_ids, channel_info):
+    """Process summaries for multiple videos"""  
+    processed = 0
+    errors = 0
+    
+    for i, video_id in enumerate(video_ids):
+        print(f"API: Processing summary {i+1}/{len(video_ids)}: {video_id}")
+        
+        try:
+            # Use existing summary generation logic
+            video_data = database_storage.get(video_id)
+            if not video_data or not video_data.get('transcript'):
+                print(f"API: No transcript available for summary: {video_id}")
+                errors += 1
+                continue
+                
+            # Generate summary using video processor
+            if not video_processor.summarizer or not video_processor.summarizer.is_configured():
+                print(f"API: Summarizer not configured for: {video_id}")
+                errors += 1
+                continue
+                
+            # Check if summary already exists
+            existing_summary = database_storage.get_summary(video_id)
+            if existing_summary:
+                print(f"API: Summary already exists for: {video_id}")
+                processed += 1
+                continue
+            
+            # Generate new summary
+            formatted_transcript = video_data.get('formatted_transcript', '')
+            if not formatted_transcript:
+                print(f"API: No formatted transcript for summary: {video_id}")
+                errors += 1
+                continue
+            
+            # Get default prompt
+            default_prompt_data = database_storage.get_default_prompt()
+            custom_prompt = default_prompt_data['prompt_text'] if default_prompt_data else None
+            
+            # Generate summary
+            summary = video_processor.summarizer.summarize_with_preferred_provider(
+                formatted_transcript, 
+                custom_prompt=custom_prompt,
+                video_info=video_data.get('video_info'),
+                chapters=video_data.get('video_info', {}).get('chapters')
+            )
+            
+            if summary:
+                # Store summary in database (using correct method signature)
+                prompt_id = default_prompt_data['id'] if default_prompt_data else None
+                prompt_name = default_prompt_data['name'] if default_prompt_data else None
+                database_storage.save_summary(
+                    video_id, 
+                    summary, 
+                    video_processor.summarizer.model,
+                    prompt_id,
+                    prompt_name
+                )
+                processed += 1
+                print(f"API: Successfully processed summary for: {video_id}")
+            else:
+                errors += 1
+                print(f"API: Failed to generate summary for: {video_id}")
+                
+        except Exception as e:
+            error_msg = f"API: Failed to process summary for {video_id}: {str(e)}"
+            print(error_msg)
+            print(f"Full error details: {repr(e)}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
+            errors += 1
+    
+    return processed, errors
+
+
+@api_bp.route('/@<channel_handle>/extract-missing-transcripts', methods=['POST'])
+def extract_missing_transcripts(channel_handle):
+    """API endpoint to extract transcripts for all videos in a channel that don't have them"""
+    try:
+        # Get channel info by handle
+        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return jsonify({'success': False, 'error': 'Channel not found'}), 404
+        
+        # Get all videos for this channel
+        channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
+        if not channel_videos:
+            return jsonify({'success': False, 'error': 'No videos found for this channel'}), 404
+        
+        # Find videos without transcripts
+        videos_without_transcripts = []
+        for video in channel_videos:
+            video_data = database_storage.get(video['video_id'])
+            if not video_data or not video_data.get('transcript') or len(video_data.get('transcript', [])) == 0:
+                videos_without_transcripts.append(video['video_id'])
+        
+        if not videos_without_transcripts:
+            return jsonify({
+                'success': True,
+                'message': 'All videos already have transcripts',
+                'processed': 0,
+                'errors': 0
+            })
+        
+        # Extract transcripts for each video using exact same logic as single video extraction
+        processed_count = 0
+        error_count = 0
+        
+        for i, video_id in enumerate(videos_without_transcripts):
+            print(f"API: Processing video {i+1}/{len(videos_without_transcripts)}: {video_id}")
+            
+            # Check database first (copy from transcript.py)
+            cached_data = database_storage.get(video_id)
+            
+            # Force extraction since we know these videos don't have transcripts
+            try:
+                print(f"API: Extracting transcript for video: {video_id}")
+                
+                # Extract transcript only (exact copy from transcript.py line 42)
+                transcript = video_processor.get_transcript(video_id)
+                
+                # Format transcript (exact copy from transcript.py line 45)
+                formatted_transcript = video_processor.transcript_formatter.format_for_readability(transcript, None)
+                
+                # Get minimal video info (exact copy from transcript.py lines 48-53)
+                try:
+                    video_info = youtube_api.get_video_info(video_id)
+                    if not video_info:
+                        video_info = {'title': 'Unknown Title'}
+                except Exception:
+                    video_info = {'title': 'Unknown Title'}
+                
+                # Update existing video data (exact copy from transcript.py lines 55-69)
+                if cached_data:
+                    # Update existing entry with new transcript data
+                    existing_video_info = cached_data['video_info']
+                    existing_video_info.update(video_info)  # Merge any new metadata
+                    
+                    # Get existing channel info to avoid re-fetching
+                    channel_id = existing_video_info.get('channel_id')
+                    existing_channel_info = existing_video_info.get('youtube_channels')
+                    
+                    database_storage.set(video_id, transcript, existing_video_info, formatted_transcript, channel_id, existing_channel_info)
+                else:
+                    # New video, minimal setup
+                    channel_id = video_info.get('channel_id')
+                    database_storage.set(video_id, transcript, video_info, formatted_transcript, channel_id, None)
+                
+                processed_count += 1
+                print(f"API: Successfully extracted transcript for video: {video_id}")
+                
+            except Exception as e:
+                print(f"API: Failed to extract transcript for video {video_id}: {str(e)}")
+                error_count += 1
+        
+        return jsonify({
+            'success': True,
+            'processed': processed_count,
+            'errors': error_count,
+            'total_videos': len(videos_without_transcripts)
+        })
+        
+    except Exception as e:
+        print(f"Error in extract_missing_transcripts: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
