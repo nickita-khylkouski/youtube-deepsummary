@@ -20,6 +20,62 @@ from ..api.summary import (
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 
+def process_additional_video_actions(video_id, extract_chapters=False, generate_summaries=False):
+    """Reusable helper for chapter extraction and AI summary generation"""
+    additional_actions = []
+    
+    # Extract chapters if requested (bypass settings)
+    if extract_chapters:
+        try:
+            # Use global function that bypasses settings checks
+            from ..chapter_extractor import extract_video_chapters
+            chapters_result = extract_video_chapters(video_id)
+            
+            if chapters_result:
+                # Save chapters to database using Supabase MCP
+                from datetime import datetime, timezone
+                
+                # Delete existing chapters first
+                database_storage.supabase.table('video_chapters').delete().eq('video_id', video_id).execute()
+                
+                # Insert new chapters
+                chapters_data = {
+                    'video_id': video_id,
+                    'chapters_data': chapters_result,
+                    'updated_at': datetime.now(timezone.utc).isoformat()
+                }
+                database_storage.supabase.table('video_chapters').insert(chapters_data).execute()
+                additional_actions.append('chapters extracted')
+            else:
+                additional_actions.append('no chapters found')
+        except Exception as e:
+            print(f"Error extracting chapters for {video_id}: {e}")
+            additional_actions.append('chapters failed')
+    
+    # Generate AI summary if requested
+    if generate_summaries:
+        try:
+            # Get the video data with transcript
+            video_data = database_storage.get(video_id)
+            if video_data and video_data.get('transcript'):
+                transcript_data = video_data['transcript']
+                
+                # Generate summary using the correct method signature
+                summary = video_processor.summarizer.summarize_transcript(transcript_data)
+                
+                if summary:
+                    # Save summary to database
+                    database_storage.save_summary(video_id, summary)
+                    additional_actions.append('AI summary generated')
+            else:
+                additional_actions.append('AI summary failed - no transcript')
+        except Exception as e:
+            print(f"Error generating summary for {video_id}: {e}")
+            additional_actions.append('AI summary failed')
+    
+    return additional_actions
+
+
 @api_bp.route('/import-video/<video_id>')
 def import_video_route(video_id):
     """Route wrapper for import video functionality"""
@@ -1597,56 +1653,9 @@ def refresh_transcripts(channel_handle):
 
                 if result['status'] == 'processed' or result['status'] == 'exists':
                     # Additional processing based on checkbox options
-                    additional_actions = []
-                    
-                    # Extract chapters if requested (bypass settings)
-                    if extract_chapters:
-                        try:
-                            # Use global function that bypasses settings checks
-                            from ..chapter_extractor import extract_video_chapters
-                            chapters_result = extract_video_chapters(video_id)
-                            
-                            if chapters_result:
-                                # Save chapters to database using Supabase MCP
-                                from datetime import datetime, timezone
-                                
-                                # Delete existing chapters first
-                                database_storage.supabase.table('video_chapters').delete().eq('video_id', video_id).execute()
-                                
-                                # Insert new chapters
-                                chapters_data = {
-                                    'video_id': video_id,
-                                    'chapters_data': chapters_result,
-                                    'updated_at': datetime.now(timezone.utc).isoformat()
-                                }
-                                database_storage.supabase.table('video_chapters').insert(chapters_data).execute()
-                                additional_actions.append('chapters extracted')
-                            else:
-                                additional_actions.append('no chapters found')
-                        except Exception as e:
-                            print(f"Error extracting chapters for {video_id}: {e}")
-                            additional_actions.append('chapters failed')
-                    
-                    # Generate AI summary if requested
-                    if generate_summaries:
-                        try:
-                            # Get the video data with transcript
-                            video_data = database_storage.get(video_id)
-                            if video_data and video_data.get('transcript'):
-                                transcript_data = video_data['transcript']
-                                
-                                # Generate summary using the correct method signature
-                                summary = video_processor.summarizer.summarize_transcript(transcript_data)
-                                
-                                if summary:
-                                    # Save summary to database
-                                    database_storage.save_summary(video_id, summary)
-                                    additional_actions.append('AI summary generated')
-                            else:
-                                additional_actions.append('AI summary failed - no transcript')
-                        except Exception as e:
-                            print(f"Error generating summary for {video_id}: {e}")
-                            additional_actions.append('AI summary failed')
+                    additional_actions = process_additional_video_actions(
+                        video_id, extract_chapters, generate_summaries
+                    )
                     
                     # Prepare success message
                     base_message = 'Missing transcript fetched successfully'
