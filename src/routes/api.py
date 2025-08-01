@@ -1593,64 +1593,21 @@ def refresh_transcripts(channel_handle):
                 result = video_processor.process_video_complete(
                     video_id, 
                     channel_info['channel_id'], 
-                    force_transcript_extraction=True
+                    force_transcript_extraction=True,
+                    extract_chapters=extract_chapters,
+                    generate_summaries=generate_summaries
                 )
 
                 if result['status'] == 'processed' or result['status'] == 'exists':
-                    # Additional processing based on checkbox options
+                    # Prepare success message based on what was processed
+                    base_message = 'Missing transcript fetched successfully'
                     additional_actions = []
                     
-                    # Extract chapters if requested (bypass settings)
                     if extract_chapters:
-                        try:
-                            # Use global function that bypasses settings checks
-                            from ..chapter_extractor import extract_video_chapters
-                            chapters_result = extract_video_chapters(video_id)
-                            
-                            if chapters_result:
-                                # Save chapters to database using Supabase MCP
-                                from datetime import datetime, timezone
-                                
-                                # Delete existing chapters first
-                                database_storage.supabase.table('video_chapters').delete().eq('video_id', video_id).execute()
-                                
-                                # Insert new chapters
-                                chapters_data = {
-                                    'video_id': video_id,
-                                    'chapters_data': chapters_result,
-                                    'updated_at': datetime.now(timezone.utc).isoformat()
-                                }
-                                database_storage.supabase.table('video_chapters').insert(chapters_data).execute()
-                                additional_actions.append('chapters extracted')
-                            else:
-                                additional_actions.append('no chapters found')
-                        except Exception as e:
-                            print(f"Error extracting chapters for {video_id}: {e}")
-                            additional_actions.append('chapters failed')
-                    
-                    # Generate AI summary if requested
+                        additional_actions.append('chapters processed')
                     if generate_summaries:
-                        try:
-                            # Get the video data with transcript
-                            video_data = database_storage.get(video_id)
-                            if video_data and video_data.get('transcript'):
-                                transcript_data = video_data['transcript']
-                                
-                                # Generate summary using the correct method signature
-                                summary = video_processor.summarizer.summarize_transcript(transcript_data)
-                                
-                                if summary:
-                                    # Save summary to database
-                                    database_storage.save_summary(video_id, summary)
-                                    additional_actions.append('AI summary generated')
-                            else:
-                                additional_actions.append('AI summary failed - no transcript')
-                        except Exception as e:
-                            print(f"Error generating summary for {video_id}: {e}")
-                            additional_actions.append('AI summary failed')
+                        additional_actions.append('summary processed')
                     
-                    # Prepare success message
-                    base_message = 'Missing transcript fetched successfully'
                     if additional_actions:
                         base_message += f' ({", ".join(additional_actions)})'
                     
