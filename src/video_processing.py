@@ -25,7 +25,7 @@ class VideoProcessor:
         """Download transcript for given video ID using transcript extractor"""
         return self.transcript_extractor.extract_transcript(video_id)
     
-    def process_video_complete(self, video_id, channel_id=None, force_transcript_extraction=False):
+    def process_video_complete(self, video_id, channel_id=None, force_transcript_extraction=False, extract_chapters=None, generate_summaries=None):
         """Process a video completely: get transcript, video info, and AI summary"""
         try:
             # Check if video already exists in database (unless forcing transcript extraction)
@@ -34,12 +34,19 @@ class VideoProcessor:
                 print(f"Video {video_id} already processed, skipping")
                 return {'status': 'exists', 'video_id': video_id}
             
-            # Get import settings to check if features are enabled
-            import_settings = database_storage.get_import_settings()
-            # Prioritize camelCase settings (from frontend) over underscore settings (original)
-            enable_transcript_extraction = force_transcript_extraction or import_settings.get('enableTranscriptExtraction', import_settings.get('enable_transcript_extraction', True))
-            enable_auto_summary = import_settings.get('enableAutoSummary', import_settings.get('enable_auto_summary', True))
-            enable_chapter_extraction = import_settings.get('enableChapterExtraction', import_settings.get('enable_chapter_extraction', True))
+            # For explicit parameters, use them directly. Otherwise fall back to settings
+            if extract_chapters is not None or generate_summaries is not None:
+                # Explicit parameters provided - use them directly (no fallback to settings)
+                enable_transcript_extraction = True  # Always extract transcript when explicitly called
+                enable_auto_summary = generate_summaries or False  # Only if checkbox is checked
+                enable_chapter_extraction = extract_chapters or False  # Only if checkbox is checked
+            else:
+                # No explicit parameters - use settings
+                import_settings = database_storage.get_import_settings()
+                # Prioritize camelCase settings (from frontend) over underscore settings (original)
+                enable_transcript_extraction = force_transcript_extraction or import_settings.get('enableTranscriptExtraction', import_settings.get('enable_transcript_extraction', True))
+                enable_auto_summary = import_settings.get('enableAutoSummary', import_settings.get('enable_auto_summary', True))
+                enable_chapter_extraction = import_settings.get('enableChapterExtraction', import_settings.get('enable_chapter_extraction', True))
             
             if force_transcript_extraction:
                 print(f"Force transcript extraction enabled for {video_id}")

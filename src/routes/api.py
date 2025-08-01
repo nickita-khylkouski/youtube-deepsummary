@@ -20,6 +20,7 @@ from ..api.summary import (
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 
+
 @api_bp.route('/import-video/<video_id>')
 def import_video_route(video_id):
     """Route wrapper for import video functionality"""
@@ -1521,4 +1522,135 @@ def delete_global_chat_conversation(conversation_id):
     except Exception as e:
         print(f"Error deleting global conversation: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/@<channel_handle>/refresh-transcripts', methods=['POST'])
+def refresh_transcripts(channel_handle):
+    """API endpoint to refresh transcripts for videos with existing transcripts"""
+    try:
+        # Get channel info by handle
+        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return jsonify({
+                'success': False,
+                'error': f'Channel not found: {channel_handle}'
+            }), 404
+
+        # Get options from request
+        data = request.get_json() if request.content_type == 'application/json' else {}
+        extract_chapters = data.get('extract_chapters', False)
+        generate_summaries = data.get('generate_summaries', False)
+
+        print(f"Refresh options - Extract chapters: {extract_chapters}, Generate summaries: {generate_summaries}")
+
+        # Get videos for this channel
+        channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
+
+        # Find videos without transcripts (for fetching missing ones)
+        videos_without_transcripts = []
+        if channel_videos:
+            for video in channel_videos:
+                transcript_response = database_storage.supabase.table('transcripts').select('formatted_transcript').eq('video_id', video['video_id']).execute()
+                has_valid_transcript = False
+
+                if transcript_response.data and len(transcript_response.data) > 0:
+                    formatted_transcript = transcript_response.data[0].get('formatted_transcript', '')
+                    # Check if transcript is valid (not failed/empty)
+                    failed_indicators = [
+                        'transcript extraction failed',
+                        'no transcript available',
+                        'transcript not available',
+                        'failed to extract',
+                        'error extracting'
+                    ]
+                    is_failed = any(indicator.lower() in formatted_transcript.lower() for indicator in failed_indicators)
+                    has_valid_transcript = len(formatted_transcript.strip()) > 100 and not is_failed
+
+                if not has_valid_transcript:
+                    # Video has no transcript or transcript is failed/invalid
+                    videos_without_transcripts.append(video)
+
+        if not videos_without_transcripts:
+            return jsonify({
+                'success': True,
+                'message': 'All videos already have transcripts',
+                'processed': 0,
+                'errors': 0,
+                'results': []
+            })
+
+        # Process each video without transcript
+        results = []
+        processed_count = 0
+        error_count = 0
+
+        for video in videos_without_transcripts:
+            video_id = video['video_id']
+            print(f"Fetching missing transcript for video: {video_id} - {video.get('title', 'Unknown')}")
+
+            try:
+                # Use the video processor to refresh transcript with specified options
+                result = video_processor.process_video_complete(
+                    video_id, 
+                    channel_info['channel_id'], 
+                    force_transcript_extraction=True,
+                    extract_chapters=extract_chapters,
+                    generate_summaries=generate_summaries
+                )
+
+                if result['status'] == 'processed' or result['status'] == 'exists':
+                    # Prepare success message based on what was processed
+                    base_message = 'Missing transcript fetched successfully'
+                    additional_actions = []
+                    
+                    if extract_chapters:
+                        additional_actions.append('chapters processed')
+                    if generate_summaries:
+                        additional_actions.append('summary processed')
+                    
+                    if additional_actions:
+                        base_message += f' ({", ".join(additional_actions)})'
+                    
+                    results.append({
+                        'video_id': video_id,
+                        'title': video.get('title', 'Unknown'),
+                        'status': 'success',
+                        'message': base_message
+                    })
+                    processed_count += 1
+                else:
+                    results.append({
+                        'video_id': video_id,
+                        'title': video.get('title', 'Unknown'),
+                        'status': 'error',
+                        'message': result.get('message', 'Failed to refresh transcript')
+                    })
+                    error_count += 1
+
+            except Exception as e:
+                print(f"Error refreshing transcript for {video_id}: {e}")
+                results.append({
+                    'video_id': video_id,
+                    'title': video.get('title', 'Unknown'),
+                    'status': 'error',
+                    'message': f'Failed to refresh transcript: {str(e)}'
+                })
+                error_count += 1
+
+        return jsonify({
+            'success': True,
+            'channel_name': channel_info['channel_name'],
+            'total_videos_without_transcripts': len(videos_without_transcripts),
+            'processed': processed_count,
+            'errors': error_count,
+            'results': results
+        })
+
+    except Exception as e:
+        print(f"Error refreshing transcripts: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 
