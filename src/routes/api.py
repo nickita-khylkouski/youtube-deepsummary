@@ -784,11 +784,10 @@ def add_missing_transcripts(channel_handle):
                     'enableAutoSummary': generate_summaries
                 }
                 
-                # Process the video with forced transcript extraction and override settings
+                # Process the video with override settings (transcript extraction enabled in settings)
                 result = video_processor.process_video_complete(
                     video_id, 
                     channel_id=channel_id,
-                    force_transcript_extraction=True,
                     override_settings=override_settings
                 )
                 

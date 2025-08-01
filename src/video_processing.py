@@ -25,15 +25,9 @@ class VideoProcessor:
         """Download transcript for given video ID using transcript extractor"""
         return self.transcript_extractor.extract_transcript(video_id)
     
-    def process_video_complete(self, video_id, channel_id=None, force_transcript_extraction=False, override_settings=None):
+    def process_video_complete(self, video_id, channel_id=None, override_settings=None):
         """Process a video completely: get transcript, video info, and AI summary"""
         try:
-            # Check if video already exists in database (unless forcing transcript extraction)
-            cached_data = database_storage.get(video_id)
-            if cached_data and not force_transcript_extraction:
-                print(f"Video {video_id} already processed, skipping")
-                return {'status': 'exists', 'video_id': video_id}
-            
             # Get import settings to check if features are enabled
             if override_settings:
                 # Use override settings for this operation
@@ -44,13 +38,17 @@ class VideoProcessor:
                 import_settings = database_storage.get_import_settings()
             
             # Prioritize camelCase settings (from frontend) over underscore settings (original)
-            enable_transcript_extraction = force_transcript_extraction or import_settings.get('enableTranscriptExtraction', import_settings.get('enable_transcript_extraction', True))
+            enable_transcript_extraction = import_settings.get('enableTranscriptExtraction', import_settings.get('enable_transcript_extraction', True))
             enable_auto_summary = import_settings.get('enableAutoSummary', import_settings.get('enable_auto_summary', True))
             enable_chapter_extraction = import_settings.get('enableChapterExtraction', import_settings.get('enable_chapter_extraction', True))
             
-            if force_transcript_extraction:
-                print(f"Force transcript extraction enabled for {video_id}")
-            print(f"Import settings - Transcript extraction: {enable_transcript_extraction}, Auto summary: {enable_auto_summary}, Chapter extraction: {enable_chapter_extraction}")
+            # Check if video already exists in database (unless forcing transcript extraction via settings)
+            cached_data = database_storage.get(video_id)
+            if cached_data and not enable_transcript_extraction:
+                print(f"Video {video_id} already processed and transcript extraction not enabled, skipping")
+                return {'status': 'exists', 'video_id': video_id}
+            
+            print(f"Processing settings - Transcript extraction: {enable_transcript_extraction}, Auto summary: {enable_auto_summary}, Chapter extraction: {enable_chapter_extraction}")
             
             # Get video info from YouTube API (always needed for metadata)
             print(f"Getting video info for {video_id}")
