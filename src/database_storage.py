@@ -1217,31 +1217,35 @@ class DatabaseStorage:
     def get_videos_without_transcripts(self, channel_id: str) -> List[Dict]:
         """Get all videos from a specific channel that don't have valid transcripts (transcript_data = [])"""
         try:
-            # Execute the exact SQL query: 
-            # SELECT t.video_id FROM transcripts t
-            # JOIN youtube_videos v ON t.video_id = v.video_id  
+            # Query transcripts table for videos with empty transcript_data, then join with video info
+            # Equivalent to: SELECT t.video_id FROM transcripts t JOIN youtube_videos v ON t.video_id = v.video_id 
             # WHERE t.transcript_data = '[]' AND v.channel_id = channel_id
             
-            response = self.supabase.rpc('exec_sql', {
-                'query': f'''
-                SELECT v.video_id, v.title, v.channel_id, v.created_at, v.published_at, 
-                       v.duration, v.thumbnail_url, v.url_path,
-                       c.channel_name, c.handle
-                FROM transcripts t
-                JOIN youtube_videos v ON t.video_id = v.video_id
-                JOIN youtube_channels c ON v.channel_id = c.channel_id
-                WHERE t.transcript_data = '[]'::jsonb
-                  AND v.channel_id = '{channel_id}'
-                ORDER BY v.created_at DESC
-                '''
-            }).execute()
+            response = self.supabase.table('transcripts')\
+                .select('video_id, youtube_videos(video_id, title, channel_id, created_at, published_at, duration, thumbnail_url, url_path, youtube_channels(channel_name, handle))')\
+                .eq('transcript_data', [])\
+                .eq('youtube_videos.channel_id', channel_id)\
+                .order('youtube_videos.created_at', desc=True)\
+                .execute()
             
-            if response.data:
-                print(f"Found {len(response.data)} videos without valid transcripts for channel {channel_id}")
-                return response.data
-            else:
+            if not response.data:
                 print(f"No videos without transcripts found for channel {channel_id}")
                 return []
+            
+            # Flatten the nested response structure
+            videos = []
+            for item in response.data:
+                if item.get('youtube_videos'):
+                    video = item['youtube_videos'].copy()
+                    # Add channel info if available
+                    if video.get('youtube_channels'):
+                        video['channel_name'] = video['youtube_channels']['channel_name']
+                        video['handle'] = video['youtube_channels']['handle']
+                        del video['youtube_channels']
+                    videos.append(video)
+            
+            print(f"Found {len(videos)} videos without valid transcripts for channel {channel_id}")
+            return videos
             
         except Exception as e:
             print(f"Error getting videos without transcripts for channel {channel_id}: {e}")
