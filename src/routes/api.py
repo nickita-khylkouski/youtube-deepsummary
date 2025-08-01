@@ -1654,24 +1654,3 @@ def refresh_transcripts(channel_handle):
         }), 500
 
 
-@api_bp.route('/@<channel_handle>/videos')
-def get_channel_videos_api(channel_handle):
-    """Get all videos for a channel"""
-    try:
-        # Get channel info by handle
-        channel_info = database_storage.get_channel_by_handle(channel_handle)
-        if not channel_info:
-            return jsonify({'error': f'Channel not found: {channel_handle}'}), 404
-        
-        # Get videos for this channel
-        channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
-        
-        return jsonify({
-            'success': True,
-            'videos': channel_videos,
-            'count': len(channel_videos)
-        })
-        
-    except Exception as e:
-        return jsonify({'error': f'Failed to get videos: {str(e)}'}), 500
-
