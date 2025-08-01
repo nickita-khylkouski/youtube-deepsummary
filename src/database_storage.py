@@ -1217,63 +1217,81 @@ class DatabaseStorage:
     def get_videos_without_transcripts(self, channel_id: str) -> List[Dict]:
         """Get all videos from a specific channel that don't have valid transcripts"""
         try:
-            # Query videos with their transcript data
-            response = self.supabase.table('youtube_videos')\
-                .select('video_id, title, channel_id, created_at, published_at, duration, thumbnail_url, url_path, transcripts(transcript_data, formatted_transcript)')\
+            # Step 1: Get videos with NO transcript records (database-side filtering)
+            videos_no_transcripts = self.supabase.table('youtube_videos')\
+                .select('video_id, title, channel_id, created_at, published_at, duration, thumbnail_url, url_path')\
                 .eq('channel_id', channel_id)\
+                .is_('transcripts.video_id', 'null')\
                 .order('created_at', desc=True)\
                 .execute()
             
-            if not response.data:
-                return []
+            # Step 2: Get videos WITH transcript records but need content validation (database-side pre-filtering)
+            videos_with_transcripts = self.supabase.table('youtube_videos')\
+                .select('video_id, title, channel_id, created_at, published_at, duration, thumbnail_url, url_path, transcripts!inner(formatted_transcript)')\
+                .eq('channel_id', channel_id)\
+                .or_('transcripts.formatted_transcript.is.null,transcripts.formatted_transcript.eq.,transcripts.formatted_transcript.like.*Transcript extraction failed*,transcripts.formatted_transcript.like.*Transcript extraction is disabled*,transcripts.formatted_transcript.like.*not available*')\
+                .order('created_at', desc=True)\
+                .execute()
             
-            videos_without_transcripts = []
+            # Combine results from both queries
+            all_videos_without_transcripts = []
             
-            # Check each video for valid transcript data
-            for video in response.data:
-                has_valid_transcript = False
-                
-                # Check if transcript exists and has data
-                if video.get('transcripts') and len(video['transcripts']) > 0:
-                    transcript = video['transcripts'][0]
-                    transcript_data = transcript.get('transcript_data', [])
-                    formatted_transcript = transcript.get('formatted_transcript', '')
-                    
-                    # Check if transcript data is valid (not empty and not a failure message)
-                    if (transcript_data and len(transcript_data) > 0 and 
-                        formatted_transcript and 
-                        formatted_transcript.strip() and
-                        'Transcript extraction failed' not in formatted_transcript and
-                        'Transcript extraction is disabled' not in formatted_transcript and
-                        'not available' not in formatted_transcript.lower()):
-                        has_valid_transcript = True
-                
-                # If no valid transcript, add to results
-                if not has_valid_transcript:
-                    # Remove the transcripts data from the result to keep it clean
+            # Add videos with no transcript records
+            if videos_no_transcripts.data:
+                all_videos_without_transcripts.extend(videos_no_transcripts.data)
+            
+            # Add videos with invalid transcript content (clean the data)
+            if videos_with_transcripts.data:
+                for video in videos_with_transcripts.data:
+                    # Remove transcript data from result to keep it clean
                     video_clean = {k: v for k, v in video.items() if k != 'transcripts'}
-                    videos_without_transcripts.append(video_clean)
+                    all_videos_without_transcripts.append(video_clean)
             
-            # Manually fetch channel information for consistency
-            try:
-                channel_response = self.supabase.table('youtube_channels')\
-                    .select('channel_name, channel_id, handle')\
-                    .eq('channel_id', channel_id)\
-                    .execute()
-                
-                if channel_response.data and len(channel_response.data) > 0:
-                    channel_info = channel_response.data[0]
-                    for video in videos_without_transcripts:
-                        video['channel_name'] = channel_info['channel_name']
-                        video['handle'] = channel_info.get('handle')
-            except Exception as e:
-                print(f"Warning: Could not fetch channel info for {channel_id}: {e}")
+            # Remove duplicates by video_id (in case a video appears in both queries)
+            seen_video_ids = set()
+            unique_videos = []
+            for video in all_videos_without_transcripts:
+                if video['video_id'] not in seen_video_ids:
+                    seen_video_ids.add(video['video_id'])
+                    unique_videos.append(video)
             
-            return videos_without_transcripts
+            # Sort by creation date (most recent first)
+            unique_videos.sort(key=lambda x: x['created_at'], reverse=True)
+            
+            # Batch fetch channel information for all videos (avoid N+1)
+            if unique_videos:
+                try:
+                    channel_response = self.supabase.table('youtube_channels')\
+                        .select('channel_name, channel_id, handle')\
+                        .eq('channel_id', channel_id)\
+                        .execute()
+                    
+                    if channel_response.data and len(channel_response.data) > 0:
+                        channel_info = channel_response.data[0]
+                        for video in unique_videos:
+                            video['channel_name'] = channel_info['channel_name']
+                            video['handle'] = channel_info.get('handle')
+                except Exception as e:
+                    print(f"Warning: Could not fetch channel info for {channel_id}: {e}")
+            
+            print(f"Found {len(unique_videos)} videos without valid transcripts for channel {channel_id}")
+            return unique_videos
             
         except Exception as e:
             print(f"Error getting videos without transcripts for channel {channel_id}: {e}")
-            return []
+            # Fallback to simpler query if complex filtering fails
+            try:
+                print("Falling back to simpler query...")
+                response = self.supabase.table('youtube_videos')\
+                    .select('video_id, title, channel_id, created_at, published_at, duration, thumbnail_url, url_path')\
+                    .eq('channel_id', channel_id)\
+                    .is_('transcripts.video_id', 'null')\
+                    .order('created_at', desc=True)\
+                    .execute()
+                return response.data if response.data else []
+            except Exception as fallback_error:
+                print(f"Fallback query also failed: {fallback_error}")
+                return []
 
     def delete(self, video_id: str) -> bool:
         """Delete a video and all its associated data"""
