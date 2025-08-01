@@ -1222,10 +1222,9 @@ class DatabaseStorage:
             # WHERE t.transcript_data = '[]' AND v.channel_id = channel_id
             
             response = self.supabase.table('transcripts')\
-                .select('video_id, youtube_videos(video_id, title, channel_id, created_at, published_at, duration, thumbnail_url, url_path, youtube_channels(channel_name, handle))')\
+                .select('video_id, youtube_videos(video_id, title, channel_id, created_at, published_at, duration, thumbnail_url, url_path)')\
                 .eq('transcript_data', [])\
                 .eq('youtube_videos.channel_id', channel_id)\
-                .order('youtube_videos.created_at', desc=True)\
                 .execute()
             
             if not response.data:
@@ -1237,12 +1236,26 @@ class DatabaseStorage:
             for item in response.data:
                 if item.get('youtube_videos'):
                     video = item['youtube_videos'].copy()
-                    # Add channel info if available
-                    if video.get('youtube_channels'):
-                        video['channel_name'] = video['youtube_channels']['channel_name']
-                        video['handle'] = video['youtube_channels']['handle']
-                        del video['youtube_channels']
                     videos.append(video)
+            
+            # Get channel info separately (batch query)
+            if videos:
+                try:
+                    channel_response = self.supabase.table('youtube_channels')\
+                        .select('channel_name, channel_id, handle')\
+                        .eq('channel_id', channel_id)\
+                        .execute()
+                    
+                    if channel_response.data and len(channel_response.data) > 0:
+                        channel_info = channel_response.data[0]
+                        for video in videos:
+                            video['channel_name'] = channel_info['channel_name']
+                            video['handle'] = channel_info.get('handle')
+                except Exception as e:
+                    print(f"Warning: Could not fetch channel info for {channel_id}: {e}")
+            
+            # Sort by created_at descending (most recent first)
+            videos.sort(key=lambda x: x.get('created_at', ''), reverse=True)
             
             print(f"Found {len(videos)} videos without valid transcripts for channel {channel_id}")
             return videos
