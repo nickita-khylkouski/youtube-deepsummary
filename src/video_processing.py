@@ -25,7 +25,7 @@ class VideoProcessor:
         """Download transcript for given video ID using transcript extractor"""
         return self.transcript_extractor.extract_transcript(video_id)
     
-    def process_video_complete(self, video_id, channel_id=None, force_transcript_extraction=False):
+    def process_video_complete(self, video_id, channel_id=None, force_transcript_extraction=False, override_settings=None):
         """Process a video completely: get transcript, video info, and AI summary"""
         try:
             # Check if video already exists in database (unless forcing transcript extraction)
@@ -35,7 +35,14 @@ class VideoProcessor:
                 return {'status': 'exists', 'video_id': video_id}
             
             # Get import settings to check if features are enabled
-            import_settings = database_storage.get_import_settings()
+            if override_settings:
+                # Use override settings for this operation
+                import_settings = override_settings
+                print(f"Using override settings for {video_id}: {override_settings}")
+            else:
+                # Use global database settings
+                import_settings = database_storage.get_import_settings()
+            
             # Prioritize camelCase settings (from frontend) over underscore settings (original)
             enable_transcript_extraction = force_transcript_extraction or import_settings.get('enableTranscriptExtraction', import_settings.get('enable_transcript_extraction', True))
             enable_auto_summary = import_settings.get('enableAutoSummary', import_settings.get('enable_auto_summary', True))

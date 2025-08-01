@@ -777,27 +777,20 @@ def add_missing_transcripts(channel_handle):
             video_title = video.get('title', 'Unknown Title')
             
             try:
-                # Force transcript extraction and set other options based on parameters
-                # We need to temporarily override import settings for this operation
-                original_settings = database_storage.get_import_settings()
-                
-                # Set temporary settings for this operation
-                temp_settings = {
+                # Create override settings for this operation (doesn't affect global settings)
+                override_settings = {
                     'enableTranscriptExtraction': True,  # Always extract transcripts
                     'enableChapterExtraction': extract_chapters,
                     'enableAutoSummary': generate_summaries
                 }
-                database_storage.update_import_settings_batch(temp_settings)
                 
-                # Process the video with forced transcript extraction
+                # Process the video with forced transcript extraction and override settings
                 result = video_processor.process_video_complete(
                     video_id, 
                     channel_id=channel_id,
-                    force_transcript_extraction=True
+                    force_transcript_extraction=True,
+                    override_settings=override_settings
                 )
-                
-                # Restore original settings
-                database_storage.update_import_settings_batch(original_settings)
                 
                 if result['status'] == 'processed':
                     results.append({
