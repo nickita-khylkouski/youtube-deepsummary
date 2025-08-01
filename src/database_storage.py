@@ -1214,6 +1214,56 @@ class DatabaseStorage:
             print(f"Error getting videos for channel {channel_name or channel_id}: {e}")
             return []
 
+    def get_videos_without_transcripts(self, channel_id: str) -> List[Dict]:
+        """Get all videos from a specific channel that don't have valid transcripts (transcript_data = [])"""
+        try:
+            # Query transcripts table for videos with empty transcript_data, then join with video info
+            # Equivalent to: SELECT t.video_id FROM transcripts t JOIN youtube_videos v ON t.video_id = v.video_id 
+            # WHERE t.transcript_data = '[]' AND v.channel_id = channel_id
+            
+            response = self.supabase.table('transcripts')\
+                .select('video_id, youtube_videos(video_id, title, channel_id, created_at, published_at, duration, thumbnail_url, url_path)')\
+                .eq('transcript_data', [])\
+                .eq('youtube_videos.channel_id', channel_id)\
+                .execute()
+            
+            if not response.data:
+                print(f"No videos without transcripts found for channel {channel_id}")
+                return []
+            
+            # Flatten the nested response structure
+            videos = []
+            for item in response.data:
+                if item.get('youtube_videos'):
+                    video = item['youtube_videos'].copy()
+                    videos.append(video)
+            
+            # Get channel info separately (batch query)
+            if videos:
+                try:
+                    channel_response = self.supabase.table('youtube_channels')\
+                        .select('channel_name, channel_id, handle')\
+                        .eq('channel_id', channel_id)\
+                        .execute()
+                    
+                    if channel_response.data and len(channel_response.data) > 0:
+                        channel_info = channel_response.data[0]
+                        for video in videos:
+                            video['channel_name'] = channel_info['channel_name']
+                            video['handle'] = channel_info.get('handle')
+                except Exception as e:
+                    print(f"Warning: Could not fetch channel info for {channel_id}: {e}")
+            
+            # Sort by created_at descending (most recent first)
+            videos.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+            
+            print(f"Found {len(videos)} videos without valid transcripts for channel {channel_id}")
+            return videos
+            
+        except Exception as e:
+            print(f"Error getting videos without transcripts for channel {channel_id}: {e}")
+            return []
+
     def delete(self, video_id: str) -> bool:
         """Delete a video and all its associated data"""
         try:

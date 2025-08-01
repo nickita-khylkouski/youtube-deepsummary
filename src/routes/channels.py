@@ -59,6 +59,10 @@ def channel_overview(channel_handle):
                 else:
                     videos_without_summaries.append(video['video_id'])
         
+        # Get videos without transcripts count
+        videos_without_transcripts = database_storage.get_videos_without_transcripts(channel_info['channel_id'])
+        videos_without_transcripts_count = len(videos_without_transcripts)
+        
         # Get snippet count for this channel
         snippets = database_storage.get_memory_snippets(limit=1000)
         snippet_count = 0
@@ -79,6 +83,7 @@ def channel_overview(channel_handle):
                              summary_count=summary_count,
                              videos_without_summaries_count=len(videos_without_summaries),
                              videos_without_summaries=videos_without_summaries,
+                             videos_without_transcripts_count=videos_without_transcripts_count,
                              snippet_count=snippet_count,
                              recent_videos=recent_videos)
         

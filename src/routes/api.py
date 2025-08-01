@@ -736,6 +736,107 @@ def generate_missing_summaries(channel_handle):
         }), 500
 
 
+@api_bp.route('/@<channel_handle>/add-missing-transcripts', methods=['POST'])
+def add_missing_transcripts(channel_handle):
+    """Add missing transcripts for videos in a channel with optional chapters and summaries"""
+    try:
+        # Get channel info by handle
+        channel_info = database_storage.get_channel_by_handle(channel_handle)
+        if not channel_info:
+            return jsonify({
+                'success': False,
+                'error': f'Channel not found: {channel_handle}'
+            }), 404
+        
+        channel_id = channel_info['channel_id']
+        
+        # Get request parameters
+        data = request.get_json() or {}
+        extract_chapters = data.get('extract_chapters', False)
+        generate_summaries = data.get('generate_summaries', False)
+        
+        print(f"Adding missing transcripts for channel {channel_handle} (extract_chapters: {extract_chapters}, generate_summaries: {generate_summaries})")
+        
+        # Get videos without transcripts
+        videos_without_transcripts = database_storage.get_videos_without_transcripts(channel_id)
+        
+        if not videos_without_transcripts:
+            return jsonify({
+                'success': True,
+                'message': 'All videos in this channel already have transcripts',
+                'videos_processed': 0,
+                'results': []
+            })
+        
+        print(f"Found {len(videos_without_transcripts)} videos without transcripts")
+        
+        # Process each video using the existing video processor
+        results = []
+        for video in videos_without_transcripts:
+            video_id = video['video_id']
+            video_title = video.get('title', 'Unknown Title')
+            
+            try:
+                # Create override settings for this operation (doesn't affect global settings)
+                override_settings = {
+                    'enableTranscriptExtraction': True,  # Always extract transcripts
+                    'enableChapterExtraction': extract_chapters,
+                    'enableAutoSummary': generate_summaries
+                }
+                
+                # Process the video with override settings (transcript extraction enabled in settings)
+                result = video_processor.process_video_complete(
+                    video_id, 
+                    channel_id=channel_id,
+                    override_settings=override_settings
+                )
+                
+                if result['status'] == 'processed':
+                    results.append({
+                        'video_id': video_id,
+                        'title': video_title,
+                        'status': 'success',
+                        'transcript_extracted': result.get('transcript_extracted', False),
+                        'summary_generated': result.get('summary_generated', False)
+                    })
+                    print(f"Successfully processed {video_title}")
+                else:
+                    results.append({
+                        'video_id': video_id,
+                        'title': video_title,
+                        'status': 'error',
+                        'error': result.get('error', 'Unknown error')
+                    })
+                    print(f"Failed to process {video_title}: {result.get('error', 'Unknown error')}")
+                    
+            except Exception as e:
+                results.append({
+                    'video_id': video_id,
+                    'title': video_title,
+                    'status': 'error',
+                    'error': str(e)
+                })
+                print(f"Error processing {video_title}: {e}")
+        
+        # Count successes
+        successful_count = len([r for r in results if r['status'] == 'success'])
+        
+        return jsonify({
+            'success': True,
+            'message': f'Processed {successful_count}/{len(videos_without_transcripts)} videos successfully',
+            'videos_processed': len(videos_without_transcripts),
+            'successful_count': successful_count,
+            'results': results
+        })
+        
+    except Exception as e:
+        print(f"Error adding missing transcripts: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 # Snippets API endpoints
 @api_bp.route('/snippets', methods=['POST'])
 def save_snippet():
