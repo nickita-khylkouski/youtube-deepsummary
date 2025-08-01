@@ -1215,66 +1215,33 @@ class DatabaseStorage:
             return []
 
     def get_videos_without_transcripts(self, channel_id: str) -> List[Dict]:
-        """Get all videos from a specific channel that don't have valid transcripts"""
+        """Get all videos from a specific channel that don't have valid transcripts (transcript_data = [])"""
         try:
-            # Get all videos for the channel
-            all_videos_response = self.supabase.table('youtube_videos')\
-                .select('video_id, title, channel_id, created_at, published_at, duration, thumbnail_url, url_path')\
-                .eq('channel_id', channel_id)\
-                .order('created_at', desc=True)\
-                .execute()
+            # Execute the exact SQL query: 
+            # SELECT t.video_id FROM transcripts t
+            # JOIN youtube_videos v ON t.video_id = v.video_id  
+            # WHERE t.transcript_data = '[]' AND v.channel_id = channel_id
             
-            if not all_videos_response.data:
+            response = self.supabase.rpc('exec_sql', {
+                'query': f'''
+                SELECT v.video_id, v.title, v.channel_id, v.created_at, v.published_at, 
+                       v.duration, v.thumbnail_url, v.url_path,
+                       c.channel_name, c.handle
+                FROM transcripts t
+                JOIN youtube_videos v ON t.video_id = v.video_id
+                JOIN youtube_channels c ON v.channel_id = c.channel_id
+                WHERE t.transcript_data = '[]'::jsonb
+                  AND v.channel_id = '{channel_id}'
+                ORDER BY v.created_at DESC
+                '''
+            }).execute()
+            
+            if response.data:
+                print(f"Found {len(response.data)} videos without valid transcripts for channel {channel_id}")
+                return response.data
+            else:
+                print(f"No videos without transcripts found for channel {channel_id}")
                 return []
-            
-            # Get all transcript records for this channel's videos (batch query)
-            video_ids = [video['video_id'] for video in all_videos_response.data]
-            transcripts_response = self.supabase.table('transcripts')\
-                .select('video_id, formatted_transcript')\
-                .in_('video_id', video_ids)\
-                .execute()
-            
-            # Create a lookup dict for transcripts
-            transcript_lookup = {}
-            if transcripts_response.data:
-                for transcript in transcripts_response.data:
-                    transcript_lookup[transcript['video_id']] = transcript.get('formatted_transcript', '')
-            
-            # Filter videos without valid transcripts
-            videos_without_transcripts = []
-            for video in all_videos_response.data:
-                video_id = video['video_id']
-                formatted_transcript = transcript_lookup.get(video_id, '')
-                
-                has_valid_transcript = (
-                    formatted_transcript and 
-                    formatted_transcript.strip() and
-                    'Transcript extraction failed' not in formatted_transcript and
-                    'Transcript extraction is disabled' not in formatted_transcript and
-                    'not available' not in formatted_transcript.lower()
-                )
-                
-                if not has_valid_transcript:
-                    videos_without_transcripts.append(video)
-            
-            # Batch fetch channel information (avoid N+1)
-            if videos_without_transcripts:
-                try:
-                    channel_response = self.supabase.table('youtube_channels')\
-                        .select('channel_name, channel_id, handle')\
-                        .eq('channel_id', channel_id)\
-                        .execute()
-                    
-                    if channel_response.data and len(channel_response.data) > 0:
-                        channel_info = channel_response.data[0]
-                        for video in videos_without_transcripts:
-                            video['channel_name'] = channel_info['channel_name']
-                            video['handle'] = channel_info.get('handle')
-                except Exception as e:
-                    print(f"Warning: Could not fetch channel info for {channel_id}: {e}")
-            
-            print(f"Found {len(videos_without_transcripts)} videos without valid transcripts for channel {channel_id}")
-            return videos_without_transcripts
             
         except Exception as e:
             print(f"Error getting videos without transcripts for channel {channel_id}: {e}")
