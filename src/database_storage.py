@@ -473,6 +473,37 @@ class DatabaseStorage:
             print(f"Error getting summary for {video_id}: {e}")
             return None
 
+    def get_summaries_batch(self, video_ids: List[str]) -> Dict[str, str]:
+        """
+        Get summaries for multiple videos in a single query
+        
+        Args:
+            video_ids: List of YouTube video IDs
+            
+        Returns:
+            Dictionary mapping video_id to summary_text
+        """
+        if not video_ids:
+            return {}
+            
+        try:
+            response = self.supabase.table('summaries')\
+                .select('video_id, summary_text')\
+                .in_('video_id', video_ids)\
+                .eq('is_current', True)\
+                .execute()
+            
+            summaries = {}
+            if response.data:
+                for summary in response.data:
+                    summaries[summary['video_id']] = summary['summary_text']
+            
+            return summaries
+            
+        except Exception as e:
+            print(f"Error getting summaries batch: {e}")
+            return {}
+
     def get_summary_history(self, video_id: str) -> List[Dict]:
         """
         Get all summary history for a video
@@ -1167,8 +1198,8 @@ class DatabaseStorage:
             print(f"Error getting video by url_path '{url_path}': {e}")
             return None
 
-    def get_videos_by_channel(self, channel_name: str = None, channel_id: str = None) -> List[Dict]:
-        """Get all videos from a specific channel (by name or ID)"""
+    def get_videos_by_channel(self, channel_name: str = None, channel_id: str = None, limit: int = None, for_overview: bool = False) -> List[Dict]:
+        """Get videos from a specific channel (by name or ID) with optional pagination"""
         try:
             if channel_id:
                 # Use channel_id directly - no JOIN to avoid foreign key issues
@@ -1177,10 +1208,16 @@ class DatabaseStorage:
                     .eq('channel_id', channel_id)\
                     .order('created_at', desc=True)
                 
+                # Apply limit if specified or if for_overview (default to 50 for overview)
+                if limit is not None:
+                    query = query.limit(limit)
+                elif for_overview:
+                    query = query.limit(50)  # Reasonable limit for overview page
+                
                 response = query.execute()
                 videos = response.data if response.data else []
                 
-                # Manually fetch channel information
+                # Manually fetch channel information (only if we have videos)
                 if videos and channel_id:
                     try:
                         channel_response = self.supabase.table('youtube_channels')\
@@ -1203,7 +1240,7 @@ class DatabaseStorage:
                 # Try to find channel by name first, then get videos by channel_id
                 channel_info = self.get_channel_by_name(channel_name)
                 if channel_info:
-                    return self.get_videos_by_channel(channel_id=channel_info['channel_id'])
+                    return self.get_videos_by_channel(channel_id=channel_info['channel_id'], limit=limit, for_overview=for_overview)
                 else:
                     # No channel found
                     return []
@@ -1546,15 +1583,16 @@ class DatabaseStorage:
             print(f"Error saving memory snippet: {e}")
             return False
 
-    def get_memory_snippets(self, video_id: str = None, limit: int = 100) -> list:
-        """Get memory snippets, optionally filtered by video_id"""
+    def get_memory_snippets(self, video_id: str = None, limit: int = 100, channel_id: str = None) -> list:
+        """Get memory snippets, optionally filtered by video_id or channel_id"""
         if not self.supabase:
             print("Database not initialized")
             return []
 
         try:
-            print(f"get_memory_snippets called with video_id={video_id}, limit={limit}")
-            # Get memory snippets without JOINs to avoid foreign key issues
+            print(f"get_memory_snippets called with video_id={video_id}, channel_id={channel_id}, limit={limit}")
+            
+            # Get memory snippets
             query = self.supabase.table('memory_snippets').select(
                 'id, video_id, snippet_text, context_before, context_after, tags, created_at'
             ).order('created_at', desc=True).limit(limit)
@@ -1565,51 +1603,68 @@ class DatabaseStorage:
             result = query.execute()
             snippets = result.data if result.data else []
             
-            # Get video information for each snippet separately
+            if not snippets:
+                print("No snippets found")
+                return []
+            
+            # Get unique video IDs for batch fetching
+            video_ids = list(set(snippet['video_id'] for snippet in snippets))
+            
+            # Batch fetch video information
+            videos_data = {}
+            if video_ids:
+                videos_result = self.supabase.table('youtube_videos').select(
+                    'video_id, title, thumbnail_url, channel_id'
+                ).in_('video_id', video_ids).execute()
+                
+                if videos_result.data:
+                    for video in videos_result.data:
+                        videos_data[video['video_id']] = video
+            
+            # Get unique channel IDs for batch fetching
+            channel_ids = list(set(
+                videos_data[video_id].get('channel_id') 
+                for video_id in video_ids 
+                if video_id in videos_data and videos_data[video_id].get('channel_id')
+            ))
+            
+            # Batch fetch channel information
+            channels_data = {}
+            if channel_ids:
+                channels_result = self.supabase.table('youtube_channels').select(
+                    'channel_id, channel_name, thumbnail_url, handle'
+                ).in_('channel_id', channel_ids).execute()
+                
+                if channels_result.data:
+                    for channel in channels_result.data:
+                        channels_data[channel['channel_id']] = channel
+            
+            # Combine data efficiently
             for snippet in snippets:
-                try:
-                    video_result = self.supabase.table('youtube_videos').select(
-                        'title, thumbnail_url, channel_id'
-                    ).eq('video_id', snippet['video_id']).execute()
+                video_data = videos_data.get(snippet['video_id'])
+                
+                if video_data:
+                    snippet['youtube_videos'] = video_data
                     
-                    if video_result.data:
-                        video_data = video_result.data[0]
-                        snippet['youtube_videos'] = video_data  # Store as object, not array
-                        
-                        # Get channel information if channel_id exists
-                        channel_id = video_data.get('channel_id')
-                        if channel_id:
-                            try:
-                                channel_result = self.supabase.table('youtube_channels').select(
-                                    'channel_name, channel_id, thumbnail_url, handle'
-                                ).eq('channel_id', channel_id).execute()
-                                
-                                if channel_result.data:
-                                    channel_data = channel_result.data[0]
-                                    snippet['channel_name'] = channel_data['channel_name']
-                                    snippet['channel_id'] = channel_data['channel_id']
-                                    snippet['channel_thumbnail_url'] = channel_data.get('thumbnail_url')
-                                    snippet['handle'] = channel_data.get('handle')
-                                else:
-                                    snippet['channel_name'] = 'Unknown Channel'
-                                    snippet['channel_id'] = channel_id
-                            except Exception as channel_error:
-                                print(f"Warning: Could not fetch channel info for {channel_id}: {channel_error}")
-                                snippet['channel_name'] = 'Unknown Channel'
-                                snippet['channel_id'] = channel_id
-                        else:
-                            snippet['channel_name'] = 'Unknown Channel'
-                            snippet['channel_id'] = None
+                    # Get channel info
+                    snippet_channel_id = video_data.get('channel_id')
+                    if snippet_channel_id and snippet_channel_id in channels_data:
+                        channel_data = channels_data[snippet_channel_id]
+                        snippet['channel_name'] = channel_data['channel_name']
+                        snippet['channel_id'] = channel_data['channel_id']
+                        snippet['channel_thumbnail_url'] = channel_data.get('thumbnail_url')
+                        snippet['handle'] = channel_data.get('handle')
                     else:
-                        snippet['youtube_videos'] = {}
                         snippet['channel_name'] = 'Unknown Channel'
-                        snippet['channel_id'] = None
-                        
-                except Exception as video_error:
-                    print(f"Error getting video info for {snippet['video_id']}: {video_error}")
+                        snippet['channel_id'] = snippet_channel_id
+                else:
                     snippet['youtube_videos'] = {}
                     snippet['channel_name'] = 'Unknown Channel'
                     snippet['channel_id'] = None
+            
+            # Filter by channel_id if provided (more efficient than SQL filtering due to joins)
+            if channel_id:
+                snippets = [snippet for snippet in snippets if snippet.get('channel_id') == channel_id]
             
             print(f"get_memory_snippets returning {len(snippets)} snippets")
             return snippets
@@ -2271,25 +2326,6 @@ class DatabaseStorage:
             print(f"Error getting chat messages: {e}")
             return []
 
-    def get_chat_statistics(self) -> Dict:
-        """Get chat statistics"""
-        try:
-            # Get total conversations
-            conv_response = self.supabase.table('chat_conversations').select('id', count='exact').execute()
-            total_conversations = conv_response.count if conv_response.count else 0
-            
-            # Get total messages
-            msg_response = self.supabase.table('chat_messages').select('id', count='exact').execute()
-            total_messages = msg_response.count if msg_response.count else 0
-            
-            return {
-                'total_conversations': total_conversations,
-                'total_messages': total_messages
-            }
-            
-        except Exception as e:
-            print(f"Error getting chat statistics: {e}")
-            return {'total_conversations': 0, 'total_messages': 0}
 
     # Global Chat History Methods
     def create_global_chat_conversation(self, original_channel_id: str, title: str, model_used: str, chat_type: str = 'global') -> str:
