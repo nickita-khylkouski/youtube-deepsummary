@@ -18,6 +18,13 @@ returns table(
   chapters jsonb,
   snippet_count bigint
 ) language sql as $$
+  -- Use CTE to compute snippet count once instead of per-row
+  with channel_snippet_count as (
+    select count(*) as total_snippets
+    from user_snippets ms
+    join youtube_videos yv on ms.video_id = yv.video_id
+    where yv.channel_id = cid
+  )
   select
     v.video_id,
     v.title,
@@ -60,13 +67,10 @@ returns table(
       order by vc.created_at desc
       limit 1
     ) as chapters,
-    -- Get snippet count for this channel (computed once)
-    (
-      select count(*) from user_snippets ms
-      join youtube_videos yv on ms.video_id = yv.video_id
-      where yv.channel_id = cid
-    ) as snippet_count
+    -- Get snippet count from CTE (computed once for entire channel)
+    csc.total_snippets as snippet_count
   from youtube_videos v
+  cross join channel_snippet_count csc
   where v.channel_id = cid
   order by v.created_at desc
   limit vlimit

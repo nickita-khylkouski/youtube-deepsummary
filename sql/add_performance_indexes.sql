@@ -38,3 +38,14 @@ create index if not exists idx_youtube_channels_handle
 -- Channel lookups by ID (if not already exists) 
 create index if not exists idx_youtube_channels_id
   on youtube_channels (channel_id);
+
+-- UNIQUE partial index for current summaries (ensures data integrity)
+-- This ensures only one current summary per video
+create unique index if not exists uniq_current_summary_per_video
+  on summaries (video_id)
+  where is_current = true;
+
+-- Normalized handle index for case-insensitive lookups
+-- This allows fast lookups by handle regardless of case
+create index if not exists idx_youtube_channels_handle_normalized
+  on youtube_channels (lower(handle));

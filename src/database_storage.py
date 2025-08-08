@@ -1405,7 +1405,7 @@ class DatabaseStorage:
                 else:
                     videos_without_transcripts += 1
             
-            # Get memory snippets with selective fields only (FIXED - using user_snippets table)
+            # Get user snippets with selective fields only
             print(f"📄 DB QUERY: Fetching user_snippets for channel {channel_id} (limit 100)")
             snippets_response = self.supabase.table('user_snippets')\
                 .select('id, video_id, snippet_text, created_at, youtube_videos!inner(title, channel_id)')\
@@ -1417,34 +1417,42 @@ class DatabaseStorage:
                 
             snippets = snippets_response.data if snippets_response.data else []
             
-            # For overview pages, we need accurate total counts (not just the limited results)
+            # For overview pages, use channel_stats RPC for accurate and consistent totals
             if for_overview:
-                print(f"📊 DB QUERY: Getting accurate total counts for channel {channel_id}")
+                print(f"📊 DB QUERY: Getting accurate stats via channel_stats RPC for channel {channel_id}")
                 
-                # Get actual total video count 
-                total_count_response = self.supabase.table('youtube_videos')\
-                    .select('video_id', count='exact')\
-                    .eq('channel_id', channel_id)\
-                    .execute()
-                actual_total_videos = total_count_response.count or 0
-                
-                # Get actual total summary count - need to JOIN with youtube_videos  
-                summary_count_response = self.supabase.table('summaries')\
-                    .select('video_id, youtube_videos!inner(channel_id)', count='exact')\
-                    .eq('youtube_videos.channel_id', channel_id)\
-                    .execute()
-                actual_summary_count = summary_count_response.count or 0
-                
-                print(f"✅ ACTUAL COUNTS: {actual_total_videos} total videos, {actual_summary_count} total summaries (showed {returned_videos_count} for overview)")
-                
-                # Build stats with actual totals
-                stats = {
-                    'total_videos': actual_total_videos,
-                    'summary_count': actual_summary_count,
-                    'videos_with_transcripts': videos_with_transcripts,  # From sample
-                    'videos_without_transcripts': actual_total_videos - videos_with_transcripts,
-                    'snippet_count': len(snippets)
-                }
+                try:
+                    stats_rpc = self.supabase.rpc('channel_stats', {'cid': channel_id}).execute()
+                    if stats_rpc.data and len(stats_rpc.data) > 0:
+                        s = stats_rpc.data[0]
+                        stats = {
+                            'total_videos': s['total_videos'],
+                            'summary_count': s['summary_count'],
+                            'videos_with_transcripts': s['videos_with_transcripts'],
+                            'videos_without_transcripts': s['videos_without_transcripts'],
+                            'snippet_count': s['snippet_count']
+                        }
+                        print(f"✅ STATS RPC SUCCESS: {stats['total_videos']} videos, {stats['summary_count']} summaries, {stats['snippet_count']} snippets")
+                    else:
+                        # Fallback if RPC returns no data
+                        stats = {
+                            'total_videos': returned_videos_count,
+                            'summary_count': summary_count,
+                            'videos_with_transcripts': videos_with_transcripts,
+                            'videos_without_transcripts': returned_videos_count - videos_with_transcripts,
+                            'snippet_count': len(snippets)
+                        }
+                        print(f"⚠️ STATS RPC: No data returned, using fallback counts")
+                except Exception as stats_error:
+                    print(f"❌ STATS RPC FAILED: {stats_error}")
+                    # Fallback to local counts if RPC fails
+                    stats = {
+                        'total_videos': returned_videos_count,
+                        'summary_count': summary_count,
+                        'videos_with_transcripts': videos_with_transcripts,
+                        'videos_without_transcripts': returned_videos_count - videos_with_transcripts,
+                        'snippet_count': len(snippets)
+                    }
             else:
                 # For non-overview pages, use the actual returned counts
                 stats = {
@@ -1608,7 +1616,7 @@ class DatabaseStorage:
                 if has_transcript:
                     videos_with_transcripts += 1
             
-            # Get snippets with selective fields (FIXED - using user_snippets table)
+            # Get user snippets with selective fields
             print(f"📄 DB QUERY: Fetching user_snippets for channel {channel_id} (limit 100)")
             snippets_response = self.supabase.table('user_snippets')\
                 .select('id, video_id, snippet_text, created_at, youtube_videos!inner(title, channel_id)')\
@@ -1620,33 +1628,42 @@ class DatabaseStorage:
                 
             snippets = snippets_response.data if snippets_response.data else []
             
-            # Get accurate total counts (separate from limited results)
+            # For overview pages, use channel_stats RPC for consistent totals (same as RPC method)
             if for_overview:
-                print(f"📊 DB QUERY: Getting accurate total counts for channel {channel_id}")
+                print(f"📊 DB QUERY: Getting accurate stats via channel_stats RPC for channel {channel_id}")
                 
-                # Total video count
-                total_count_response = self.supabase.table('youtube_videos')\
-                    .select('video_id', count='exact')\
-                    .eq('channel_id', channel_id)\
-                    .execute()
-                actual_total_videos = total_count_response.count or 0
-                
-                # Total summary count - need to JOIN with youtube_videos
-                summary_count_response = self.supabase.table('summaries')\
-                    .select('video_id, youtube_videos!inner(channel_id)', count='exact')\
-                    .eq('youtube_videos.channel_id', channel_id)\
-                    .execute()
-                actual_summary_count = summary_count_response.count or 0
-                
-                print(f"✅ ACTUAL COUNTS: {actual_total_videos} total videos, {actual_summary_count} total summaries")
-                
-                stats = {
-                    'total_videos': actual_total_videos,
-                    'summary_count': actual_summary_count,
-                    'videos_with_transcripts': videos_with_transcripts,  # From sample
-                    'videos_without_transcripts': actual_total_videos - videos_with_transcripts,
-                    'snippet_count': len(snippets)
-                }
+                try:
+                    stats_rpc = self.supabase.rpc('channel_stats', {'cid': channel_id}).execute()
+                    if stats_rpc.data and len(stats_rpc.data) > 0:
+                        s = stats_rpc.data[0]
+                        stats = {
+                            'total_videos': s['total_videos'],
+                            'summary_count': s['summary_count'],
+                            'videos_with_transcripts': s['videos_with_transcripts'],
+                            'videos_without_transcripts': s['videos_without_transcripts'],
+                            'snippet_count': s['snippet_count']
+                        }
+                        print(f"✅ STATS RPC SUCCESS: {stats['total_videos']} videos, {stats['summary_count']} summaries, {stats['snippet_count']} snippets")
+                    else:
+                        # Fallback if RPC returns no data
+                        stats = {
+                            'total_videos': len(videos),
+                            'summary_count': summary_count,
+                            'videos_with_transcripts': videos_with_transcripts,
+                            'videos_without_transcripts': len(videos) - videos_with_transcripts,
+                            'snippet_count': len(snippets)
+                        }
+                        print(f"⚠️ STATS RPC: No data returned, using fallback counts")
+                except Exception as stats_error:
+                    print(f"❌ STATS RPC FAILED: {stats_error}")
+                    # Fallback to local counts if RPC fails
+                    stats = {
+                        'total_videos': len(videos),
+                        'summary_count': summary_count,
+                        'videos_with_transcripts': videos_with_transcripts,
+                        'videos_without_transcripts': len(videos) - videos_with_transcripts,
+                        'snippet_count': len(snippets)
+                    }
             else:
                 stats = {
                     'total_videos': len(videos),
@@ -1909,21 +1926,23 @@ class DatabaseStorage:
             }
 
     def save_memory_snippet(self, video_id: str, snippet_text: str, context_before: str = None, context_after: str = None, tags: list = None) -> bool:
-        """Save a memory snippet to the database"""
+        """Save a memory snippet to the database (uses user_snippets table)"""
         if not self.supabase:
             print("Database not initialized")
             return False
 
         try:
-            # Check if memory_snippets table exists, if not create it
+            print(f"💾 save_memory_snippet: video_id={video_id}, snippet_length={len(snippet_text)}")
+            
+            # Check if user_snippets table exists, if not create it
             try:
                 # Test if table exists by trying a simple select
-                self.supabase.table('memory_snippets').select('id').limit(1).execute()
+                self.supabase.table('user_snippets').select('id').limit(1).execute()
             except Exception as table_error:
                 if 'does not exist' in str(table_error):
-                    print("memory_snippets table doesn't exist. Please create it manually in Supabase:")
+                    print("user_snippets table doesn't exist. Please create it manually in Supabase:")
                     print("""
-                    CREATE TABLE memory_snippets (
+                    CREATE TABLE user_snippets (
                         id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
                         video_id VARCHAR(11) NOT NULL,
                         snippet_text TEXT NOT NULL,
@@ -1943,7 +1962,7 @@ class DatabaseStorage:
                 tags = []
 
             # Insert the memory snippet
-            result = self.supabase.table('memory_snippets').insert({
+            result = self.supabase.table('user_snippets').insert({
                 'video_id': video_id,
                 'snippet_text': snippet_text,
                 'context_before': context_before,
@@ -1952,10 +1971,10 @@ class DatabaseStorage:
             }).execute()
 
             if result.data:
-                print(f"Memory snippet saved successfully for video {video_id}")
+                print(f"✅ Memory snippet saved successfully for video {video_id}")
                 return True
             else:
-                print(f"Failed to save memory snippet for video {video_id}")
+                print(f"❌ Failed to save memory snippet for video {video_id}")
                 return False
 
         except Exception as e:
@@ -1963,95 +1982,87 @@ class DatabaseStorage:
             return False
 
     def get_memory_snippets(self, video_id: str = None, limit: int = 100, channel_id: str = None) -> list:
-        """Get memory snippets, optionally filtered by video_id or channel_id"""
+        """
+        Get user snippets with clean batch fetching (uses user_snippets table)
+        
+        Args:
+            video_id: Filter by specific video
+            limit: Maximum number of snippets to return
+            channel_id: Filter by specific channel
+        
+        Returns:
+            List of snippets with video and channel data attached
+        """
         if not self.supabase:
             print("Database not initialized")
             return []
 
         try:
-            print(f"get_memory_snippets called with video_id={video_id}, channel_id={channel_id}, limit={limit}")
+            print(f"📄 get_memory_snippets: video_id={video_id}, channel_id={channel_id}, limit={limit}")
             
-            # Get memory snippets
-            query = self.supabase.table('memory_snippets').select(
-                'id, video_id, snippet_text, context_before, context_after, tags, created_at'
-            ).order('created_at', desc=True).limit(limit)
+            # Get user snippets with clean query
+            query = self.supabase.table('user_snippets')\
+                .select('id, video_id, snippet_text, created_at')\
+                .order('created_at', desc=True).limit(limit)
 
             if video_id:
                 query = query.eq('video_id', video_id)
 
-            result = query.execute()
-            snippets = result.data if result.data else []
+            snippets_result = query.execute()
+            snippets = snippets_result.data if snippets_result.data else []
             
             if not snippets:
-                print("No snippets found")
+                print("✅ No snippets found")
                 return []
             
-            # Get unique video IDs for batch fetching
-            video_ids = list(set(snippet['video_id'] for snippet in snippets))
+            print(f"📄 Found {len(snippets)} snippets, fetching video/channel data")
             
             # Batch fetch video information
+            video_ids = list({s['video_id'] for s in snippets})
             videos_data = {}
-            if video_ids:
-                videos_result = self.supabase.table('youtube_videos').select(
-                    'video_id, title, thumbnail_url, channel_id'
-                ).in_('video_id', video_ids).execute()
-                
-                if videos_result.data:
-                    for video in videos_result.data:
-                        videos_data[video['video_id']] = video
             
-            # Get unique channel IDs for batch fetching
-            channel_ids = list(set(
-                videos_data[video_id].get('channel_id') 
-                for video_id in video_ids 
-                if video_id in videos_data and videos_data[video_id].get('channel_id')
-            ))
+            if video_ids:
+                videos_result = self.supabase.table('youtube_videos')\
+                    .select('video_id, title, thumbnail_url, channel_id')\
+                    .in_('video_id', video_ids).execute()
+                
+                videos_data = {v['video_id']: v for v in videos_result.data or []}
             
             # Batch fetch channel information
+            channel_ids = list({v['channel_id'] for v in videos_data.values() if v.get('channel_id')})
             channels_data = {}
+            
             if channel_ids:
-                channels_result = self.supabase.table('youtube_channels').select(
-                    'channel_id, channel_name, thumbnail_url, handle'
-                ).in_('channel_id', channel_ids).execute()
+                channels_result = self.supabase.table('youtube_channels')\
+                    .select('channel_id, channel_name, thumbnail_url, handle')\
+                    .in_('channel_id', channel_ids).execute()
                 
-                if channels_result.data:
-                    for channel in channels_result.data:
-                        channels_data[channel['channel_id']] = channel
+                channels_data = {c['channel_id']: c for c in channels_result.data or []}
             
-            # Combine data efficiently
+            # Efficiently merge data
+            result_snippets = []
             for snippet in snippets:
-                video_data = videos_data.get(snippet['video_id'])
+                video = videos_data.get(snippet['video_id'], {})
+                channel = channels_data.get(video.get('channel_id') if video else None, {})
                 
-                if video_data:
-                    snippet['youtube_videos'] = video_data
-                    
-                    # Get channel info
-                    snippet_channel_id = video_data.get('channel_id')
-                    if snippet_channel_id and snippet_channel_id in channels_data:
-                        channel_data = channels_data[snippet_channel_id]
-                        snippet['channel_name'] = channel_data['channel_name']
-                        snippet['channel_id'] = channel_data['channel_id']
-                        snippet['channel_thumbnail_url'] = channel_data.get('thumbnail_url')
-                        snippet['handle'] = channel_data.get('handle')
-                    else:
-                        snippet['channel_name'] = 'Unknown Channel'
-                        snippet['channel_id'] = snippet_channel_id
-                else:
-                    snippet['youtube_videos'] = {}
-                    snippet['channel_name'] = 'Unknown Channel'
-                    snippet['channel_id'] = None
+                # Build clean snippet object
+                snippet['youtube_videos'] = video
+                snippet['channel_name'] = channel.get('channel_name', 'Unknown Channel')
+                snippet['channel_id'] = channel.get('channel_id')
+                snippet['channel_thumbnail_url'] = channel.get('thumbnail_url')
+                snippet['handle'] = channel.get('handle')
+                
+                result_snippets.append(snippet)
             
-            # Filter by channel_id if provided (more efficient than SQL filtering due to joins)
+            # Filter by channel_id if requested
             if channel_id:
-                snippets = [snippet for snippet in snippets if snippet.get('channel_id') == channel_id]
+                result_snippets = [s for s in result_snippets if s.get('channel_id') == channel_id]
             
-            print(f"get_memory_snippets returning {len(snippets)} snippets")
-            return snippets
+            print(f"✅ Returning {len(result_snippets)} snippets")
+            return result_snippets
                 
         except Exception as e:
-            print(f"Error getting memory snippets: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"💥 Error getting memory snippets: {e}")
             return []
 
     def delete_memory_snippet(self, snippet_id: str) -> bool:
@@ -2061,17 +2072,18 @@ class DatabaseStorage:
             return False
 
         try:
-            result = self.supabase.table('memory_snippets').delete().eq('id', snippet_id).execute()
+            print(f"🗑️ delete_memory_snippet: snippet_id={snippet_id}")
+            result = self.supabase.table('user_snippets').delete().eq('id', snippet_id).execute()
             
             if result.data:
-                print(f"Memory snippet {snippet_id} deleted successfully")
+                print(f"✅ Memory snippet {snippet_id} deleted successfully")
                 return True
             else:
-                print(f"No memory snippet found with ID {snippet_id}")
+                print(f"❌ No memory snippet found with ID {snippet_id}")
                 return False
 
         except Exception as e:
-            print(f"Error deleting memory snippet: {e}")
+            print(f"💥 Error deleting memory snippet: {e}")
             return False
 
     def update_memory_snippet_tags(self, snippet_id: str, tags: list) -> bool:
@@ -2081,20 +2093,21 @@ class DatabaseStorage:
             return False
 
         try:
-            result = self.supabase.table('memory_snippets').update({
+            print(f"🏷️ update_memory_snippet_tags: snippet_id={snippet_id}, tags={tags}")
+            result = self.supabase.table('user_snippets').update({
                 'tags': tags,
                 'updated_at': 'NOW()'
             }).eq('id', snippet_id).execute()
             
             if result.data:
-                print(f"Memory snippet {snippet_id} tags updated successfully")
+                print(f"✅ Memory snippet {snippet_id} tags updated successfully")
                 return True
             else:
-                print(f"Failed to update tags for memory snippet {snippet_id}")
+                print(f"❌ Failed to update tags for memory snippet {snippet_id}")
                 return False
 
         except Exception as e:
-            print(f"Error updating memory snippet tags: {e}")
+            print(f"💥 Error updating memory snippet tags: {e}")
             return False
 
     def get_memory_snippets_stats(self) -> dict:
@@ -2104,21 +2117,26 @@ class DatabaseStorage:
             return {}
 
         try:
+            print("📊 get_memory_snippets_stats: fetching snippet statistics")
+            
             # Get total count
-            count_result = self.supabase.table('memory_snippets').select('id', count='exact').execute()
+            count_result = self.supabase.table('user_snippets').select('id', count='exact').execute()
             total_snippets = count_result.count if count_result.count is not None else 0
 
             # Get snippets by video count
-            videos_result = self.supabase.table('memory_snippets').select('video_id').execute()
+            videos_result = self.supabase.table('user_snippets').select('video_id').execute()
             unique_videos = len(set(item['video_id'] for item in videos_result.data)) if videos_result.data else 0
 
-            return {
+            stats = {
                 'total_snippets': total_snippets,
                 'videos_with_snippets': unique_videos
             }
+            
+            print(f"✅ Memory snippets stats: {stats}")
+            return stats
 
         except Exception as e:
-            print(f"Error getting memory snippets stats: {e}")
+            print(f"💥 Error getting memory snippets stats: {e}")
             return {'total_snippets': 0, 'videos_with_snippets': 0}
 
     def get_channel_by_name(self, channel_name: str) -> Optional[Dict]:
