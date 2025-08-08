@@ -7,11 +7,10 @@ returns table(
   title text,
   channel_id text,
   channel_name text,
-  duration text,
+  duration integer,
   published_at timestamptz,
   created_at timestamptz,
   url_path text,
-  uploader text,
   has_transcript boolean,
   has_summary boolean,
   summary_text text,
@@ -29,12 +28,11 @@ returns table(
     v.video_id,
     v.title,
     v.channel_id,
-    v.channel_name,
+    c.channel_name,
     v.duration,
     v.published_at,
     v.created_at,
     v.url_path,
-    v.uploader,
     -- Server-side transcript validation
     exists (
       select 1 from transcripts t
@@ -70,6 +68,7 @@ returns table(
     -- Get snippet count from CTE (computed once for entire channel)
     csc.total_snippets as snippet_count
   from youtube_videos v
+  join youtube_channels c on v.channel_id = c.channel_id
   cross join channel_snippet_count csc
   where v.channel_id = cid
   order by v.created_at desc
