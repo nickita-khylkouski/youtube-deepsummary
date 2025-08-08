@@ -1167,15 +1167,27 @@ class DatabaseStorage:
             print(f"Error getting video by url_path '{url_path}': {e}")
             return None
 
-    def get_videos_by_channel(self, channel_name: str = None, channel_id: str = None) -> List[Dict]:
-        """Get all videos from a specific channel (by name or ID)"""
+    def get_videos_by_channel(self, channel_name: str = None, channel_id: str = None, sort_by: str = 'published') -> List[Dict]:
+        """Get all videos from a specific channel (by name or ID)
+        
+        Args:
+            channel_name: Channel name (optional)
+            channel_id: Channel ID (optional)
+            sort_by: Sort order - 'published' (default) or 'added'
+        """
         try:
             if channel_id:
+                # Determine sort field and order
+                if sort_by == 'added':
+                    sort_field = 'created_at'
+                else:  # Default to 'published'
+                    sort_field = 'published_at'
+                
                 # Use channel_id directly - no JOIN to avoid foreign key issues
                 query = self.supabase.table('youtube_videos')\
                     .select('*')\
                     .eq('channel_id', channel_id)\
-                    .order('created_at', desc=True)
+                    .order(sort_field, desc=True)
                 
                 response = query.execute()
                 videos = response.data if response.data else []

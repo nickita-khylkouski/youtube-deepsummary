@@ -96,14 +96,22 @@ def channel_overview(channel_handle):
 def channel_videos(channel_handle):
     """Display all videos from a specific channel by handle"""
     try:
+        # Get sort parameter from query string (default to 'published')
+        sort_by = request.args.get('sort', 'published')
+        if sort_by not in ['published', 'added']:
+            sort_by = 'published'
+        
         # Get channel info by handle
         channel_info = database_storage.get_channel_by_handle(channel_handle)
         if not channel_info:
             return render_template('error.html', 
                                  error_message=f"Channel not found: {channel_handle}"), 404
         
-        # Get videos for this channel
-        channel_videos_list = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
+        # Get videos for this channel with sorting
+        channel_videos_list = database_storage.get_videos_by_channel(
+            channel_id=channel_info['channel_id'], 
+            sort_by=sort_by
+        )
         
         if not channel_videos_list:
             return render_template('error.html', 
@@ -121,7 +129,8 @@ def channel_videos(channel_handle):
                              channel_name=display_name,
                              channel_info=channel_info,
                              videos=channel_videos_list,
-                             total_videos=len(channel_videos_list))
+                             total_videos=len(channel_videos_list),
+                             current_sort=sort_by)
         
     except Exception as e:
         return render_template('error.html', 

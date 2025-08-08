@@ -8,10 +8,19 @@
     </div>
 
     <div style="margin-bottom: 20px;">
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <a href="/channels" style="color: #666; text-decoration: none; font-size: 14px;">← All Channels</a>
-            <span style="color: #ccc;">•</span>
-            <a href="/{{ channel_info.handle if channel_info else channel_name }}" style="color: #666; text-decoration: none; font-size: 14px;">Channel Overview</a>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 15px;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <a href="/channels" style="color: #666; text-decoration: none; font-size: 14px;">← All Channels</a>
+                <span style="color: #ccc;">•</span>
+                <a href="/{{ channel_info.handle if channel_info else channel_name }}" style="color: #666; text-decoration: none; font-size: 14px;">Channel Overview</a>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <label for="sort-select" style="font-size: 14px; color: #666;">Sort by:</label>
+                <select id="sort-select" onchange="changeSorting()" style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; background: white; font-size: 14px;">
+                    <option value="published" {{ 'selected' if current_sort == 'published' else '' }}>📅 Published Date</option>
+                    <option value="added" {{ 'selected' if current_sort == 'added' else '' }}>➕ Date Added</option>
+                </select>
+            </div>
         </div>
     </div>
 
@@ -79,6 +88,14 @@
     {% endif %}
     
     <script>
+        // JavaScript for sorting
+        function changeSorting() {
+            const sortValue = document.getElementById('sort-select').value;
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('sort', sortValue);
+            window.location.href = currentUrl.toString();
+        }
+        
         // JavaScript for video deletion
         function deleteVideo(videoId, videoTitle) {
             if (!confirm(`Are you sure you want to delete "${videoTitle}"?\n\nThis will permanently remove the video, transcript, and summary.`)) {
