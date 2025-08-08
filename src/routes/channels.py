@@ -46,42 +46,34 @@ def channel_overview(channel_handle):
             return render_template('error.html', 
                                  error_message=f"Channel not found: {channel_handle}"), 404
         
-        # Get videos for this channel (optimized with limit for overview)
-        channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'], for_overview=True)
+        # Get ALL channel data in one optimized bulk query
+        channel_data = database_storage.get_channel_complete_data(channel_info['channel_id'], for_overview=True)
         
-        # Get summary count using server-side query (already optimized)
-        summary_count = len(database_storage.get_summaries_by_channel(channel_info['channel_id']))
+        # Extract data from bulk response
+        channel_videos = channel_data['videos']
+        stats = channel_data['stats']
+        summaries = channel_data['summaries']
         
-        # Get videos without summaries using batch query
-        videos_without_summaries = []
-        if channel_videos:
-            video_ids = [video['video_id'] for video in channel_videos]
-            summaries_batch = database_storage.get_summaries_batch(video_ids)
-            videos_without_summaries = [vid for vid in video_ids if vid not in summaries_batch]
+        # Build videos without summaries and transcripts lists
+        videos_without_summaries = [video['video_id'] for video in channel_videos if not video['has_summary']]
+        videos_without_transcripts = [video['video_id'] for video in channel_videos if not video['has_transcript']]
+        videos_with_transcripts = [video['video_id'] for video in channel_videos if video['has_transcript']]
         
-        # Get videos without transcripts count
-        videos_without_transcripts = database_storage.get_videos_without_transcripts(channel_info['channel_id'])
-        videos_without_transcripts_count = len(videos_without_transcripts)
-        
-        # Get snippet count for this channel (optimized)
-        snippets = database_storage.get_memory_snippets(limit=1000, channel_id=channel_info['channel_id'])
-        snippet_count = len(snippets)
-        
-        # Get recent videos (latest 6)
+        # Get recent videos (latest 6) - thumbnails already set in bulk method
         recent_videos = channel_videos[:6] if channel_videos else []
-        for video in recent_videos:
-            video['thumbnail_url'] = f"https://img.youtube.com/vi/{video['video_id']}/maxresdefault.jpg"
-            video['has_summary'] = video['video_id'] in summaries_batch if channel_videos else False
         
         return render_template('channel_overview.html',
                              channel_info=channel_info,
                              channel_handle=channel_handle,
-                             total_videos=len(channel_videos) if channel_videos else 0,
-                             summary_count=summary_count,
+                             total_videos=stats['total_videos'],
+                             summary_count=stats['summary_count'],
                              videos_without_summaries_count=len(videos_without_summaries),
                              videos_without_summaries=videos_without_summaries,
-                             videos_without_transcripts_count=videos_without_transcripts_count,
-                             snippet_count=snippet_count,
+                             videos_with_transcripts_count=stats['videos_with_transcripts'],
+                             videos_with_transcripts=videos_with_transcripts,
+                             videos_without_transcripts_count=stats['videos_without_transcripts'],
+                             videos_without_transcripts=videos_without_transcripts,
+                             snippet_count=stats['snippet_count'],
                              recent_videos=recent_videos)
         
     except Exception as e:
@@ -99,20 +91,13 @@ def channel_videos(channel_handle):
             return render_template('error.html', 
                                  error_message=f"Channel not found: {channel_handle}"), 404
         
-        # Get videos for this channel
-        channel_videos_list = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
+        # Get ALL channel data in one optimized bulk query
+        channel_data = database_storage.get_channel_complete_data(channel_info['channel_id'])
+        channel_videos_list = channel_data['videos']
         
         if not channel_videos_list:
             return render_template('error.html', 
                                  error_message=f"No videos found for channel: {channel_handle}"), 404
-        
-        # Check which videos have summaries using batch query
-        video_ids = [video['video_id'] for video in channel_videos_list]
-        summaries_batch = database_storage.get_summaries_batch(video_ids)
-        
-        for video in channel_videos_list:
-            video['has_summary'] = video['video_id'] in summaries_batch
-            video['thumbnail_url'] = f"https://img.youtube.com/vi/{video['video_id']}/maxresdefault.jpg"
         
         # Use channel name from channel_info
         display_name = channel_info['channel_name']
@@ -121,7 +106,7 @@ def channel_videos(channel_handle):
                              channel_name=display_name,
                              channel_info=channel_info,
                              videos=channel_videos_list,
-                             total_videos=len(channel_videos_list))
+                             total_videos=channel_data['stats']['total_videos'])
         
     except Exception as e:
         return render_template('error.html', 
@@ -138,35 +123,29 @@ def channel_summaries(channel_handle):
             return render_template('error.html', 
                                  error_message=f"Channel not found: {channel_handle}"), 404
         
-        # Get videos for this channel
-        channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
+        # Get ALL channel data in one optimized bulk query
+        channel_data = database_storage.get_channel_complete_data(channel_info['channel_id'])
+        channel_videos = channel_data['videos']
+        summaries_dict = channel_data['summaries']
         
         if not channel_videos:
             return render_template('error.html', 
                                  error_message=f"No videos found for channel: {channel_handle}"), 404
         
-        # Get summaries using server-side query (already optimized)
-        summaries_data = database_storage.get_summaries_by_channel(channel_info['channel_id'])
-        
-        # Create video lookup for efficiency
-        video_lookup = {video['video_id']: video for video in channel_videos}
-        
+        # Build summaries list from videos that have summaries
         summaries = []
-        for summary_data in summaries_data:
-            video_id = summary_data['video_id']
-            video = video_lookup.get(video_id)
-            
-            if video:
-                summary_html = format_summary_html(summary_data['summary_text'])
-                print(f"Converted summary for {video_id}: markdown -> HTML conversion applied")
+        for video in channel_videos:
+            if video['has_summary'] and video['video_id'] in summaries_dict:
+                summary_html = format_summary_html(summaries_dict[video['video_id']])
+                print(f"Converted summary for {video['video_id']}: markdown -> HTML conversion applied")
                 
                 summaries.append({
-                    'video_id': video_id,
+                    'video_id': video['video_id'],
                     'title': video['title'],
                     'channel_name': video.get('channel_name'),
                     'channel_id': video.get('channel_id'),
                     'duration': video['duration'],
-                    'thumbnail_url': f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
+                    'thumbnail_url': video['thumbnail_url'],
                     'summary': summary_html,
                     'published_at': video.get('published_at'),
                     'url_path': video.get('url_path')
@@ -179,8 +158,8 @@ def channel_summaries(channel_handle):
                              channel_name=display_name,
                              channel_info=channel_info,
                              summaries=summaries,
-                             total_videos=len(channel_videos),
-                             summarized_videos=len(summaries))
+                             total_videos=channel_data['stats']['total_videos'],
+                             summarized_videos=channel_data['stats']['summary_count'])
         
     except Exception as e:
         return render_template('error.html', 
@@ -224,29 +203,23 @@ def channel_blog(channel_handle):
             return render_template('error.html', 
                                  error_message=f"Channel not found: {channel_handle}"), 404
         
-        # Get all videos for this channel
-        channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
+        # Get ALL channel data in one optimized bulk query
+        channel_data = database_storage.get_channel_complete_data(channel_info['channel_id'])
+        channel_videos = channel_data['videos']
+        summaries_dict = channel_data['summaries']
         
-        # Get videos with summaries using server-side query (already optimized)
-        summaries_data = database_storage.get_summaries_by_channel(channel_info['channel_id'])
-        
-        # Create video lookup for efficiency
-        video_lookup = {video['video_id']: video for video in channel_videos}
-        
+        # Build videos with summaries list from videos that have summaries
         videos_with_summaries = []
-        for summary_data in summaries_data:
-            video_id = summary_data['video_id']
-            video = video_lookup.get(video_id)
-            
-            if video:
+        for video in channel_videos:
+            if video['has_summary'] and video['video_id'] in summaries_dict:
                 videos_with_summaries.append({
-                    'video_id': video_id,
+                    'video_id': video['video_id'],
                     'title': video['title'],
                     'channel_name': video.get('channel_name'),
                     'channel_id': video.get('channel_id'),
                     'duration': video['duration'],
-                    'thumbnail_url': f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
-                    'summary': summary_data['summary_text'],
+                    'thumbnail_url': video['thumbnail_url'],
+                    'summary': summaries_dict[video['video_id']],
                     'published_at': video.get('published_at'),
                     'url_path': video.get('url_path'),
                     'uploader': video.get('uploader')
@@ -301,31 +274,29 @@ def individual_blog_post(channel_handle, post_slug):
             return render_template('error.html', 
                                  error_message=f"Channel not found: {channel_handle}"), 404
         
-        # Get all videos for this channel to find the matching post
-        channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
-        
-        # Get summaries for this channel using server-side query
-        summaries_data = database_storage.get_summaries_by_channel(channel_info['channel_id'])
-        summary_lookup = {s['video_id']: s['summary_text'] for s in summaries_data}
+        # Get ALL channel data in one optimized bulk query
+        channel_data = database_storage.get_channel_complete_data(channel_info['channel_id'])
+        channel_videos = channel_data['videos']
+        summaries_dict = channel_data['summaries']
         
         # Find the video matching the post slug
         target_video = None
         for video in channel_videos:
             # Check if this video has a summary and matches the slug
             if video.get('url_path') and video['url_path'] == post_slug:
-                if video['video_id'] in summary_lookup:
-                    target_video = video
-                    target_video['summary'] = summary_lookup[video['video_id']]
+                if video['has_summary'] and video['video_id'] in summaries_dict:
+                    target_video = video.copy()
+                    target_video['summary'] = summaries_dict[video['video_id']]
                     break
         
         if not target_video:
             return render_template('error.html', 
                                  error_message=f"Blog post not found: {post_slug}"), 404
         
-        # Get all videos with summaries for navigation using existing summary lookup
+        # Get all videos with summaries for navigation from bulk data
         videos_with_summaries = []
         for video in channel_videos:
-            if video['video_id'] in summary_lookup:
+            if video['has_summary']:
                 videos_with_summaries.append({
                     'video_id': video['video_id'],
                     'title': video['title'],
@@ -372,8 +343,9 @@ def channel_chat(channel_handle):
             return render_template('error.html', 
                                  error_message=f"Channel not found: {channel_handle}"), 404
         
-        # Get summary count using server-side query (already optimized)
-        summary_count = len(database_storage.get_summaries_by_channel(channel_info['channel_id']))
+        # Get summary count using bulk query (optimized)
+        channel_data = database_storage.get_channel_complete_data(channel_info['channel_id'])
+        summary_count = channel_data['stats']['summary_count']
         
         # Only allow chat if there are summaries available
         if summary_count == 0:

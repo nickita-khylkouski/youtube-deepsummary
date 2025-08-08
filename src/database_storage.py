@@ -1301,6 +1301,385 @@ class DatabaseStorage:
             print(f"Error getting videos without transcripts for channel {channel_id}: {e}")
             return []
 
+    def get_channel_complete_data(self, channel_id: str, for_overview: bool = False) -> Dict:
+        """
+        HIGHLY OPTIMIZED channel data fetch using RPC and selective queries
+        
+        Uses server-side RPC functions for maximum performance with minimal data transfer.
+        Pushes all validation logic to Postgres where it belongs.
+        
+        Args:
+            channel_id: The channel ID to fetch data for
+            for_overview: If True, limit videos for overview page (50 videos)
+            
+        Returns:
+            Dictionary containing:
+            - videos: List of videos with pre-computed flags
+            - summaries: Dict mapping video_id to summary_text  
+            - chapters: Dict mapping video_id to chapters_data
+            - snippets: List of memory snippets (limited fields only)
+            - stats: Pre-computed statistics from server
+        """
+        try:
+            print(f"🚀 OPTIMIZED: Getting complete channel data for {channel_id}, for_overview={for_overview}")
+            
+            # Try RPC function first for maximum performance
+            limit_val = 50 if for_overview else 1000
+            
+            try:
+                print(f"📞 DB CALL: Attempting RPC channel_overview(cid={channel_id}, vlimit={limit_val})")
+                # Single RPC call gets everything we need with server-side validation
+                videos_response = self.supabase.rpc('channel_overview', {
+                    'cid': channel_id, 
+                    'vlimit': limit_val
+                }).execute()
+                print(f"✅ RPC SUCCESS: Got {len(videos_response.data) if videos_response.data else 0} records from RPC")
+            except Exception as rpc_error:
+                print(f"❌ RPC FAILED: {rpc_error}")
+                print(f"🔄 FALLBACK: Using optimized query instead")
+                # Fallback to optimized query with foreign_table limits
+                return self._get_channel_data_fallback(channel_id, for_overview)
+            
+            if not videos_response.data:
+                # Get empty stats using RPC for consistency
+                stats_response = self.supabase.rpc('channel_stats', {'cid': channel_id}).execute()
+                empty_stats = stats_response.data[0] if stats_response.data else {
+                    'total_videos': 0, 'summary_count': 0,
+                    'videos_with_transcripts': 0, 'videos_without_transcripts': 0,
+                    'snippet_count': 0
+                }
+                return {
+                    'videos': [],
+                    'summaries': {},
+                    'chapters': {},
+                    'snippets': [],
+                    'stats': empty_stats
+                }
+            
+            # Process video data from RPC - it comes pre-validated and optimized
+            videos = []
+            summaries = {}
+            chapters = {}
+            
+            # Get snippet count from first record (computed in RPC)
+            snippet_count = videos_response.data[0].get('snippet_count', 0) if videos_response.data else 0
+            
+            # Process each video from RPC response - minimal work needed
+            # NOTE: videos_response.data is limited by vlimit (50 for overview)
+            returned_videos_count = len(videos_response.data)
+            summary_count = 0
+            videos_with_transcripts = 0
+            videos_without_transcripts = 0
+            
+            for video_data in videos_response.data:
+                # Build video record with pre-computed thumbnail
+                video = {
+                    'video_id': video_data['video_id'],
+                    'title': video_data['title'],
+                    'channel_id': video_data['channel_id'],
+                    'channel_name': video_data.get('channel_name'),  # This comes from RPC
+                    'duration': video_data['duration'],
+                    'thumbnail_url': f"https://img.youtube.com/vi/{video_data['video_id']}/hqdefault.jpg",  # Use fallback
+                    'published_at': video_data.get('published_at'),
+                    'created_at': video_data['created_at'],
+                    'url_path': video_data.get('url_path'),
+                    'uploader': video_data.get('uploader'),
+                    # These come pre-computed from RPC - no validation needed!
+                    'has_transcript': video_data['has_transcript'],
+                    'has_summary': video_data['has_summary']
+                }
+                videos.append(video)
+                
+                # Extract summary if present (already filtered by RPC)
+                if video_data.get('summary_text'):
+                    summaries[video_data['video_id']] = video_data['summary_text']
+                    summary_count += 1
+                    
+                # Extract chapters if present (already filtered by RPC) 
+                if video_data.get('chapters'):
+                    chapters[video_data['video_id']] = video_data['chapters']
+                
+                # Count transcript stats (pre-computed by RPC)
+                if video_data['has_transcript']:
+                    videos_with_transcripts += 1
+                else:
+                    videos_without_transcripts += 1
+            
+            # Get memory snippets with selective fields only (FIXED - using user_snippets table)
+            print(f"📄 DB QUERY: Fetching user_snippets for channel {channel_id} (limit 100)")
+            snippets_response = self.supabase.table('user_snippets')\
+                .select('id, video_id, snippet_text, created_at, youtube_videos!inner(title, channel_id)')\
+                .eq('youtube_videos.channel_id', channel_id)\
+                .order('created_at', desc=True)\
+                .limit(100)\
+                .execute()
+            print(f"✅ SNIPPETS: Got {len(snippets_response.data) if snippets_response.data else 0} snippets")
+                
+            snippets = snippets_response.data if snippets_response.data else []
+            
+            # For overview pages, we need accurate total counts (not just the limited results)
+            if for_overview:
+                print(f"📊 DB QUERY: Getting accurate total counts for channel {channel_id}")
+                
+                # Get actual total video count 
+                total_count_response = self.supabase.table('youtube_videos')\
+                    .select('video_id', count='exact')\
+                    .eq('channel_id', channel_id)\
+                    .execute()
+                actual_total_videos = total_count_response.count or 0
+                
+                # Get actual total summary count - need to JOIN with youtube_videos  
+                summary_count_response = self.supabase.table('summaries')\
+                    .select('video_id, youtube_videos!inner(channel_id)', count='exact')\
+                    .eq('youtube_videos.channel_id', channel_id)\
+                    .execute()
+                actual_summary_count = summary_count_response.count or 0
+                
+                print(f"✅ ACTUAL COUNTS: {actual_total_videos} total videos, {actual_summary_count} total summaries (showed {returned_videos_count} for overview)")
+                
+                # Build stats with actual totals
+                stats = {
+                    'total_videos': actual_total_videos,
+                    'summary_count': actual_summary_count,
+                    'videos_with_transcripts': videos_with_transcripts,  # From sample
+                    'videos_without_transcripts': actual_total_videos - videos_with_transcripts,
+                    'snippet_count': len(snippets)
+                }
+            else:
+                # For non-overview pages, use the actual returned counts
+                stats = {
+                    'total_videos': returned_videos_count,
+                    'summary_count': summary_count,
+                    'videos_with_transcripts': videos_with_transcripts,
+                    'videos_without_transcripts': videos_without_transcripts,
+                    'snippet_count': len(snippets)
+                }
+            
+            print(f"Optimized RPC loaded channel {channel_id}: {stats['total_videos']} videos, {stats['summary_count']} summaries, {stats['snippet_count']} snippets")
+            
+            return {
+                'videos': videos,
+                'summaries': summaries, 
+                'chapters': chapters,
+                'snippets': snippets,
+                'stats': stats
+            }
+            
+        except Exception as e:
+            print(f"Error getting optimized channel data for {channel_id}: {e}")
+            # Fallback to basic stats on error
+            try:
+                stats_response = self.supabase.rpc('channel_stats', {'cid': channel_id}).execute()
+                fallback_stats = stats_response.data[0] if stats_response.data else {
+                    'total_videos': 0, 'summary_count': 0,
+                    'videos_with_transcripts': 0, 'videos_without_transcripts': 0,
+                    'snippet_count': 0
+                }
+            except:
+                fallback_stats = {
+                    'total_videos': 0, 'summary_count': 0,
+                    'videos_with_transcripts': 0, 'videos_without_transcripts': 0,
+                    'snippet_count': 0
+                }
+                
+            return {
+                'videos': [],
+                'summaries': {},
+                'chapters': {},
+                'snippets': [],
+                'stats': fallback_stats
+            }
+
+    def _get_channel_data_fallback(self, channel_id: str, for_overview: bool = False) -> Dict:
+        """
+        Fallback method using optimized queries with foreign_table limits
+        Used when RPC functions are not available
+        """
+        try:
+            print(f"🔍 FALLBACK: Fetching channel data for {channel_id}, for_overview={for_overview}")
+            
+            # Optimized query with selective fields and nested limits (FIXED - removed channel_name)
+            video_query = self.supabase.table('youtube_videos')\
+                .select('''
+                    video_id,title,channel_id,duration,published_at,created_at,url_path,
+                    transcripts(formatted_transcript,created_at),
+                    summaries(summary_text,created_at,is_current),
+                    video_chapters(chapters_data,created_at)
+                ''')\
+                .eq('channel_id', channel_id)\
+                .order('created_at', desc=True)
+            
+            print(f"📊 DB QUERY: youtube_videos with nested relations for channel {channel_id}")
+            
+            if for_overview:
+                video_query = video_query.limit(50)
+                
+            # Try to add nested limits (may not work in all supabase-py versions)
+            try:
+                video_query = (
+                    video_query
+                    .order('created_at', desc=True, foreign_table='transcripts').limit(1, foreign_table='transcripts')
+                    .order('is_current', desc=True, foreign_table='summaries')
+                    .order('created_at', desc=True, foreign_table='summaries').limit(1, foreign_table='summaries')
+                    .order('created_at', desc=True, foreign_table='video_chapters').limit(1, foreign_table='video_chapters')
+                )
+            except Exception as nested_error:
+                print(f"Nested limits not supported, using basic query: {nested_error}")
+            
+            print(f"🔥 EXECUTING: Fallback video query with nested relations")
+            videos_response = video_query.execute()
+            print(f"✅ QUERY SUCCESS: Got {len(videos_response.data) if videos_response.data else 0} videos from fallback query")
+            
+            if not videos_response.data:
+                return {
+                    'videos': [],
+                    'summaries': {},
+                    'chapters': {},
+                    'snippets': [],
+                    'stats': {
+                        'total_videos': 0, 'summary_count': 0,
+                        'videos_with_transcripts': 0, 'videos_without_transcripts': 0,
+                        'snippet_count': 0
+                    }
+                }
+            
+            # Process videos with minimal validation
+            videos = []
+            summaries = {}
+            chapters = {}
+            
+            # Failed transcript indicators for fallback validation
+            failed_indicators = [
+                'transcript extraction failed', 'no transcript available',
+                'transcript not available', 'failed to extract', 'error extracting'
+            ]
+            
+            summary_count = 0
+            videos_with_transcripts = 0
+            
+            for video_data in videos_response.data:
+                # Basic transcript validation
+                has_transcript = False
+                if video_data.get('transcripts') and len(video_data['transcripts']) > 0:
+                    transcript = video_data['transcripts'][0]
+                    formatted_transcript = transcript.get('formatted_transcript', '')
+                    if formatted_transcript and len(formatted_transcript.strip()) > 100:
+                        has_transcript = not any(
+                            indicator.lower() in formatted_transcript.lower() 
+                            for indicator in failed_indicators
+                        )
+                
+                # Basic summary validation
+                has_summary = False
+                if video_data.get('summaries') and len(video_data['summaries']) > 0:
+                    # Prefer current summary, fallback to latest
+                    current_summaries = [s for s in video_data['summaries'] if s.get('is_current', False)]
+                    if current_summaries:
+                        summaries[video_data['video_id']] = current_summaries[0]['summary_text']
+                        has_summary = True
+                    elif video_data['summaries']:
+                        latest = max(video_data['summaries'], key=lambda x: x.get('created_at', ''))
+                        summaries[video_data['video_id']] = latest['summary_text']
+                        has_summary = True
+                
+                # Process chapters
+                if video_data.get('video_chapters') and len(video_data['video_chapters']) > 0:
+                    chapters_data = video_data['video_chapters'][0].get('chapters_data')
+                    if chapters_data:
+                        chapters[video_data['video_id']] = chapters_data
+                
+                # Build video record (FIXED - no channel_name field)
+                video = {
+                    'video_id': video_data['video_id'],
+                    'title': video_data['title'],
+                    'channel_id': video_data['channel_id'],
+                    'duration': video_data['duration'],
+                    'thumbnail_url': f"https://img.youtube.com/vi/{video_data['video_id']}/hqdefault.jpg",
+                    'published_at': video_data.get('published_at'),
+                    'created_at': video_data['created_at'],
+                    'url_path': video_data.get('url_path'),
+                    'has_transcript': has_transcript,
+                    'has_summary': has_summary
+                }
+                videos.append(video)
+                
+                if has_summary:
+                    summary_count += 1
+                if has_transcript:
+                    videos_with_transcripts += 1
+            
+            # Get snippets with selective fields (FIXED - using user_snippets table)
+            print(f"📄 DB QUERY: Fetching user_snippets for channel {channel_id} (limit 100)")
+            snippets_response = self.supabase.table('user_snippets')\
+                .select('id, video_id, snippet_text, created_at, youtube_videos!inner(title, channel_id)')\
+                .eq('youtube_videos.channel_id', channel_id)\
+                .order('created_at', desc=True)\
+                .limit(100)\
+                .execute()
+            print(f"✅ SNIPPETS: Got {len(snippets_response.data) if snippets_response.data else 0} snippets")
+                
+            snippets = snippets_response.data if snippets_response.data else []
+            
+            # Get accurate total counts (separate from limited results)
+            if for_overview:
+                print(f"📊 DB QUERY: Getting accurate total counts for channel {channel_id}")
+                
+                # Total video count
+                total_count_response = self.supabase.table('youtube_videos')\
+                    .select('video_id', count='exact')\
+                    .eq('channel_id', channel_id)\
+                    .execute()
+                actual_total_videos = total_count_response.count or 0
+                
+                # Total summary count - need to JOIN with youtube_videos
+                summary_count_response = self.supabase.table('summaries')\
+                    .select('video_id, youtube_videos!inner(channel_id)', count='exact')\
+                    .eq('youtube_videos.channel_id', channel_id)\
+                    .execute()
+                actual_summary_count = summary_count_response.count or 0
+                
+                print(f"✅ ACTUAL COUNTS: {actual_total_videos} total videos, {actual_summary_count} total summaries")
+                
+                stats = {
+                    'total_videos': actual_total_videos,
+                    'summary_count': actual_summary_count,
+                    'videos_with_transcripts': videos_with_transcripts,  # From sample
+                    'videos_without_transcripts': actual_total_videos - videos_with_transcripts,
+                    'snippet_count': len(snippets)
+                }
+            else:
+                stats = {
+                    'total_videos': len(videos),
+                    'summary_count': summary_count,
+                    'videos_with_transcripts': videos_with_transcripts,
+                    'videos_without_transcripts': len(videos) - videos_with_transcripts,
+                    'snippet_count': len(snippets)
+                }
+            
+            print(f"Fallback loaded channel {channel_id}: {stats['total_videos']} videos, {stats['summary_count']} summaries, {stats['snippet_count']} snippets")
+            
+            return {
+                'videos': videos,
+                'summaries': summaries,
+                'chapters': chapters,
+                'snippets': snippets,
+                'stats': stats
+            }
+            
+        except Exception as e:
+            print(f"Error in fallback channel data for {channel_id}: {e}")
+            return {
+                'videos': [],
+                'summaries': {},
+                'chapters': {},
+                'snippets': [],
+                'stats': {
+                    'total_videos': 0, 'summary_count': 0,
+                    'videos_with_transcripts': 0, 'videos_without_transcripts': 0,
+                    'snippet_count': 0
+                }
+            }
+
     def delete(self, video_id: str) -> bool:
         """Delete a video and all its associated data"""
         try:
@@ -1777,15 +2156,22 @@ class DatabaseStorage:
             if not handle.startswith('@'):
                 handle = f"@{handle}"
             
+            print(f"🏷️ DB QUERY: Getting channel by handle '{handle}'")
             result = self.supabase.table('youtube_channels')\
                 .select('*')\
                 .eq('handle', handle)\
                 .execute()
             
-            return result.data[0] if result.data else None
+            if result.data:
+                channel = result.data[0]
+                print(f"✅ CHANNEL FOUND: {channel.get('channel_name', 'Unknown')} (ID: {channel.get('channel_id')})")
+                return channel
+            else:
+                print(f"❌ CHANNEL NOT FOUND: No channel with handle '{handle}'")
+                return None
             
         except Exception as e:
-            print(f"Error getting channel by handle {handle}: {e}")
+            print(f"💥 ERROR: Getting channel by handle {handle}: {e}")
             return None
 
     def update_channel_info(self, channel_id: str, **kwargs):
