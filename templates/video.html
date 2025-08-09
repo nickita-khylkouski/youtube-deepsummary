@@ -3,6 +3,10 @@
 {% block title %}{% if video_title %}{{ video_title }} - YouTube Transcript & Summary{% else %}YouTube Video {{ video_id }} - Transcript & Summary{% endif %}{% endblock %}
 
 {% block content %}
+    <!-- Include Vis.js for mind map visualization -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css" rel="stylesheet" type="text/css" />
+    
     <!-- Include Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     
@@ -49,6 +53,12 @@
                     {% endif %}
                     {% if has_transcript and summarize_enabled and not has_summary %}
                         <button id="generateSummaryBtn" onclick="generateSummary('{{ video_id }}')" style="background: #5BA7F7; color: white; border: none; padding: 10px 20px; border-radius: 12px; cursor: pointer; display: inline-block; margin-right: 12px; font-weight: 500; transition: all 0.2s ease; box-shadow: 0 4px 6px rgba(91, 167, 247, 0.3);" onmouseover="this.style.background='#4A90E2'; this.style.boxShadow='0 6px 12px rgba(91, 167, 247, 0.4)'" onmouseout="this.style.background='#5BA7F7'; this.style.boxShadow='0 4px 6px rgba(91, 167, 247, 0.3)'">🤖 Generate AI Summary</button>
+                    {% endif %}
+                    {% if has_transcript and not has_mindmap %}
+                        <button id="generateMindmapBtn" onclick="generateMindmap('{{ video_id }}')" style="background: transparent; color: #374151; border: 2px solid #e5e7eb; padding: 10px 20px; border-radius: 12px; cursor: pointer; display: inline-block; margin-right: 12px; font-weight: 500; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onmouseover="this.style.borderColor='#9ca3af'; this.style.boxShadow='0 4px 6px rgba(0,0,0,0.1)'" onmouseout="this.style.borderColor='#e5e7eb'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)'">🧭 Generate Mind Map</button>
+                    {% endif %}
+                    {% if has_transcript and has_mindmap %}
+                        <button id="regenerateMindmapBtn" onclick="generateMindmap('{{ video_id }}')" style="background: transparent; color: #374151; border: 2px solid #e5e7eb; padding: 10px 20px; border-radius: 12px; cursor: pointer; display: inline-block; margin-right: 12px; font-weight: 500; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onmouseover="this.style.borderColor='#9ca3af'; this.style.boxShadow='0 4px 6px rgba(0,0,0,0.1)'" onmouseout="this.style.borderColor='#e5e7eb'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)'">🔄 Regenerate Mind Map</button>
                     {% endif %}
                 </p>
             </div>
@@ -102,6 +112,70 @@
             </ul>
         </div>
     {% endif %}
+    
+    
+    <!-- Mind Map section - will be populated by JavaScript -->
+    <div id="mindmap-section" style="display: none;"></div>
+    
+    <script>
+        // Auto-load existing mindmap when page loads (regardless of has_mindmap state)
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Page loaded, checking for existing mindmap...');
+            checkAndLoadExistingMindmap('{{ video_id }}');
+        });
+        
+        function checkAndLoadExistingMindmap(videoId) {
+            console.log('🔍 CHECKING FOR EXISTING MINDMAP:', videoId);
+            fetch(`/api/mindmap/${videoId}`)
+                .then(response => {
+                    console.log('📡 API RESPONSE STATUS:', response.status, response.ok);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('📊 MINDMAP API RESULT:', data);
+                    console.log('✅ Success:', data.success);
+                    console.log('🗄️ Cached:', data.cached);
+                    console.log('📋 Mindmap Data:', data.mindmap);
+                    
+                    if (data.success && data.cached) {
+                        // Existing mindmap found, display it
+                        console.log('✅ FOUND EXISTING MINDMAP - DISPLAYING NOW');
+                        displayMindmap(data.mindmap, data.video_title);
+                        
+                        // Update button to show regenerate option
+                        updateMindmapButton(videoId, true);
+                        console.log('🔄 UPDATED BUTTON TO REGENERATE MODE');
+                    } else if (data.success && !data.cached) {
+                        console.log('🆕 FRESHLY GENERATED MINDMAP - DISPLAYING NOW');
+                        displayMindmap(data.mindmap, data.video_title);
+                        updateMindmapButton(videoId, true);
+                    } else {
+                        // No existing mindmap, just ensure button is ready
+                        console.log('❌ NO EXISTING MINDMAP FOUND');
+                        updateMindmapButton(videoId, false);
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ ERROR CHECKING FOR EXISTING MINDMAP:', error);
+                    updateMindmapButton(videoId, false);
+                });
+        }
+        
+        function updateMindmapButton(videoId, hasExisting) {
+            const generateBtn = document.getElementById('generateMindmapBtn');
+            const regenerateBtn = document.getElementById('regenerateMindmapBtn');
+            
+            if (hasExisting) {
+                // Show regenerate button, hide generate button
+                if (generateBtn) generateBtn.style.display = 'none';
+                if (regenerateBtn) regenerateBtn.style.display = 'inline-block';
+            } else {
+                // Show generate button, hide regenerate button  
+                if (generateBtn) generateBtn.style.display = 'inline-block';
+                if (regenerateBtn) regenerateBtn.style.display = 'none';
+            }
+        }
+    </script>
     
     <!-- Summary section - will be populated by JavaScript or shown if pre-loaded -->
     <div id="summary-section" style="{% if not summary and not summary_error %}display: none;{% endif %}">
@@ -217,6 +291,7 @@
             </div>
         </div>
     {% endif %}
+    
     
     <script>
         function toggleTranscriptView() {
@@ -512,6 +587,312 @@
                     btn.disabled = false;
                     btn.style.background = '#2196f3';
                 });
+        }
+        
+        function generateMindmap(videoId) {
+            // Try both button IDs (generate and regenerate)
+            const btn = document.getElementById('generateMindmapBtn') || document.getElementById('regenerateMindmapBtn');
+            const mindmapSection = document.getElementById('mindmap-section');
+            
+            if (!btn) {
+                console.error('Mindmap button not found');
+                return;
+            }
+            
+            // Update button to show loading state
+            btn.textContent = '🧠 Generating...';
+            btn.disabled = true;
+            btn.style.background = '#666';
+            btn.style.color = 'white';
+            btn.style.border = 'none';
+            
+            // Show mindmap section with loading state
+            mindmapSection.style.display = 'block';
+            mindmapSection.innerHTML = `
+                <div style="text-align: center; padding: 40px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 8px; margin: 20px 0;">
+                    <div style="font-size: 24px; margin-bottom: 10px;">🧠</div>
+                    <div style="color: #666;">Generating AI Mind Map...</div>
+                </div>
+            `;
+            
+            // Make AJAX request to generate mindmap
+            fetch(`/api/mindmap/${videoId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Display mindmap
+                        displayMindmap(data.mindmap, data.video_title);
+                        
+                        // Update button state to show regenerate option
+                        updateMindmapButton(videoId, true);
+                    } else {
+                        // Show error
+                        console.error('Mind map generation failed:', data);
+                        const errorMessage = data.error || 'Unknown error occurred';
+                        mindmapSection.innerHTML = `
+                            <div style="text-align: center; padding: 40px; background: #fff5f5; border: 1px solid #fed7d7; border-radius: 8px; margin: 20px 0;">
+                                <div style="color: #e53e3e; margin-bottom: 10px;">❌ Error generating mindmap</div>
+                                <div style="color: #666; font-size: 14px; margin-bottom: 15px;">${escapeHtml(errorMessage)}</div>
+                                ${data.details ? `<div style="color: #999; font-size: 12px; margin-bottom: 15px;">${escapeHtml(data.details)}</div>` : ''}
+                                <button onclick="generateMindmap('${videoId}')" style="margin-top: 15px; background: #e53e3e; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">🔄 Try Again</button>
+                            </div>
+                        `;
+                        
+                        // Reset button state
+                        btn.disabled = false;
+                        btn.style.background = 'transparent';
+                        btn.style.color = '#374151';
+                        btn.style.border = '2px solid #e5e7eb';
+                    }
+                })
+                .catch(error => {
+                    // Show error
+                    mindmapSection.innerHTML = `
+                        <div style="text-align: center; padding: 40px; background: #fff5f5; border: 1px solid #fed7d7; border-radius: 8px; margin: 20px 0;">
+                            <div style="color: #e53e3e; margin-bottom: 10px;">❌ Failed to generate mindmap</div>
+                            <div style="color: #666; font-size: 14px;">${error.message}</div>
+                            <button onclick="generateMindmap('${videoId}')" style="margin-top: 15px; background: #e53e3e; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">🔄 Try Again</button>
+                        </div>
+                    `;
+                    
+                    // Reset button state
+                    btn.disabled = false;
+                    btn.style.background = 'transparent';
+                    btn.style.color = '#374151';
+                    btn.style.border = '2px solid #e5e7eb';
+                });
+        }
+        
+        function displayMindmap(mindmapData, videoTitle) {
+            console.log('🎨 DISPLAYING MINDMAP FUNCTION CALLED');
+            console.log('📊 Mindmap data received:', mindmapData);
+            console.log('📹 Video title:', videoTitle);
+            
+            const mindmapSection = document.getElementById('mindmap-section');
+            console.log('📍 Mindmap section element:', mindmapSection);
+            
+            if (!mindmapSection) {
+                console.error('❌ ERROR: mindmap-section element not found!');
+                return;
+            }
+            
+            if (!mindmapData) {
+                console.error('❌ ERROR: No mindmap data provided!');
+                return;
+            }
+            
+            if (!mindmapData.central_topic || !mindmapData.main_topics) {
+                console.error('❌ ERROR: Invalid mindmap data structure:', mindmapData);
+                return;
+            }
+            
+            console.log('✅ All validation passed, creating HTML...');
+            
+            // Create HTML container for the vis.js mind map
+            let html = `
+                <div style="background: white; border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="margin: 0; color: #333; display: flex; align-items: center; gap: 8px;">
+                            🧭 Mind Map
+                        </h3>
+                    </div>
+                    
+                    <!-- Vis.js Mind Map Container -->
+                    <div id="mindmap-visualization" style="height: 500px; border: 1px solid #e0e0e0; border-radius: 8px; background: #fafafa;"></div>
+                    
+                </div>
+            `;
+            
+            console.log('📝 Setting HTML content...');
+            mindmapSection.innerHTML = html;
+            mindmapSection.style.display = 'block';
+            console.log('✅ HTML content set and section made visible');
+            
+            // Create vis.js network visualization
+            console.log('🔗 Calling createMindMapVisualization...');
+            createMindMapVisualization(mindmapData);
+        }
+        
+        function createMindMapVisualization(mindmapData) {
+            console.log('🌐 CREATE VIS.JS VISUALIZATION CALLED');
+            console.log('📊 Data for visualization:', mindmapData);
+            
+            const container = document.getElementById('mindmap-visualization');
+            console.log('🎯 Vis.js container element:', container);
+            
+            if (!container) {
+                console.error('❌ ERROR: Mind map visualization container not found!');
+                return;
+            }
+            
+            console.log('✅ Container found, checking vis.js library...');
+            if (typeof vis === 'undefined') {
+                console.error('❌ ERROR: vis.js library not loaded!');
+                return;
+            }
+            console.log('✅ vis.js library is available');
+            
+            const nodes = [];
+            const edges = [];
+            let nodeId = 1;
+            
+            // Central topic node
+            nodes.push({
+                id: nodeId,
+                label: mindmapData.central_topic,
+                color: {
+                    background: '#1a3c34',
+                    border: '#145c4f',
+                    highlight: { background: '#145c4f', border: '#0d4a3f' }
+                },
+                font: { size: 18, color: '#ffffff', bold: true },
+                shape: 'ellipse',
+                size: 30
+            });
+            const centralNodeId = nodeId;
+            nodeId++;
+            
+            // Color scheme for main topics
+            const mainTopicColors = [
+                { bg: '#2e856e', border: '#1f5b4d' },
+                { bg: '#007bff', border: '#0056b3' },
+                { bg: '#28a745', border: '#1e7e34' },
+                { bg: '#ffc107', border: '#d39e00' },
+                { bg: '#dc3545', border: '#bd2130' },
+                { bg: '#6f42c1', border: '#5a2d91' }
+            ];
+            
+            // Add main topics and their subtopics
+            mindmapData.main_topics.forEach((mainTopic, topicIndex) => {
+                const mainNodeId = nodeId;
+                const colorScheme = mainTopicColors[topicIndex % mainTopicColors.length];
+                
+                // Main topic node
+                nodes.push({
+                    id: mainNodeId,
+                    label: mainTopic.title,
+                    color: {
+                        background: colorScheme.bg,
+                        border: colorScheme.border,
+                        highlight: { background: colorScheme.border, border: colorScheme.bg }
+                    },
+                    font: { size: 13, color: '#ffffff', bold: true, multi: 'html' },
+                    shape: 'box',
+                    margin: 8
+                });
+                
+                // Edge from central to main topic
+                edges.push({
+                    from: centralNodeId,
+                    to: mainNodeId,
+                    color: { color: '#666666', highlight: '#333333' },
+                    width: 3
+                });
+                nodeId++;
+                
+                // Add subtopics
+                mainTopic.subtopics.forEach((subtopic, subtopicIndex) => {
+                    const subtopicNodeId = nodeId;
+                    
+                    // Subtopic node with better text formatting
+                    const formattedLabel = subtopic.notes 
+                        ? `<b>${subtopic.title}</b>\n<i>${subtopic.notes}</i>`
+                        : `<b>${subtopic.title}</b>`;
+                        
+                    nodes.push({
+                        id: subtopicNodeId,
+                        label: formattedLabel,
+                        color: {
+                            background: '#f8f9fa',
+                            border: colorScheme.bg,
+                            highlight: { background: '#e9ecef', border: colorScheme.border }
+                        },
+                        font: { size: 11, color: '#333333', multi: 'html' },
+                        shape: 'box',
+                        margin: 10
+                    });
+                    
+                    // Edge from main topic to subtopic
+                    edges.push({
+                        from: mainNodeId,
+                        to: subtopicNodeId,
+                        color: { color: colorScheme.bg, highlight: colorScheme.border },
+                        width: 2
+                    });
+                    nodeId++;
+                });
+            });
+            
+            // Create the network
+            const data = {
+                nodes: new vis.DataSet(nodes),
+                edges: new vis.DataSet(edges)
+            };
+            
+            const options = {
+                layout: {
+                    hierarchical: {
+                        direction: 'UD',
+                        sortMethod: 'directed',
+                        levelSeparation: 150,
+                        nodeSpacing: 200,
+                        treeSpacing: 250,
+                        blockShifting: true,
+                        edgeMinimization: true,
+                        parentCentralization: true
+                    }
+                },
+                nodes: {
+                    borderWidth: 2,
+                    borderWidthSelected: 4,
+                    chosen: true,
+                    font: {
+                        multi: 'html',
+                        align: 'center'
+                    },
+                    widthConstraint: {
+                        minimum: 120,
+                        maximum: 250
+                    },
+                    heightConstraint: {
+                        minimum: 40,
+                        valign: 'middle'
+                    },
+                    margin: 10
+                },
+                edges: {
+                    arrows: {
+                        to: { enabled: true, scaleFactor: 0.8 }
+                    },
+                    smooth: {
+                        enabled: true,
+                        type: 'continuous',
+                        roundness: 0.3
+                    },
+                    chosen: true
+                },
+                physics: {
+                    enabled: false
+                },
+                interaction: {
+                    dragNodes: true,
+                    dragView: true,
+                    zoomView: true,
+                    selectConnectedEdges: true
+                }
+            };
+            
+            console.log('🎨 Creating vis.js network with nodes:', nodes.length, 'edges:', edges.length);
+            
+            // Initialize the network
+            const network = new vis.Network(container, data, options);
+            console.log('✅ vis.js network created successfully!', network);
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
         
         function generateChapterSummary(videoId, chapterTime, chapterTitle) {
@@ -2657,6 +3038,7 @@
                 button.style.background = '#d32f2f';
             });
         }
+        
     </script>
     
 {% endblock %}

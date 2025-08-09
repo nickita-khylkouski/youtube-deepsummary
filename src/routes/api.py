@@ -1623,3 +1623,145 @@ def delete_global_chat_conversation(conversation_id):
         print(f"Error deleting global conversation: {e}")
         return jsonify({'error': str(e)}), 500
 
+
+@api_bp.route('/mindmap/<video_id>')
+def generate_mindmap(video_id):
+    """API endpoint to generate mindmap for a video using local AI"""
+    try:
+        from src.local_mindmap_generator import local_mindmap_generator
+        
+        # Get video data including transcript and summary
+        video_data = database_storage.get(video_id)
+        if not video_data:
+            return jsonify({
+                'success': False,
+                'error': 'Video not found'
+            }), 404
+        
+        # Get video info
+        video_info = video_data.get('video_info', {})
+        video_title = video_info.get('title', f'Video {video_id}')
+        
+        # Check for existing mindmap in database (using the original mindmaps table)
+        try:
+            existing_mindmap = database_storage.supabase.table('mindmaps')\
+                .select('*')\
+                .eq('video_id', video_id)\
+                .execute()
+            
+            if existing_mindmap.data:
+                mindmap_data = existing_mindmap.data[0]
+                print(f"✓ Using cached mindmap for {video_id}")
+                
+                # Convert old format to new format if needed
+                if 'main_topic' in mindmap_data and 'key_points' in mindmap_data:
+                    # Old format - convert to new format
+                    converted_mindmap = {
+                        'central_topic': mindmap_data['main_topic'],
+                        'main_topics': mindmap_data['key_points'] if isinstance(mindmap_data['key_points'], list) else []
+                    }
+                else:
+                    # Already new format
+                    converted_mindmap = {
+                        'central_topic': mindmap_data.get('central_topic', 'Video Content'),
+                        'main_topics': mindmap_data.get('main_topics', [])
+                    }
+                
+                return jsonify({
+                    'success': True,
+                    'mindmap': converted_mindmap,
+                    'video_id': video_id,
+                    'video_title': video_title,
+                    'cached': True,
+                    'model_used': mindmap_data.get('model_used', 'unknown')
+                })
+        except Exception as db_error:
+            print(f"Warning: Failed to check existing mindmap: {db_error}")
+        
+        # Get content for mindmap generation
+        formatted_transcript = video_data.get('formatted_transcript')
+        if not formatted_transcript:
+            return jsonify({
+                'success': False,
+                'error': 'No transcript available for this video'
+            }), 400
+        
+        # Get existing summary from database (prefer summary over raw transcript)
+        summary = database_storage.get_summary(video_id)
+        
+        print(f"🧭 Generating mindmap for: {video_title}")
+        
+        # Use summary if available, otherwise use transcript
+        content_for_mindmap = summary if summary else formatted_transcript
+        
+        # Generate mindmap using local AI
+        result = local_mindmap_generator.generate_mindmap_from_content(
+            content=content_for_mindmap,
+            title=video_title
+        )
+        
+        if not result['success']:
+            print(f"Mind map generation failed: {result.get('error', 'Unknown error')}")
+            # Use fallback data if generation failed
+            mindmap_data = result['data']
+        else:
+            mindmap_data = result['data']
+        
+        # Validate the mind map data structure
+        if not isinstance(mindmap_data, dict):
+            print(f"Invalid mindmap_data type: {type(mindmap_data)}")
+            return jsonify({
+                'success': False,
+                'error': 'Invalid mind map data structure returned from AI'
+            }), 500
+        
+        if 'central_topic' not in mindmap_data or 'main_topics' not in mindmap_data:
+            print(f"Missing required keys in mindmap_data: {mindmap_data.keys()}")
+            return jsonify({
+                'success': False,
+                'error': 'Mind map data missing required fields'
+            }), 500
+            
+        if not isinstance(mindmap_data['main_topics'], list):
+            print(f"main_topics is not a list: {type(mindmap_data['main_topics'])}")
+            return jsonify({
+                'success': False,
+                'error': 'Mind map main_topics must be a list'
+            }), 500
+        
+        # Save mindmap to database
+        try:
+            # Convert the new format to old format for database compatibility
+            database_storage.supabase.table('mindmaps')\
+                .upsert({
+                    'video_id': video_id,
+                    'main_topic': mindmap_data['central_topic'],
+                    'key_points': mindmap_data['main_topics'],
+                    'model_used': result.get('model_used', 'local-ai'),
+                    'updated_at': 'now()'
+                })\
+                .execute()
+            print(f"✓ Saved mindmap to database")
+        except Exception as db_error:
+            print(f"⚠️ Database save failed: {db_error}")
+            # Continue anyway - don't fail the request if DB save fails
+        
+        return jsonify({
+            'success': True,
+            'mindmap': {
+                'central_topic': mindmap_data['central_topic'],
+                'main_topics': mindmap_data['main_topics']
+            },
+            'video_id': video_id,
+            'video_title': video_title,
+            'cached': False,
+            'model_used': result.get('model_used', 'local-ai')
+        })
+        
+    except Exception as e:
+        print(f"❌ Mindmap error: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to generate mindmap: {str(e)}'
+        }), 500
+
