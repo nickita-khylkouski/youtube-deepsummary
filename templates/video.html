@@ -35,7 +35,7 @@
                         {% endif %}
                         {% if published_at %} • {{ published_at.strftime('%B %d, %Y') if published_at.strftime else published_at[:10] }}{% endif %}
                         {% if video_duration %} • {{ "%.0f"|format(video_duration // 60) }}:{{ "%02.0f"|format(video_duration % 60) }} minutes{% endif %}
-                        • <a href="https://www.youtube.com/watch?v={{ video_id }}" target="_blank" style="color: #ff0000; text-decoration: none;">YouTube</a>
+                        • <a href="https://www.youtube.com/watch?v={{ video_id }}" target="_blank" style="color: #ff0000; text-decoration: none;">YouTube</a>{% if has_blog_post %} • <a href="/{{ channel_info.handle }}/{{ url_path }}" style="color: #1976d2; text-decoration: none;">Blog</a>{% endif %}
                     </p>
                 {% else %}
                     <h2>📺 Video ID: {{ video_id }}</h2>
