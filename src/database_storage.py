@@ -496,6 +496,174 @@ class DatabaseStorage:
             print(f"Error getting summary history for {video_id}: {e}")
             return []
 
+
+    def get_channel_videos_recent(self, channel_id: str, limit: int = None) -> List[Dict]:
+        """
+        Get recent videos from a channel with summary status in a single optimized query
+        
+        Args:
+            channel_id: YouTube channel ID
+            limit: Optional limit on number of videos to return (defaults to all)
+            
+        Returns:
+            List of videos ordered by published_at desc, with has_summary boolean field
+        """
+        try:
+            # Get videos with LEFT JOIN to summaries to check if summary exists
+            query = self.supabase.table('youtube_videos')\
+                .select('*, summaries(video_id)')\
+                .eq('channel_id', channel_id)\
+                .order('published_at', desc=True)
+            
+            # Apply limit if specified
+            if limit:
+                query = query.limit(limit)
+                
+            response = query.execute()
+            
+            videos = []
+            if response.data:
+                for video in response.data:
+                    video_data = video.copy()
+                    # Check if summaries array has any entries
+                    video_data['has_summary'] = bool(video.get('summaries'))
+                    # Remove the summaries join data
+                    if 'summaries' in video_data:
+                        del video_data['summaries']
+                    videos.append(video_data)
+            
+            return videos
+            
+        except Exception as e:
+            print(f"Error getting videos with summary status for channel {channel_id}: {e}")
+            return []
+
+    def get_channel_summary_stats(self, channel_id: str) -> Dict[str, int]:
+        """
+        Get comprehensive channel statistics using a single efficient SQL query
+        
+        Args:
+            channel_id: YouTube channel ID
+            
+        Returns:
+            Dictionary with total_videos, summary_count, videos_without_summaries_count, 
+            videos_without_transcripts_count, snippet_count
+        """
+        try:
+            # Use raw SQL for optimal performance - single query with JOINs and aggregations
+            sql_query = """
+            SELECT 
+                COUNT(DISTINCT v.video_id) as total_videos,
+                COUNT(DISTINCT CASE WHEN s.video_id IS NOT NULL AND s.is_current = true THEN v.video_id END) as summary_count,
+                COUNT(DISTINCT CASE WHEN t.video_id IS NOT NULL THEN v.video_id END) as transcript_count,
+                COUNT(ms.id) as snippet_count
+            FROM youtube_videos v
+            LEFT JOIN summaries s ON v.video_id = s.video_id AND s.is_current = true
+            LEFT JOIN transcripts t ON v.video_id = t.video_id
+            LEFT JOIN memory_snippets ms ON v.video_id = ms.video_id
+            WHERE v.channel_id = %s
+            """
+            
+            response = self.supabase.rpc('execute_sql', {
+                'query': sql_query,
+                'params': [channel_id]
+            }).execute()
+            
+            if response.data and len(response.data) > 0:
+                stats = response.data[0]
+                total_videos = stats.get('total_videos', 0)
+                summary_count = stats.get('summary_count', 0)
+                transcript_count = stats.get('transcript_count', 0)
+                snippet_count = stats.get('snippet_count', 0)
+                
+                return {
+                    'total_videos': total_videos,
+                    'summary_count': summary_count,
+                    'videos_without_summaries_count': max(0, total_videos - summary_count),
+                    'videos_without_transcripts_count': max(0, total_videos - transcript_count),
+                    'snippet_count': snippet_count
+                }
+            else:
+                return {
+                    'total_videos': 0,
+                    'summary_count': 0,
+                    'videos_without_summaries_count': 0,
+                    'videos_without_transcripts_count': 0,
+                    'snippet_count': 0
+                }
+                
+        except Exception as e:
+            print(f"Error getting channel comprehensive stats with SQL for {channel_id}: {e}")
+            # Fallback to original multi-query approach if SQL RPC fails
+            try:
+                # Get total video count
+                videos_response = self.supabase.table('youtube_videos')\
+                    .select('video_id', count='exact')\
+                    .eq('channel_id', channel_id)\
+                    .execute()
+                
+                total_videos = videos_response.count if videos_response.count is not None else 0
+                
+                if total_videos == 0:
+                    return {
+                        'total_videos': 0,
+                        'summary_count': 0,
+                        'videos_without_summaries_count': 0,
+                        'videos_without_transcripts_count': 0,
+                        'snippet_count': 0
+                    }
+                
+                # Get video IDs for subsequent counts
+                video_ids_response = self.supabase.table('youtube_videos')\
+                    .select('video_id')\
+                    .eq('channel_id', channel_id)\
+                    .execute()
+                    
+                video_ids = [v['video_id'] for v in video_ids_response.data] if video_ids_response.data else []
+                
+                # Count summaries
+                summary_response = self.supabase.table('summaries')\
+                    .select('video_id', count='exact')\
+                    .in_('video_id', video_ids)\
+                    .eq('is_current', True)\
+                    .execute()
+                
+                summary_count = summary_response.count if summary_response.count is not None else 0
+                
+                # Count transcripts  
+                transcript_response = self.supabase.table('transcripts')\
+                    .select('video_id', count='exact')\
+                    .in_('video_id', video_ids)\
+                    .execute()
+                
+                transcript_count = transcript_response.count if transcript_response.count is not None else 0
+                
+                # Count snippets
+                snippet_response = self.supabase.table('memory_snippets')\
+                    .select('id', count='exact')\
+                    .in_('video_id', video_ids)\
+                    .execute()
+                
+                snippet_count = snippet_response.count if snippet_response.count is not None else 0
+                
+                return {
+                    'total_videos': total_videos,
+                    'summary_count': summary_count,
+                    'videos_without_summaries_count': max(0, total_videos - summary_count),
+                    'videos_without_transcripts_count': max(0, total_videos - transcript_count),
+                    'snippet_count': snippet_count
+                }
+                
+            except Exception as fallback_error:
+                print(f"Error in fallback query for {channel_id}: {fallback_error}")
+                return {
+                    'total_videos': 0,
+                    'summary_count': 0,
+                    'videos_without_summaries_count': 0,
+                    'videos_without_transcripts_count': 0,
+                    'snippet_count': 0
+                }
+
     def get_summary_by_id(self, summary_id: int) -> Optional[Dict]:
         """
         Get specific summary by ID
@@ -1698,6 +1866,8 @@ class DatabaseStorage:
         except Exception as e:
             print(f"Error getting memory snippets stats: {e}")
             return {'total_snippets': 0, 'videos_with_snippets': 0}
+
+
 
     def get_channel_by_name(self, channel_name: str) -> Optional[Dict]:
         """Get channel by name"""
