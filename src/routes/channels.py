@@ -38,7 +38,7 @@ def channels_page():
 
 @channels_bp.route('/@<channel_handle>', strict_slashes=False)
 def channel_overview(channel_handle):
-    """Display channel overview with stats and navigation links"""
+    """Display channel overview with stats and navigation links - HIGHLY OPTIMIZED"""
     try:
         # Get channel info by handle
         channel_info = database_storage.get_channel_by_handle(channel_handle)
@@ -46,45 +46,25 @@ def channel_overview(channel_handle):
             return render_template('error.html', 
                                  error_message=f"Channel not found: {channel_handle}"), 404
         
-        # Get videos for this channel
-        channel_videos = database_storage.get_videos_by_channel(channel_id=channel_info['channel_id'])
+        # Get ONLY 6 recent videos with summary status (OPTIMIZED - no longer fetches all 102!)
+        recent_videos = database_storage.get_channel_videos_recent(channel_info['channel_id'], limit=6)
         
-        # Get summary count and videos without summaries
-        summary_count = 0
-        videos_without_summaries = []
-        if channel_videos:
-            for video in channel_videos:
-                if database_storage.get_summary(video['video_id']):
-                    summary_count += 1
-                else:
-                    videos_without_summaries.append(video['video_id'])
+        # Get ALL channel statistics in a single comprehensive call (SUPER OPTIMIZED)
+        channel_stats = database_storage.get_channel_summary_stats(channel_info['channel_id'])
         
-        # Get videos without transcripts count
-        videos_without_transcripts = database_storage.get_videos_without_transcripts(channel_info['channel_id'])
-        videos_without_transcripts_count = len(videos_without_transcripts)
-        
-        # Get snippet count for this channel
-        snippets = database_storage.get_memory_snippets(limit=1000)
-        snippet_count = 0
-        for snippet in snippets:
-            if snippet.get('channel_id') == channel_info['channel_id']:
-                snippet_count += 1
-        
-        # Get recent videos (latest 6)
-        recent_videos = channel_videos[:6] if channel_videos else []
+        # Process recent videos for display
         for video in recent_videos:
             video['thumbnail_url'] = f"https://img.youtube.com/vi/{video['video_id']}/maxresdefault.jpg"
-            video['has_summary'] = database_storage.get_summary(video['video_id']) is not None
+            # has_summary already set by get_channel_videos_recent
         
         return render_template('channel_overview.html',
                              channel_info=channel_info,
                              channel_handle=channel_handle,
-                             total_videos=len(channel_videos) if channel_videos else 0,
-                             summary_count=summary_count,
-                             videos_without_summaries_count=len(videos_without_summaries),
-                             videos_without_summaries=videos_without_summaries,
-                             videos_without_transcripts_count=videos_without_transcripts_count,
-                             snippet_count=snippet_count,
+                             total_videos=channel_stats['total_videos'],
+                             summary_count=channel_stats['summary_count'],
+                             videos_without_summaries_count=channel_stats['videos_without_summaries_count'],
+                             videos_without_transcripts_count=channel_stats['videos_without_transcripts_count'],
+                             snippet_count=channel_stats['snippet_count'],
                              recent_videos=recent_videos)
         
     except Exception as e:
