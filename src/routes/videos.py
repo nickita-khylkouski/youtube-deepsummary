@@ -140,6 +140,10 @@ def video_by_url_path(channel_handle, url_path):
         # Get published_at from the video data
         published_at = video.get('published_at')
         
+        # Check if blog post exists (has url_path and summary)
+        url_path_value = video.get('url_path')
+        has_blog_post = bool(url_path_value and summary and summary.strip())
+        
         return render_template('video.html', 
                              video_id=video_id,
                              video_title=video_title,
@@ -157,6 +161,8 @@ def video_by_url_path(channel_handle, url_path):
                              has_transcript=has_transcript,
                              has_chapters=has_chapters,
                              published_at=published_at,
+                             url_path=url_path_value,
+                             has_blog_post=has_blog_post,
                              summarize_enabled=video_processor.summarizer and video_processor.summarizer.is_configured())
         
     except Exception as e:
