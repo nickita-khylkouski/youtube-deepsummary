@@ -126,6 +126,20 @@ def video_by_url_path(channel_handle, url_path):
         # Get memory snippets for this video
         snippets = database_storage.get_memory_snippets(video_id=video_id)
         
+        # Get mindmap from database if it exists
+        mindmap = None
+        try:
+            mindmap_result = database_storage.supabase.table('mindmaps')\
+                .select('main_topic, key_points, model_used, created_at')\
+                .eq('video_id', video_id)\
+                .execute()
+            
+            if mindmap_result.data:
+                mindmap = mindmap_result.data[0]
+        except Exception as e:
+            print(f"Error loading mindmap for video {video_id}: {e}")
+            mindmap = None
+        
         # Get chapter summaries for this video
         chapter_summaries = database_storage.get_all_chapter_summaries(video_id)
         
@@ -152,6 +166,8 @@ def video_by_url_path(channel_handle, url_path):
                              summary=summary,
                              has_summary=bool(summary and summary.strip()),
                              snippets=snippets,
+                             mindmap=mindmap,
+                             has_mindmap=bool(mindmap),
                              chapter_summaries_lookup=chapter_summaries_lookup,
                              thumbnail_url=thumbnail_url,
                              has_transcript=has_transcript,
